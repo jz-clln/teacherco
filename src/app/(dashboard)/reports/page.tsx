@@ -1,0 +1,3 @@
+import { Card } from "@/components/ui/card";
+export const metadata = { title: "Reports" };
+export default function ReportsPage() { return <div className="space-y-6"><div><p className="text-sm font-medium text-[#4F6F52]">REPORTS</p><h1 className="mt-1 text-3xl font-bold">Teacher-ready summaries</h1></div><Card><h2 className="font-semibold">Class Performance Summary</h2><p className="mt-2 text-sm text-[#606861]">AI prose will be generated only from deterministic, verified classroom facts.</p></Card><Card><h2 className="font-semibold">Learner Progress Summary</h2><p className="mt-2 text-sm text-[#606861]">Planned after learner import and evidence calculations are stable.</p></Card></div>; }

@@ -1,0 +1,3 @@
+import { Card } from "@/components/ui/card";
+export const metadata = { title: "Check" };
+export default function CheckPage() { return <div className="space-y-6"><div><p className="text-sm font-medium text-[#4F6F52]">CHECK</p><h1 className="mt-1 text-3xl font-bold">Assessment checking</h1><p className="mt-2 text-[#606861]">Foundation placeholder for answer keys, image upload, uncertain-answer review, and deterministic scoring.</p></div><Card><h2 className="font-semibold">MVP scope</h2><p className="mt-2 text-sm text-[#606861]">Multiple choice and True/False first. Teacher confirms uncertain recognition before scores are saved.</p></Card></div>; }
