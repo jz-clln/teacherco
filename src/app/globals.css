@@ -19,20 +19,62 @@
   --border: #e3e5e1;
 }
 
-* { box-sizing: border-box; }
-html { background: var(--ivory); }
-body {
-  margin: 0;
-  background: var(--ivory);
-  color: var(--text-primary);
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    background: var(--ivory);
+  }
+  body {
+    margin: 0;
+    background: var(--ivory);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
-a { color: inherit; text-decoration: none; }
-button, input, textarea, select { font: inherit; }
 
 .teacherco-card {
   background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
   border-radius: 1.25rem;
   box-shadow: 0 10px 30px rgba(18, 56, 32, 0.05);
+}
+
+/* Pixel classroom animations */
+.px-nod {
+  animation: px-nod 3s steps(1) infinite;
+}
+.px-write {
+  animation: px-write 0.5s steps(1) infinite;
+}
+.px-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: px-blink 4s infinite;
+}
+
+@keyframes px-nod {
+  0%, 100% { transform: translateY(0); }
+  35% { transform: translateY(1px); }
+  50% { transform: translateY(0); }
+  75% { transform: translateY(1px); }
+}
+@keyframes px-write {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1px, 0.5px); }
+}
+@keyframes px-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  94%, 98% { transform: scaleY(0.1); }
 }

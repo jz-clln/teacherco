@@ -16,16 +16,22 @@ export const metadata: Metadata = {
   },
   description: "Your classroom companion.",
   applicationName: "TeacherCo",
+  icons: {
+    icon: "/brand/teacherco-mascot.png",
+    apple: "/brand/teacherco-mascot.png",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#1A4D2E",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={poppins.className}>
+      <body className={poppins.className} suppressHydrationWarning>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
