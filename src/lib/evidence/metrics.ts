@@ -1,3 +1,5 @@
+//src\lib\evidence\metrics.ts
+
 export type ScoreRow = { learnerId: string; earned: number | null; possible: number | null };
 
 export function percentage(earned: number, possible: number) {
