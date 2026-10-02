@@ -17,10 +17,12 @@ export default async function ClassOverviewPage({
   searchParams,
 }: {
   params: Promise<{ classId: string }>;
-  searchParams: Promise<{ error?: string; added?: string; removed?: string }>;
+  searchParams: Promise<{ error?: string; added?: string; removed?: string; imported?: string; skipped?: string }>;
 }) {
   const { classId } = await params;
-  const { error, added, removed } = await searchParams;
+  const { error, added, removed, imported, skipped } = await searchParams;
+  const importedCount = Number(imported ?? 0);
+  const skippedCount = Number(skipped ?? 0);
   const supabase = await createClient();
 
   const { data: classroom } = await supabase
@@ -83,6 +85,15 @@ export default async function ClassOverviewPage({
           <Upload size={18} /> Import record
         </Link>
       </div>
+
+      {imported !== undefined ? (
+        <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">
+          {importedCount === 0
+            ? "No new students were added."
+            : `${importedCount} ${importedCount === 1 ? "student was" : "students were"} imported.`}
+          {skippedCount > 0 ? ` ${skippedCount} already in this class ${skippedCount === 1 ? "was" : "were"} skipped.` : ""}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card>
