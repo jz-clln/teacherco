@@ -36,6 +36,15 @@ export type GradeSheet = {
   ignored: number;
 };
 
+export type DetectGradeOptions = {
+  /**
+   * Also return score columns that have a highest possible score but no scores yet.
+   * Used by the export, so a new assessment can be written into an empty column.
+   * Imports leave this off.
+   */
+  keepEmpty?: boolean;
+};
+
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
 const cell = (rows: Grid, r: number, c: number) => rows[r]?.[c] ?? "";
 
@@ -77,7 +86,7 @@ function termLabel(sheet: SheetGrid): string {
 }
 
 /** Returns the grade data of one sheet, or null when it has no score columns. */
-export function detectGradeSheet(sheet: SheetGrid): GradeSheet | null {
+export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions = {}): GradeSheet | null {
   const rows = sheet.rows;
 
   // 1. The "HIGHEST POSSIBLE SCORE" row. The column headers sit right above it.
@@ -154,7 +163,7 @@ export function detectGradeSheet(sheet: SheetGrid): GradeSheet | null {
         return value;
       }),
     }))
-    .filter((col) => col.scores.some((s) => s != null));
+    .filter((col) => options.keepEmpty || col.scores.some((s) => s != null));
   if (columns.length === 0) return null;
 
   return { sheet: sheet.name, term, learners, columns, ignored };

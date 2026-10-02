@@ -8,9 +8,13 @@ import { ClipboardPaste, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { updateClassDetails } from "@/features/classes/details-actions";
+import type { ClassDetails } from "@/features/classes/details";
+import { ImportLoader } from "@/features/learners/import-loader";
 import { importGrades } from "@/features/learners/grade-actions";
 import { importLearners } from "@/features/learners/import-actions";
 import type { GradeSheet } from "@/lib/excel/grades";
+import { hasClassInfo, type ClassInfo } from "@/lib/excel/class-info";
 import { openWorkbook, type SheetInfo } from "@/lib/excel/parser";
 import {
   columnOptions,
@@ -35,7 +39,22 @@ type Source = {
   read: (name: string) => SheetGrid;
   /** Only workbooks can have grades. Opens every visible sheet, so it runs on request. */
   findGrades?: () => GradeSheet[];
+  /** School, adviser, grade, section, subject and school year printed in the workbook. */
+  classInfo?: () => ClassInfo;
 };
+
+type InfoKey = "name" | "schoolName" | "schoolId" | "adviser" | "gradeLevel" | "section" | "subject" | "schoolYear";
+const INFO_ROWS: { key: InfoKey; label: string }[] = [
+  { key: "schoolName", label: "School name" },
+  { key: "adviser", label: "Adviser / teacher" },
+  { key: "gradeLevel", label: "Grade level" },
+  { key: "section", label: "Section" },
+  { key: "subject", label: "Subject" },
+  { key: "schoolYear", label: "School year" },
+  { key: "schoolId", label: "School ID" },
+  { key: "name", label: "Class name" },
+];
+const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 type Edit = Partial<Pick<RosterRow, "firstName" | "lastName" | "lrn" | "include">>;
 
 const FORMAT_OPTIONS: { value: NameFormat; label: string }[] = [
@@ -47,7 +66,10 @@ const FORMAT_OPTIONS: { value: NameFormat; label: string }[] = [
 const cellInput =
   "w-full min-w-28 rounded-lg border border-[#E3E5E1] bg-white px-2 py-1.5 text-sm outline-none focus:border-[#4F6F52]";
 
-export function RosterImport({ classId }: { classId: string }) {
+/** Waits until the browser has painted, so a loading message is visible before slow work starts. */
+const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
+export function RosterImport({ classId, currentClass }: { classId: string; currentClass?: ClassDetails }) {
   const router = useRouter();
   const [tab, setTab] = useState<"file" | "paste">("file");
   const [source, setSource] = useState<Source | null>(null);
@@ -56,12 +78,16 @@ export function RosterImport({ classId }: { classId: string }) {
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState("Opening your workbook");
+  const [busyFile, setBusyFile] = useState("");
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [wantGrades, setWantGrades] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [gradeSheets, setGradeSheets] = useState<GradeSheet[] | null>(null);
+  const [fileInfo, setFileInfo] = useState<ClassInfo | null>(null);
+  const [infoEdits, setInfoEdits] = useState<Record<string, { use?: boolean; value?: string }>>({});
   const [gradePick, setGradePick] = useState<Record<string, boolean>>({});
 
   function load(next: Source, fallbackSheet: string, found: RosterDetection) {
@@ -72,17 +98,39 @@ export function RosterImport({ classId }: { classId: string }) {
     setWantGrades(false);
     setGradeSheets(null);
     setGradePick({});
+    setInfoEdits({});
+    setFileInfo(next.classInfo ? next.classInfo() : null);
     setError(null);
+    // Read the grades right away so the teacher sees them without having to ask.
+    if (next.findGrades) {
+      setWantGrades(true);
+      void scanGrades(next);
+    }
   }
 
   async function onFile(file?: File) {
     if (!file) return;
     setBusy(true);
+    setBusyFile(file.name);
+    setStage("Opening your workbook");
     setError(null);
+    const started = Date.now();
     try {
+      await nextPaint(); // let the loader show before the heavy work blocks the page
       const wb = await openWorkbook(file);
+      setStage("Finding your learners");
+      await nextPaint();
       const { sheetName, detection } = wb.detect();
-      load({ label: wb.fileName, sheets: wb.sheets, read: wb.read, findGrades: wb.findGrades }, sheetName, detection);
+      setStage("Getting your list ready");
+      await nextPaint();
+      // Keep the loader up for a moment so it never just flashes.
+      const wait = 800 - (Date.now() - started);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      load(
+        { label: wb.fileName, sheets: wb.sheets, read: wb.read, findGrades: wb.findGrades, classInfo: wb.classInfo },
+        sheetName,
+        detection,
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read this workbook.");
     } finally {
@@ -135,19 +183,23 @@ export function RosterImport({ classId }: { classId: string }) {
     setEdits({});
   }
 
-  async function toggleGrades(on: boolean) {
-    setWantGrades(on);
-    if (!on || gradeSheets || !source?.findGrades) return;
+  async function scanGrades(src: Source) {
+    if (!src.findGrades) return;
     setScanning(true);
-    await new Promise((resolve) => setTimeout(resolve, 0)); // let "Looking for grades" show first
+    await nextPaint(); // let "Looking for grades" show first
     try {
-      setGradeSheets(source.findGrades());
+      setGradeSheets(src.findGrades());
     } catch {
       setError("Could not read the grade sheets in this file.");
       setWantGrades(false);
     } finally {
       setScanning(false);
     }
+  }
+
+  async function toggleGrades(on: boolean) {
+    setWantGrades(on);
+    if (on && !gradeSheets && source) await scanGrades(source);
   }
 
   function patchRow(key: string, patch: Edit) {
@@ -171,6 +223,19 @@ export function RosterImport({ classId }: { classId: string }) {
     return { g, matched, on };
   });
   const chosenGrades = wantGrades ? gradeInfo.filter((x) => x.on) : [];
+
+  // Class details found in the file. A row is ticked by default when it differs from what the class has now.
+  const infoRows = hasClassInfo(fileInfo) && currentClass
+    ? INFO_ROWS.flatMap(({ key, label }) => {
+        const found = fileInfo[key];
+        if (!found) return [];
+        const now = key === "name" ? currentClass.name : currentClass[key];
+        const edit = infoEdits[key];
+        const value = edit?.value ?? found;
+        return [{ key, label, now, value, use: !!value.trim() && (edit?.use ?? !same(found, now)) }];
+      })
+    : [];
+  const chosenInfo = infoRows.filter((r) => r.use);
 
   const columns = useMemo(
     () =>
@@ -209,8 +274,29 @@ export function RosterImport({ classId }: { classId: string }) {
         gradeScores = grades.scores;
       }
 
+      if (currentClass && chosenInfo.length > 0) {
+        const pick = (key: InfoKey, fallback: string) => chosenInfo.find((r) => r.key === key)?.value.trim() ?? fallback;
+        const details = await updateClassDetails({
+          classId,
+          name: pick("name", currentClass.name),
+          schoolName: pick("schoolName", currentClass.schoolName),
+          schoolId: pick("schoolId", currentClass.schoolId),
+          adviser: pick("adviser", currentClass.adviser),
+          gradeLevel: pick("gradeLevel", currentClass.gradeLevel),
+          section: pick("section", currentClass.section),
+          subject: pick("subject", currentClass.subject),
+          schoolYear: pick("schoolYear", currentClass.schoolYear),
+          benchmark: currentClass.benchmark,
+        });
+        if (!details.ok) {
+          setError(`Learners were saved. ${details.error}`);
+          return;
+        }
+      }
+
       const gradesParam = gradeScores > 0 ? `&grades=${gradeScores}` : "";
-      router.push(`/classes/${classId}?imported=${result.added}&skipped=${result.skipped}${gradesParam}`);
+      const detailsParam = currentClass && chosenInfo.length > 0 ? "&details=1" : "";
+      router.push(`/classes/${classId}?imported=${result.added}&skipped=${result.skipped}${gradesParam}${detailsParam}`);
     });
   }
 
@@ -219,15 +305,17 @@ export function RosterImport({ classId }: { classId: string }) {
     return (
       <div className="space-y-4">
         <div className="flex gap-2">
-          <Button variant={tab === "file" ? "primary" : "secondary"} onClick={() => setTab("file")}>
+          <Button variant={tab === "file" ? "primary" : "secondary"} disabled={busy} onClick={() => setTab("file")}>
             <UploadCloud size={16} className="mr-2" /> Excel file
           </Button>
-          <Button variant={tab === "paste" ? "primary" : "secondary"} onClick={() => setTab("paste")}>
+          <Button variant={tab === "paste" ? "primary" : "secondary"} disabled={busy} onClick={() => setTab("paste")}>
             <ClipboardPaste size={16} className="mr-2" /> Paste a list
           </Button>
         </div>
 
-        {tab === "file" ? (
+        {busy ? (
+          <ImportLoader message={stage} detail={busyFile} />
+        ) : tab === "file" ? (
           <label
             onDragEnter={onDragOver}
             onDragOver={onDragOver}
@@ -272,7 +360,6 @@ export function RosterImport({ classId }: { classId: string }) {
           </Card>
         )}
 
-        {busy ? <p className="text-sm text-[#606861]">Reading workbook…</p> : null}
         {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </div>
     );
@@ -375,6 +462,38 @@ export function RosterImport({ classId }: { classId: string }) {
         </details>
       </Card>
 
+      {infoRows.length > 0 ? (
+        <Card>
+          <h2 className="text-lg font-semibold">Class details in your file</h2>
+          <p className="mt-1 text-sm text-[#606861]">
+            Ticked details replace what this class has now when you import. You can edit them here, or later with
+            &quot;Edit class details&quot;.
+          </p>
+          <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
+            {infoRows.map((r) => (
+              <li key={r.key} className="grid items-center gap-2 px-4 py-3 sm:grid-cols-[auto_9rem_1fr_1fr]">
+                <input
+                  type="checkbox"
+                  aria-label={`Use ${r.label} from the file`}
+                  checked={r.use}
+                  disabled={pending}
+                  onChange={(e) => setInfoEdits((cur) => ({ ...cur, [r.key]: { ...cur[r.key], use: e.target.checked } }))}
+                />
+                <span className="text-sm font-medium">{r.label}</span>
+                <input
+                  aria-label={`${r.label} from the file`}
+                  value={r.value}
+                  disabled={pending}
+                  onChange={(e) => setInfoEdits((cur) => ({ ...cur, [r.key]: { ...cur[r.key], value: e.target.value } }))}
+                  className={cellInput}
+                />
+                <span className="text-xs text-[#606861]">Now: {r.now || "not set"}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E3E5E1] px-5 py-4">
           <h2 className="text-lg font-semibold">Learners found</h2>
@@ -388,7 +507,7 @@ export function RosterImport({ classId }: { classId: string }) {
             No names found with these settings. Try another sheet, column or row range.
           </p>
         ) : (
-          <div className="max-h-[32rem] overflow-auto">
+          <div className="max-h-128 overflow-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 bg-[#F5F6F4] text-xs text-[#606861]">
                 <tr>
@@ -476,7 +595,7 @@ export function RosterImport({ classId }: { classId: string }) {
             </span>
           </label>
 
-          {scanning ? <p className="mt-3 text-sm text-[#606861]">Looking for grade sheets…</p> : null}
+          {scanning ? <ImportLoader compact className="mt-3" message="Looking for grade sheets" /> : null}
 
           {wantGrades && !scanning && gradeSheets ? (
             gradeInfo.length === 0 ? (
@@ -534,11 +653,15 @@ export function RosterImport({ classId }: { classId: string }) {
         </p>
       ) : null}
 
+      {pending ? (
+        <ImportLoader compact message={chosenGrades.length > 0 ? "Saving learners and grades" : "Saving your learners"} />
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={runImport} disabled={!canImport}>
           {pending
             ? "Importing…"
-            : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}${chosenGrades.length > 0 ? " and grades" : ""}`}
+            : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}${chosenGrades.length > 0 ? " and grades" : ""}${chosenInfo.length > 0 ? " and class details" : ""}`}
         </Button>
         <p className="text-sm text-[#606861]">
           Your file is read in your browser. Only the names you confirm are saved. Learners already in this class are skipped.

@@ -2,25 +2,38 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, Download, Upload, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { addLearner } from "@/features/learners/actions";
 import { DeleteStudentButton } from "@/features/learners/delete-student-button";
+import { EditClassDetails } from "@/features/classes/edit-class-details";
+import { toClassDetails } from "@/features/classes/details";
+import { getClassStats } from "@/features/classes/stats";
 
 const inputClass =
   "mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]";
+
+const pct = (n: number) => `${Math.round(n * 10) / 10}%`;
 
 export default async function ClassOverviewPage({
   params,
   searchParams,
 }: {
   params: Promise<{ classId: string }>;
-  searchParams: Promise<{ error?: string; added?: string; removed?: string; imported?: string; skipped?: string; grades?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    added?: string;
+    removed?: string;
+    imported?: string;
+    skipped?: string;
+    grades?: string;
+    details?: string;
+  }>;
 }) {
   const { classId } = await params;
-  const { error, added, removed, imported, skipped, grades } = await searchParams;
+  const { error, added, removed, imported, skipped, grades, details } = await searchParams;
   const importedCount = Number(imported ?? 0);
   const skippedCount = Number(skipped ?? 0);
   const gradeCount = Number(grades ?? 0);
@@ -28,7 +41,7 @@ export default async function ClassOverviewPage({
 
   const { data: classroom } = await supabase
     .from("classes")
-    .select("id,name,subject,grade_level,school_year,benchmark")
+    .select("id,name,subject,grade_level,school_year,benchmark,school_name,school_id,adviser,section")
     .eq("id", classId)
     .single();
   if (!classroom) notFound();
@@ -64,6 +77,14 @@ export default async function ClassOverviewPage({
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const total = count ?? 0;
+  const benchmark = Number(classroom.benchmark);
+  const stats = await getClassStats(
+    supabase,
+    classId,
+    learners.map((l) => l.id),
+    benchmark,
+  );
+  const details_ = toClassDetails(classroom);
 
   return (
     <div className="space-y-6">
@@ -74,17 +95,32 @@ export default async function ClassOverviewPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-[#4F6F52]">
-            {classroom.grade_level} · {classroom.school_year}
+            {classroom.grade_level}
+            {classroom.section ? ` · ${classroom.section}` : ""} · {classroom.school_year}
           </p>
           <h1 className="mt-1 text-3xl font-bold">{classroom.name}</h1>
           <p className="mt-1 text-[#606861]">{classroom.subject}</p>
+          {classroom.school_name || classroom.adviser ? (
+            <p className="mt-1 text-sm text-[#606861]">
+              {[classroom.school_name, classroom.adviser ? `Adviser: ${classroom.adviser}` : ""].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
         </div>
-        <Link
-          href={`/classes/${classId}/records`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 py-2 text-sm font-semibold text-white"
-        >
-          <Upload size={18} /> Import record
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <EditClassDetails classId={classId} initial={details_} />
+          <Link
+            href={`/classes/${classId}/export`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F5F6F4]"
+          >
+            <Download size={18} /> Export record
+          </Link>
+          <Link
+            href={`/classes/${classId}/records`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 py-2 text-sm font-semibold text-white"
+          >
+            <Upload size={18} /> Import record
+          </Link>
+        </div>
       </div>
 
       {imported !== undefined ? (
@@ -94,6 +130,7 @@ export default async function ClassOverviewPage({
             : `${importedCount} ${importedCount === 1 ? "student was" : "students were"} imported.`}
           {skippedCount > 0 ? ` ${skippedCount} already in this class ${skippedCount === 1 ? "was" : "were"} skipped.` : ""}
           {gradeCount > 0 ? ` ${gradeCount} ${gradeCount === 1 ? "score was" : "scores were"} saved from your record.` : ""}
+          {details === "1" ? " Class details were updated from your file." : ""}
         </p>
       ) : null}
 
@@ -104,19 +141,35 @@ export default async function ClassOverviewPage({
         </Card>
         <Card>
           <p className="text-sm text-[#606861]">Class average</p>
-          <p className="mt-2 text-3xl font-bold">—</p>
+          <p className="mt-2 text-3xl font-bold">{stats.average == null ? "—" : pct(stats.average)}</p>
+          <p className="mt-1 text-xs text-[#606861]">
+            {stats.average == null ? "Import grades to see this" : `${stats.scored} learners · ${stats.assessments} score columns`}
+          </p>
         </Card>
         <Card>
-          <p className="text-sm text-[#606861]">Below {Number(classroom.benchmark)}%</p>
-          <p className="mt-2 text-3xl font-bold">—</p>
+          <p className="text-sm text-[#606861]">Below {benchmark}%</p>
+          <p className={`mt-2 text-3xl font-bold ${stats.below > 0 ? "text-red-700" : ""}`}>
+            {stats.average == null ? "—" : stats.below}
+          </p>
+          <p className="mt-1 text-xs text-[#606861]">
+            {stats.average == null ? "Import grades to see this" : stats.below === 1 ? "learner" : "learners"}
+          </p>
         </Card>
         <Card>
           <p className="text-sm text-[#606861]">Attendance</p>
-          <p className="mt-2 text-3xl font-bold">—</p>
+          <p className="mt-2 text-3xl font-bold">{stats.attendance == null ? "—" : pct(stats.attendance)}</p>
+          {stats.attendance == null ? <p className="mt-1 text-xs text-[#606861]">No attendance recorded yet</p> : null}
         </Card>
         <Card className="bg-[#E8DFCA]/55">
-          <p className="text-sm text-[#606861]">Lowest competency</p>
-          <p className="mt-2 text-lg font-bold">Import data first</p>
+          <p className="text-sm text-[#606861]">Lowest scoring activity</p>
+          {stats.lowest ? (
+            <>
+              <p className="mt-2 text-lg font-bold">{stats.lowest.title}</p>
+              <p className="mt-1 text-xs text-[#606861]">{pct(stats.lowest.average)} class average</p>
+            </>
+          ) : (
+            <p className="mt-2 text-lg font-bold">Import data first</p>
+          )}
         </Card>
       </div>
 

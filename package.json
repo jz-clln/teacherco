@@ -23,6 +23,7 @@
     "clsx": "latest",
     "dexie": "latest",
     "exceljs": "latest",
+    "jszip": "^3.10.2",
     "lucide-react": "latest",
     "mammoth": "latest",
     "next": "latest",

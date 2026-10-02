@@ -1,6 +1,7 @@
 // src/lib/excel/parser.ts
 
 import ExcelJS from "exceljs";
+import { detectClassInfo, type ClassInfo } from "@/lib/excel/class-info";
 import { detectGradeSheet, type GradeSheet } from "@/lib/excel/grades";
 import { detectRoster, type RosterDetection, type SheetGrid } from "@/lib/excel/roster";
 
@@ -86,6 +87,8 @@ export type WorkbookReader = {
    * call it when the teacher asks to import grades. Hidden sheets are skipped.
    */
   findGrades: () => GradeSheet[];
+  /** School name, adviser, grade, section, subject and school year from the top of the sheets. */
+  classInfo: () => ClassInfo;
 };
 
 // Same hint roster.ts uses to prefer the learner sheet (INPUT, SF1, Learners...).
@@ -140,12 +143,17 @@ export async function openWorkbook(file: File): Promise<WorkbookReader> {
     return grid;
   };
 
-  const detect = () => {
+  // Learner sheet first, then the others. Hidden sheets are never opened automatically.
+  const visibleOrdered = () => {
     const visible = sheets.filter((s) => !s.hidden);
-    const ordered = [
+    return [
       ...visible.filter((s) => LIKELY_ROSTER_SHEET.test(s.name)),
       ...visible.filter((s) => !LIKELY_ROSTER_SHEET.test(s.name)),
     ];
+  };
+
+  const detect = () => {
+    const ordered = visibleOrdered();
 
     let weak: { sheetName: string; detection: RosterDetection } | null = null;
     for (const info of ordered) {
@@ -169,5 +177,13 @@ export async function openWorkbook(file: File): Promise<WorkbookReader> {
         return found ? [found] : [];
       });
 
-  return { fileName: file.name, sheets, read, detect, findGrades };
+  // Stops reading sheets as soon as every detail has been found.
+  const classInfo = () =>
+    detectClassInfo(
+      (function* () {
+        for (const info of visibleOrdered()) yield read(info.name);
+      })(),
+    );
+
+  return { fileName: file.name, sheets, read, detect, findGrades, classInfo };
 }
