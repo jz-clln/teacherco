@@ -4,7 +4,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardPaste, UploadCloud } from "lucide-react";
+import { CheckCircle2, ClipboardPaste, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -57,6 +57,9 @@ const INFO_ROWS: { key: InfoKey; label: string }[] = [
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 type Edit = Partial<Pick<RosterRow, "firstName" | "lastName" | "lrn" | "include">>;
 
+/** Shown instead of an automatic redirect when some score columns were left alone. */
+type Finished = { url: string; added: number; scores: number; protectedTitles: string[] };
+
 const FORMAT_OPTIONS: { value: NameFormat; label: string }[] = [
   { value: "surname-first", label: "Surname, First name (DELA CRUZ, JUAN)" },
   { value: "first-last", label: "First name Surname (Juan Dela Cruz)" },
@@ -93,6 +96,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   const [matches, setMatches] = useState<Record<string, LearnerMatch[]> | null>(null);
   // Row index -> id of the learner to link, or "new" to keep separate.
   const [decisions, setDecisions] = useState<Record<string, string>>({});
+  const [finished, setFinished] = useState<Finished | null>(null);
 
   function load(next: Source, fallbackSheet: string, found: RosterDetection) {
     setSource(next);
@@ -291,6 +295,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
       }
 
       let gradeScores = 0;
+      let protectedTitles: string[] = [];
       if (chosenGrades.length > 0) {
         const grades = await importGrades({
           classId,
@@ -305,6 +310,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
           return;
         }
         gradeScores = grades.scores;
+        protectedTitles = grades.protectedTitles ?? [];
       }
 
       if (currentClass && chosenInfo.length > 0) {
@@ -329,8 +335,63 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
 
       const gradesParam = gradeScores > 0 ? `&grades=${gradeScores}` : "";
       const detailsParam = currentClass && chosenInfo.length > 0 ? "&details=1" : "";
-      router.push(`/classes/${classId}?imported=${result.added}&skipped=${result.skipped}${gradesParam}${detailsParam}`);
+      const url = `/classes/${classId}?imported=${result.added}&skipped=${result.skipped}${gradesParam}${detailsParam}`;
+
+      // Some score columns were left alone: stop here so the teacher can read why.
+      if (protectedTitles.length > 0) {
+        setFinished({ url, added: result.added, scores: gradeScores, protectedTitles });
+        return;
+      }
+      router.push(url);
     });
+  }
+
+  // ------------------------------------------------------------ finished with a notice
+  if (finished) {
+    const shown = finished.protectedTitles.slice(0, 6);
+    const extra = finished.protectedTitles.length - shown.length;
+    const count = finished.protectedTitles.length;
+    return (
+      <Card className="space-y-4 sm:p-6">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 size={22} className="mt-0.5 shrink-0 text-[#1A4D2E]" />
+          <div>
+            <h2 className="text-lg font-semibold">Import finished</h2>
+            <p className="mt-1 text-sm text-[#606861]">
+              {finished.added === 0
+                ? "No new learners were added."
+                : `${finished.added} ${finished.added === 1 ? "learner was" : "learners were"} imported.`}{" "}
+              {finished.scores > 0
+                ? `${finished.scores} ${finished.scores === 1 ? "score was" : "scores were"} saved from your record.`
+                : "No scores were saved."}
+            </p>
+          </div>
+        </div>
+
+        <div role="status" className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+          <p className="font-semibold">
+            {count} score {count === 1 ? "column was" : "columns were"} not imported
+          </p>
+          <p className="mt-1">
+            TeacherCo already has {count === 1 ? "this column's" : "these columns'"} scores. {count === 1 ? "It belongs" : "They belong"} to
+            activities you checked on the Check screen, typed in yourself, or exported into your file earlier. {count === 1 ? "It was" : "They were"}{" "}
+            left exactly as {count === 1 ? "it is" : "they are"}, so nothing is overwritten or counted twice.
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5">
+            {shown.map((title) => (
+              <li key={title}>{title}</li>
+            ))}
+            {extra > 0 ? <li>and {extra} more</li> : null}
+          </ul>
+          <p className="mt-2">
+            If {count === 1 ? "this column holds" : "one of these columns holds"} different scores that did not come from TeacherCo,
+            change {count === 1 ? "its" : "the"} name in your workbook and import again.
+          </p>
+        </div>
+
+        <Button onClick={() => router.push(finished.url)}>Go to the class</Button>
+      </Card>
+    );
   }
 
   // ------------------------------------------------------------ first step

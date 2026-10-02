@@ -47,9 +47,15 @@ export type ImportGradesResult =
       ok: true;
       /** Scores written (new or updated). */
       scores: number;
-      /** Assessments created. Existing ones with the same title are reused. */
+      /** Assessments created. Existing imported ones with the same title are reused. */
       created: number;
       skippedSheets: string[];
+      /**
+       * Score columns left alone because TeacherCo already has those scores: the class has a
+       * checked or typed-in activity with the same title, or one that was exported into
+       * that column earlier. An import never overwrites or duplicates them.
+       */
+      protectedTitles?: string[];
     }
   | { ok: false; error: string };
 
@@ -103,10 +109,16 @@ function averagesOf(scores: Map<string, Score>, enrolled: Set<string>) {
 
 /**
  * Saves grades read from a class record. Every score column becomes one assessment
- * ("Term 2 · Written Work 1") and every score becomes a confirmed submission.
+ * ("Term 2 · Written Work 1", source "imported") and every score becomes a confirmed submission.
  * Learners are matched by name against the learners already in the class. LRNs are never sent or stored.
  * Running it twice updates the same assessments and scores instead of duplicating them.
  * Blank cells are never saved as zero.
+ * A column is skipped when TeacherCo already owns its scores:
+ *   - the class has a checked or typed-in activity with the same title, or
+ *   - a checked or typed-in activity was exported into that column earlier (assessments.exported_title).
+ * So an import can never overwrite them or count the same scores twice.
+ * Scores are written by the database function import_grade_scores, the only path the
+ * submissions guard accepts for imported activities.
  * Each import that changes something is written to the import history, so the class page can show
  * what is new, what changed, and how the averages moved.
  */
@@ -166,18 +178,34 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     }
   }
 
-  const list = [...prepared.values()];
-  if (list.length === 0) return { ok: true, scores: 0, created: 0, skippedSheets };
+  const wanted = [...prepared.values()];
+  if (wanted.length === 0) return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles: [] };
 
-  // Reuse assessments with the same title, create the rest.
-  const { data: existing, error: existingError } = await supabase
-    .from("assessments")
-    .select("id,title")
-    .eq("class_id", classId)
-    .in("title", list.map((p) => p.title));
-  if (existingError) return { ok: false, error: "Could not check existing assessments. Please try again." };
+  // Reuse imported assessments with the same title. Never reuse a checked or typed-in one,
+  // and never import a column that a checked or typed-in activity was exported into.
+  const titles = wanted.map((p) => p.title);
+  const [{ data: existing, error: existingError }, { data: exportedTo, error: exportedError }] = await Promise.all([
+    supabase.from("assessments").select("id,title,source").eq("class_id", classId).in("title", titles),
+    supabase.from("assessments").select("exported_title").eq("class_id", classId).in("exported_title", titles),
+  ]);
+  if (existingError || exportedError) {
+    return { ok: false, error: "Could not check existing assessments. Please try again." };
+  }
 
-  const idByTitle = new Map<string, string>((existing ?? []).map((a) => [String(a.title), String(a.id)]));
+  const idByTitle = new Map<string, string>();
+  const protectedSet = new Set<string>();
+  for (const a of existing ?? []) {
+    if (a.source === "imported") idByTitle.set(String(a.title), String(a.id));
+    else protectedSet.add(String(a.title));
+  }
+  for (const a of exportedTo ?? []) {
+    if (a.exported_title) protectedSet.add(String(a.exported_title));
+  }
+  const protectedTitles = [...protectedSet];
+
+  const list = wanted.filter((p) => !protectedSet.has(p.title));
+  if (list.length === 0) return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles };
+
   const missing = list.filter((p) => !idByTitle.has(p.title));
 
   if (missing.length > 0) {
@@ -191,6 +219,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
           title: p.title,
           kind: "mixed",
           status: "closed",
+          source: "imported",
           total_points: p.total,
           created_at: new Date(start + i * 1000).toISOString(),
         })),
@@ -200,15 +229,12 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     for (const a of made) idByTitle.set(String(a.title), String(a.id));
   }
 
-  const now = new Date().toISOString();
   const rows = list.flatMap((p) =>
     [...p.rows].map(([learnerId, score]) => ({
       assessment_id: idByTitle.get(p.title)!,
       learner_id: learnerId,
       score,
       max_score: p.total,
-      review_status: "confirmed",
-      confirmed_at: now,
     })),
   );
 
@@ -241,10 +267,9 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     }
   }
 
+  // Each chunk is saved by one database call, so a chunk is saved completely or not at all.
   for (let i = 0; i < rows.length; i += CHUNK) {
-    const { error } = await supabase
-      .from("submissions")
-      .upsert(rows.slice(i, i + CHUNK), { onConflict: "assessment_id,learner_id" });
+    const { error } = await supabase.rpc("import_grade_scores", { p_rows: rows.slice(i, i + CHUNK) });
     if (error) {
       return { ok: false, error: "Some scores were not saved. Import again. It updates instead of duplicating." };
     }
@@ -280,5 +305,5 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   revalidatePath(`/classes/${classId}`);
   revalidatePath("/classes");
   revalidatePath("/reports");
-  return { ok: true, scores: rows.length, created: missing.length, skippedSheets };
+  return { ok: true, scores: rows.length, created: missing.length, skippedSheets, protectedTitles };
 }

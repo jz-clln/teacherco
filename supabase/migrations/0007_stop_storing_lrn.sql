@@ -6,8 +6,19 @@
 --
 -- Deploy the app update first, then run this. The old code still selects external_ref.
 
--- 1. Wipe every stored LRN.
-update public.learners set external_ref = null where external_ref is not null;
-
--- 2. Remove the column so an LRN can never be saved again.
-alter table public.learners drop column if exists external_ref;
+-- 1 + 2. Wipe every stored LRN, then remove the column so an LRN can never be saved again.
+-- The column check makes a second run do nothing instead of failing.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'learners'
+      and column_name = 'external_ref'
+  ) then
+    update public.learners set external_ref = null where external_ref is not null;
+    alter table public.learners drop column external_ref;
+  end if;
+end;
+$$;

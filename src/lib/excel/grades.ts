@@ -14,9 +14,19 @@
 
 import { extractRoster, suggestMapping, type Grid, type SheetGrid } from "@/lib/excel/roster";
 
+/** Which DepEd component a column sits under. Oral recitation belongs under written / oral works. */
+export type ColumnComponent = "written_work" | "performance_task" | "assessment";
+
 export type GradeColumn = {
   /** 0-based column in the sheet. */
   col: number;
+  /** The component this column sits under, read from the group title above it. */
+  component: ColumnComponent | null;
+  /**
+   * A free slot: the column has its header (3, 4, 5 ...) but no highest possible score and no
+   * scores yet. `total` is 0 until TeacherCo sets it. Only returned with `includeFree`.
+   */
+  free?: boolean;
   /** Unique title used for the assessment, e.g. "Term 2 · Written Work 1". */
   title: string;
   /** Highest possible score for this column. */
@@ -34,6 +44,8 @@ export type GradeSheet = {
   columns: GradeColumn[];
   /** Cells that were not numbers, were negative, or were above the highest possible score. */
   ignored: number;
+  /** 1-based row of "HIGHEST POSSIBLE SCORE". Needed to fill a free slot. */
+  hpsRow?: number;
 };
 
 export type DetectGradeOptions = {
@@ -43,6 +55,12 @@ export type DetectGradeOptions = {
    * Imports leave this off.
    */
   keepEmpty?: boolean;
+  /**
+   * Also return free slots: score columns that have a header but no highest possible score and no
+   * scores. The export fills them and sets the highest possible score itself, so the teacher
+   * does not have to prepare a column by hand. Imports leave this off.
+   */
+  includeFree?: boolean;
 };
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -51,6 +69,12 @@ const cell = (rows: Grid, r: number, c: number) => rows[r]?.[c] ?? "";
 const HPS_LABEL = /^(highest\s+possible\s+score|hps)\b/i;
 const SKIP_HEADER = /^(total|ps|ws|percentage(\s+score)?|weighted(\s+score)?)$/i;
 const SCORE_HEADER = /^(\d{1,2}|st\s*\d{1,2}|te|qa|qe)$/i;
+
+const COMPONENT_KEY: Record<string, ColumnComponent> = {
+  "Written Work": "written_work",
+  "Performance Task": "performance_task",
+  "Summative Test": "assessment",
+};
 
 function componentOf(label: string): string | null {
   const s = squash(label);
@@ -126,7 +150,8 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
     if (!sub || SKIP_HEADER.test(sub) || !SCORE_HEADER.test(sub)) continue;
 
     const total = parseScore(cell(rows, hpsRow, c)).value;
-    if (total == null || !(total > 0)) continue;
+    const free = total == null || !(total > 0);
+    if (free && !options.includeFree) continue;
 
     let name: string;
     const st = /^st\s*(\d+)$/i.exec(sub);
@@ -138,7 +163,13 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
     const title = `${term} · ${name}`;
     if (seen.has(title)) continue;
     seen.add(title);
-    found.push({ col: c, title, total });
+    found.push({
+      col: c,
+      title,
+      total: free ? 0 : (total as number),
+      component: current ? (COMPONENT_KEY[current] ?? null) : null,
+      ...(free ? { free: true } : {}),
+    });
   }
   if (found.length === 0) return null;
 
@@ -152,6 +183,8 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
   // 4. Scores. Blank stays blank. Never invent a zero.
   let ignored = 0;
   const columns: GradeColumn[] = found
+    // A free slot only counts when no learner cell holds anything, not even text such as "ABS".
+    .filter((col) => !col.free || learners.every((l) => cell(rows, l.sourceRow - 1, col.col).trim() === ""))
     .map((col) => ({
       ...col,
       scores: learners.map((l) => {
@@ -163,8 +196,8 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
         return value;
       }),
     }))
-    .filter((col) => options.keepEmpty || col.scores.some((s) => s != null));
+    .filter((col) => col.free || options.keepEmpty || col.scores.some((s) => s != null));
   if (columns.length === 0) return null;
 
-  return { sheet: sheet.name, term, learners, columns, ignored };
+  return { sheet: sheet.name, term, learners, columns, ignored, hpsRow: hpsRow + 1 };
 }

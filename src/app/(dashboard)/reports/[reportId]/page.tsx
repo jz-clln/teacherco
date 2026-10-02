@@ -37,6 +37,21 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
   const { generation } = evidence;
   const isAi = generation.source === "ai";
 
+  // Scores typed in by the teacher after this report was written. Only typed-in activities count:
+  // imports re-save unchanged scores too, so they would flag every report by mistake.
+  let changedScores = 0;
+  if (classroom?.id) {
+    let query = supabase
+      .from("submissions")
+      .select("id, assessments!inner(class_id, source)", { count: "exact", head: true })
+      .eq("assessments.class_id", classroom.id)
+      .eq("assessments.source", "manual")
+      .gt("updated_at", generation.generatedAt);
+    if (evidence.kind === "learner_progress") query = query.eq("learner_id", evidence.learner.id);
+    const { count } = await query;
+    changedScores = count ?? 0;
+  }
+
   return (
     <div className="space-y-6">
       <Link href="/reports" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52] hover:underline">
@@ -50,6 +65,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
         <h1 className="mt-1 text-3xl font-bold">{reportTypeLabels[report.report_type as keyof typeof reportTypeLabels]}</h1>
         {evidence.kind === "learner_progress" ? <p className="mt-1 text-[#606861]">{evidence.learner.name}</p> : null}
       </div>
+
+      {changedScores > 0 ? (
+        <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          {changedScores} {changedScores === 1 ? "score was" : "scores were"} recorded after this report was written. The numbers below are
+          from {fmtDate(generation.generatedAt)}. Generate a new report to include {changedScores === 1 ? "it" : "them"}.
+        </p>
+      ) : null}
 
       <Card className="sm:p-6">
         <div className="flex flex-wrap items-center gap-2">

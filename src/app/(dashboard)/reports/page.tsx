@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,31 @@ export default async function ReportsPage({
           <GenerateReportForm classes={classOptions} aiEnabled={profile?.ai_enabled !== false} />
         </div>
       </Card>
+
+      {classOptions.length > 0 ? (
+        <Card className="sm:p-6">
+          <h2 className="font-semibold text-[#1E2420]">Record scores</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-[#606861]">
+            For activities with no answer sheet or Excel column, such as oral recitations. Type the scores here and your reports include
+            them. Scores from your Excel record or the Check screen stay locked so they cannot drift from their source.
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {classOptions.map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={`/classes/${item.id}/scores`}
+                  className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#1A4D2E] transition hover:bg-[#F5F6F4]"
+                >
+                  <span className="truncate">
+                    {item.name} — {item.subject}
+                  </span>
+                  <ChevronRight size={16} className="shrink-0" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <div>
         <div className="flex flex-wrap items-end justify-between gap-4">

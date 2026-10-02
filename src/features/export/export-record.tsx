@@ -6,10 +6,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getExportData } from "@/features/export/actions";
+import { getExportData, rememberExportedColumns } from "@/features/export/actions";
 import { ImportLoader } from "@/features/learners/import-loader";
 import { detectGradeSheet, type GradeSheet } from "@/lib/excel/grades";
-import { planExport, type ColumnRef, type ExportData } from "@/lib/excel/export-plan";
+import { colName, planExport, type ColumnRef, type ExportData } from "@/lib/excel/export-plan";
+import { COMPONENT_LABEL } from "@/lib/grading/deped";
 import { openWorkbook } from "@/lib/excel/parser";
 import { openExporter, type Exporter } from "@/lib/excel/writer";
 import type { SheetGrid } from "@/lib/excel/roster";
@@ -25,6 +26,10 @@ type Loaded = {
   grids: Map<string, SheetGrid>;
   data: ExportData;
   exporter: Exporter;
+  /** Assessment id -> title of the column it was exported into before. */
+  exportedTitles: Record<string, string>;
+  /** Assessment id -> that same column, found again in this file. */
+  remembered: Record<string, ColumnRef>;
 };
 
 export function ExportRecord({ classId }: { classId: string }) {
@@ -56,7 +61,7 @@ export function ExportRecord({ classId }: { classId: string }) {
       for (const s of wb.sheets.filter((x) => !x.hidden)) {
         const grid = wb.read(s.name);
         grids.set(s.name, grid);
-        const found = detectGradeSheet(grid, { keepEmpty: true });
+        const found = detectGradeSheet(grid, { keepEmpty: true, includeFree: true });
         if (found) grades.push(found);
       }
       if (grades.length === 0) {
@@ -68,8 +73,31 @@ export function ExportRecord({ classId }: { classId: string }) {
       const [res, exporter] = await Promise.all([getExportData(classId), openExporter(file)]);
       if (!res.ok) throw new Error(res.error);
 
-      setLoaded({ fileName: file.name, grades, grids, data: res.data, exporter });
-      setManual({});
+      // Activities exported into this file before go back into the same column.
+      const remembered: Record<string, ColumnRef> = {};
+      const claimed = new Set<string>();
+      for (const a of res.data.assessments) {
+        const title = res.exportedTitles[a.id];
+        if (!title) continue;
+        for (const g of grades) {
+          const column = g.columns.find((c) => c.title === title);
+          if (!column) continue;
+          const key = `${g.sheet}|${column.col}`;
+          if (!claimed.has(key)) {
+            claimed.add(key);
+            remembered[a.id] = { sheet: g.sheet, col: column.col };
+          }
+          break;
+        }
+      }
+
+      // Free slots TeacherCo can fill by itself: same component and term, and every learner has a score.
+      const first = planExport(grades, grids, res.data, remembered);
+      const suggested: Record<string, ColumnRef> = {};
+      for (const u of first.unmapped) if (u.suggested) suggested[u.id] = u.suggested;
+
+      setLoaded({ fileName: file.name, grades, grids, data: res.data, exporter, exportedTitles: res.exportedTitles, remembered });
+      setManual({ ...remembered, ...suggested });
       setSkip(new Set());
       setFormulas(new Set());
     } catch (e) {
@@ -88,23 +116,42 @@ export function ExportRecord({ classId }: { classId: string }) {
   useEffect(() => {
     if (!loaded || !plan) return;
     const id = ++run.current;
-    void loaded.exporter.formulaCells(plan.writes).then((set) => {
+    void loaded.exporter.formulaCells([...plan.writes, ...plan.hpsWrites]).then((set) => {
       if (id === run.current) setFormulas(set);
     });
   }, [loaded, plan]);
 
-  const writes = plan ? plan.writes.filter((w) => !formulas.has(w.key)) : [];
+  // A score that needs a highest possible score in a formula cell cannot be written either.
+  const writes = plan ? plan.writes.filter((w) => !formulas.has(w.key) && !(w.needs && formulas.has(w.needs))) : [];
   const chosen = writes.filter((w) => !skip.has(w.key));
+  /** Highest possible scores written into free slots that really receive a score. */
+  const hpsChosen = plan ? plan.hpsWrites.filter((h) => !formulas.has(h.key) && chosen.some((w) => w.needs === h.key)) : [];
   const added = chosen.filter((w) => w.kind === "new").length;
   const replaced = chosen.filter((w) => w.kind === "changed");
   const changedAll = writes.filter((w) => w.kind === "changed");
+
+  /** Checked or typed-in activities that really received scores, and the column each one went into. */
+  function filledColumns() {
+    if (!loaded) return [];
+    const items: { assessmentId: string; columnTitle: string }[] = [];
+    for (const [assessmentId, ref] of Object.entries(manual)) {
+      if (!ref) continue;
+      const assessment = loaded.data.assessments.find((a) => a.id === assessmentId);
+      const column = loaded.grades.find((g) => g.sheet === ref.sheet)?.columns.find((c) => c.col === ref.col);
+      if (!assessment || !column) continue;
+      const wrote = chosen.some((w) => w.title === assessment.title && w.sheet === ref.sheet && w.col === ref.col);
+      if (wrote) items.push({ assessmentId, columnTitle: column.title });
+    }
+    return items;
+  }
 
   async function download() {
     if (!loaded || chosen.length === 0) return;
     setBuilding(true);
     setError(null);
     try {
-      const { blob, written } = await loaded.exporter.build(chosen);
+      const { blob, written: cells } = await loaded.exporter.build([...hpsChosen, ...chosen]);
+      const written = Math.max(0, cells - hpsChosen.length);
       const name = `${loaded.fileName.replace(/\.xlsx$/i, "")} (TeacherCo).xlsx`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -115,6 +162,13 @@ export function ExportRecord({ classId }: { classId: string }) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       setDone({ written, fileName: name });
+
+      // Remember where each checked or typed-in activity went, so a later import does not count it twice.
+      const items = filledColumns();
+      if (items.length > 0) {
+        const saved = await rememberExportedColumns({ classId, items });
+        if (!saved.ok) setError(saved.error);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not build the file. Your original file was not changed.");
     } finally {
@@ -167,6 +221,8 @@ export function ExportRecord({ classId }: { classId: string }) {
 
   // ------------------------------------------------------------ preview step
   const nothing = writes.length === 0;
+  const unmapped = plan.unmapped.filter((u) => !loaded.remembered[u.id]);
+  const rememberedAssessments = loaded.data.assessments.filter((a) => loaded.remembered[a.id]);
 
   return (
     <div className="space-y-4">
@@ -202,22 +258,68 @@ export function ExportRecord({ classId }: { classId: string }) {
         </div>
       </Card>
 
-      {plan.unmapped.length > 0 ? (
+      {rememberedAssessments.length > 0 ? (
+        <Card>
+          <h2 className="text-lg font-semibold">Filled before</h2>
+          <p className="mt-1 text-sm text-[#606861]">
+            These activities were exported into your file earlier, so TeacherCo uses the same columns again instead of filling a
+            second one.
+          </p>
+          <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
+            {rememberedAssessments.map((a) => {
+              const ref = loaded.remembered[a.id];
+              const on = Boolean(manual[a.id]);
+              return (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                  <p className="text-sm">
+                    <span className="font-medium">{a.title}</span>
+                    <span className="text-[#606861]">
+                      {" "}
+                      → {loaded.exportedTitles[a.id]} ({ref.sheet} {colName(ref.col)})
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-[#1A4D2E] hover:underline"
+                    onClick={() => setManual((m) => ({ ...m, [a.id]: on ? null : ref }))}
+                  >
+                    {on ? "Don't export" : "Export again"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      ) : null}
+
+      {unmapped.length > 0 ? (
         <Card>
           <h2 className="text-lg font-semibold">Scores that are not in your file yet</h2>
           <p className="mt-1 text-sm text-[#606861]">
-            These were made or checked in TeacherCo. Pick an empty column in your record for each one, or leave it out.
+            These were made or checked in TeacherCo. Each one goes into a free column of the same kind in your record. You do not
+            need to prepare the column: TeacherCo also fills in its highest possible score.
           </p>
           <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
-            {plan.unmapped.map((u) => (
-              <li key={u.id} className="grid items-center gap-2 px-4 py-3 sm:grid-cols-2">
-                <p className="text-sm">
-                  <span className="font-medium">{u.title}</span>{" "}
-                  <span className="text-[#606861]">· {u.total} points</span>
-                </p>
+            {unmapped.map((u) => (
+              <li key={u.id} className="grid items-start gap-2 px-4 py-3 sm:grid-cols-2">
+                <div className="text-sm">
+                  <p>
+                    <span className="font-medium">{u.title}</span>{" "}
+                    <span className="text-[#606861]">· {u.total} points</span>
+                  </p>
+                  {u.component ? <p className="text-xs text-[#606861]">{COMPONENT_LABEL[u.component]}</p> : null}
+                  {u.heldBack && !manual[u.id] ? (
+                    <p className="mt-1 text-xs text-amber-700">
+                      Not chosen for you: only {u.heldBack.of - u.heldBack.missing} of {u.heldBack.of} learners have a score. Once it is in
+                      column {u.heldBack.column}, the other {u.heldBack.missing} count as 0 in the term total. Choose the column yourself if
+                      you still want it.
+                    </p>
+                  ) : null}
+                </div>
                 {u.candidates.length === 0 ? (
                   <p className="text-xs text-amber-700">
-                    No empty column with a highest possible score of {u.total}. Add one in Excel, then choose the file again.
+                    No free {u.component ? COMPONENT_LABEL[u.component] : "score"} column in your file. Add a column header (for example
+                    WW6) in Excel, then choose the file again.
                   </p>
                 ) : (
                   <select
@@ -237,6 +339,34 @@ export function ExportRecord({ classId }: { classId: string }) {
                     ))}
                   </select>
                 )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {hpsChosen.length > 0 ? (
+        <Card>
+          <h2 className="text-lg font-semibold">Highest possible scores TeacherCo will fill in</h2>
+          <p className="mt-1 text-sm text-[#606861]">
+            The same number you would type under &quot;Highest possible score&quot; by hand. Your sheet&apos;s totals and term grades
+            update from it.
+          </p>
+          <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1] text-sm">
+            {hpsChosen.map((h) => (
+              <li key={h.key} className="px-4 py-3">
+                <p>
+                  <span className="font-medium">{h.title}</span>
+                  <span className="text-[#606861]">
+                    {" "}
+                    → {h.sheet} {h.address} = {h.value}
+                  </span>
+                </p>
+                {h.missing ? (
+                  <p className="mt-1 text-xs text-amber-700">
+                    {h.missing} of {h.of} learners have no score for it. They count as 0 in the term total, so their grades can drop.
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -339,10 +469,16 @@ export function ExportRecord({ classId }: { classId: string }) {
       {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
       {done ? (
-        <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800" role="status">
-          Done. {done.written} {done.written === 1 ? "score was" : "scores were"} written to <strong>{done.fileName}</strong>. Open it in
-          Excel or Google Sheets and your totals and grades refresh by themselves.
-        </p>
+        <div className="space-y-1.5 rounded-xl bg-green-50 p-3 text-sm text-green-800" role="status">
+          <p>
+            Done. {done.written} {done.written === 1 ? "score was" : "scores were"} written to <strong>{done.fileName}</strong>.
+          </p>
+          <p>
+            Open it in Excel or Google Sheets. If Excel shows a yellow bar, click <strong>Enable Editing</strong>. Your totals and
+            grades update as soon as the file opens for editing. A phone or Drive preview can still show the old totals, so open
+            the file in the Excel or Sheets app to see the new ones.
+          </p>
+        </div>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
