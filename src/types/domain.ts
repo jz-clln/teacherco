@@ -1,3 +1,5 @@
+// src/types/domain.ts
+
 export type UUID = string;
 export type ClassStatus = "active" | "archived";
 export type EnrollmentStatus = "active" | "inactive";
@@ -19,7 +21,6 @@ export interface TeacherClass {
 export interface Learner {
   id: UUID;
   teacher_id: UUID;
-  external_ref?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   display_name: string;

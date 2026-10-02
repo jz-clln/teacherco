@@ -31,7 +31,7 @@ export async function getExportData(classId: string): Promise<ExportDataResult> 
   const [{ data: enrolled, error: enrolledError }, { data: assessments, error: assessmentsError }] = await Promise.all([
     supabase
       .from("class_enrollments")
-      .select("learner:learners(id,first_name,last_name,external_ref)")
+      .select("learner:learners(id,first_name,last_name)")
       .eq("class_id", classId)
       .eq("status", "active")
       .limit(2000),
@@ -50,7 +50,7 @@ export async function getExportData(classId: string): Promise<ExportDataResult> 
     const l = Array.isArray(e.learner) ? e.learner[0] : e.learner;
     if (!l?.id || !l.first_name || !l.last_name) continue;
     indexById.set(String(l.id), learners.length);
-    learners.push({ firstName: String(l.first_name), lastName: String(l.last_name), lrn: l.external_ref ? String(l.external_ref) : "" });
+    learners.push({ firstName: String(l.first_name), lastName: String(l.last_name) });
   }
 
   const rows: ScoreRow[] = [];

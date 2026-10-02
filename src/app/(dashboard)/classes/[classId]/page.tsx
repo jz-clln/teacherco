@@ -54,7 +54,7 @@ export default async function ClassOverviewPage({
       .eq("status", "active"),
     supabase
       .from("class_enrollments")
-      .select("created_at, learner:learners(id,display_name,external_ref)")
+      .select("created_at, learner:learners(id,display_name)")
       .eq("class_id", classId)
       .eq("status", "active")
       .limit(500),
@@ -68,7 +68,6 @@ export default async function ClassOverviewPage({
             {
               id: l.id as string,
               name: l.display_name as string,
-              ref: (l.external_ref as string | null) ?? "",
               addedAt: e.created_at as string,
             },
           ]
@@ -200,7 +199,6 @@ export default async function ClassOverviewPage({
                   <tr>
                     <th className="px-5 py-2.5 font-medium">#</th>
                     <th className="px-5 py-2.5 font-medium">Name</th>
-                    <th className="px-5 py-2.5 font-medium">Student ID</th>
                     <th className="px-5 py-2.5 font-medium">Added</th>
                     <th className="px-5 py-2.5 text-right font-medium"><span className="sr-only">Actions</span></th>
                   </tr>
@@ -210,7 +208,6 @@ export default async function ClassOverviewPage({
                     <tr key={l.id}>
                       <td className="px-5 py-3 text-[#606861]">{i + 1}</td>
                       <td className="px-5 py-3 font-medium">{l.name}</td>
-                      <td className="px-5 py-3 text-[#606861]">{l.ref || "—"}</td>
                       <td className="px-5 py-3 text-[#606861]">
                         {new Date(l.addedAt).toLocaleDateString("en-PH", {
                           month: "short",
@@ -247,10 +244,6 @@ export default async function ClassOverviewPage({
             <label className="block text-sm font-medium">
               Last name
               <input name="lastName" required autoComplete="off" className={inputClass} />
-            </label>
-            <label className="block text-sm font-medium">
-              Student ID / LRN <span className="font-normal text-[#606861]">(optional)</span>
-              <input name="externalRef" autoComplete="off" className={inputClass} />
             </label>
             <Button type="submit">Add student</Button>
           </form>

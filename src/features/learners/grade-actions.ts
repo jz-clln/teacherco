@@ -15,7 +15,6 @@ const SheetSchema = z
         z.object({
           firstName: z.string().trim().min(1).max(120),
           lastName: z.string().trim().min(1).max(120),
-          lrn: z.string().trim().max(30).default(""),
         }),
       )
       .min(1)
@@ -61,7 +60,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 /**
  * Saves grades read from a class record. Every score column becomes one assessment
  * ("Term 2 · Written Work 1") and every score becomes a confirmed submission.
- * Learners are matched by LRN, then by name, against the learners already in the class.
+ * Learners are matched by name against the learners already in the class. LRNs are never sent or stored.
  * Running it twice updates the same assessments and scores instead of duplicating them.
  * Blank cells are never saved as zero.
  */
@@ -82,19 +81,17 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
 
   const { data: enrolled, error: enrolledError } = await supabase
     .from("class_enrollments")
-    .select("learner:learners(id,first_name,last_name,external_ref)")
+    .select("learner:learners(id,first_name,last_name)")
     .eq("class_id", classId)
     .eq("status", "active")
     .limit(2000);
   if (enrolledError) return { ok: false, error: "Could not read the class list. Please try again." };
 
   const byName = new Map<string, string>();
-  const byLrn = new Map<string, string>();
   for (const e of enrolled ?? []) {
     const l = Array.isArray(e.learner) ? e.learner[0] : e.learner;
     if (!l?.id) continue;
     if (l.first_name && l.last_name) byName.set(nameKey(l.first_name as string, l.last_name as string), l.id as string);
-    if (l.external_ref) byLrn.set(String(l.external_ref), l.id as string);
   }
 
   // Match learners, then build one entry per score column.
@@ -102,9 +99,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   const skippedSheets: string[] = [];
 
   for (const sheet of sheets) {
-    const ids = sheet.learners.map(
-      (l) => (l.lrn && byLrn.get(l.lrn)) || byName.get(nameKey(l.firstName, l.lastName)) || null,
-    );
+    const ids = sheet.learners.map((l) => byName.get(nameKey(l.firstName, l.lastName)) ?? null);
     if (!ids.some(Boolean)) {
       skippedSheets.push(sheet.label);
       continue;

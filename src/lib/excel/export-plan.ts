@@ -7,14 +7,15 @@
 //   * A blank TeacherCo score never erases a cell in the teacher's file.
 //   * A cell that already holds text (for example "ABS") is never overwritten.
 //   * A column is only filled when its highest possible score matches the assessment's.
-//   * Learners are matched by LRN, then by name. Never by row position.
+//   * Learners are matched by NAME. TeacherCo does not store LRNs. Never by row position.
+//   * A name that appears twice in the same sheet is left alone, because it cannot be told apart.
 
 import type { GradeSheet } from "@/lib/excel/grades";
 import { nameKey, type SheetGrid } from "@/lib/excel/roster";
 
 export type ExportData = {
   /** Learners in the class. `assessments[].scores` lines up with this list. */
-  learners: { firstName: string; lastName: string; lrn: string }[];
+  learners: { firstName: string; lastName: string }[];
   assessments: { id: string; title: string; total: number; scores: (number | null)[] }[];
 };
 
@@ -47,6 +48,8 @@ export type ExportPlan = {
   keptText: number;
   /** Learners in the file that TeacherCo does not have in this class. */
   unknownLearners: string[];
+  /** Names listed twice in one sheet. Left alone, since the right row cannot be told. */
+  ambiguousLearners: string[];
   /** Assessments written into a column. */
   matched: { title: string; sheet: string; column: string }[];
   /** TeacherCo assessments that have no column in the file yet. */
@@ -85,10 +88,8 @@ export function planExport(
   data: ExportData,
   manual: Record<string, ColumnRef | null> = {},
 ): ExportPlan {
-  const byLrn = new Map<string, number>();
   const byName = new Map<string, number>();
   data.learners.forEach((l, i) => {
-    if (l.lrn) byLrn.set(l.lrn, i);
     byName.set(nameKey(l.firstName, l.lastName), i);
   });
 
@@ -105,6 +106,7 @@ export function planExport(
 
   const writes: PlannedWrite[] = [];
   const unknown = new Set<string>();
+  const ambiguous = new Set<string>();
   const matched: ExportPlan["matched"] = [];
   const mismatched: ExportPlan["mismatched"] = [];
   const unmappedRaw: { id: string; title: string; total: number }[] = [];
@@ -137,9 +139,19 @@ export function planExport(
     matched.push({ title: a.title, sheet: sheet.sheet, column: `${colName(column.col)}` });
     const grid = grids.get(sheet.sheet);
 
+    const timesInSheet = new Map<string, number>();
+    for (const l of sheet.learners) {
+      const k = nameKey(l.firstName, l.lastName);
+      timesInSheet.set(k, (timesInSheet.get(k) ?? 0) + 1);
+    }
+
     sheet.learners.forEach((l, i) => {
-      let j = l.lrn ? byLrn.get(l.lrn) : undefined;
-      if (j === undefined) j = byName.get(nameKey(l.firstName, l.lastName));
+      const key = nameKey(l.firstName, l.lastName);
+      if ((timesInSheet.get(key) ?? 0) > 1) {
+        ambiguous.add(`${l.lastName}, ${l.firstName}`);
+        return;
+      }
+      const j = byName.get(key);
       if (j === undefined) {
         unknown.add(`${l.lastName}, ${l.firstName}`);
         return;
@@ -185,5 +197,14 @@ export function planExport(
     candidates: free.filter((c) => Math.abs(c.total - u.total) < EPS),
   }));
 
-  return { writes, unchanged, keptText, unknownLearners: [...unknown], matched, unmapped, mismatched };
+  return {
+    writes,
+    unchanged,
+    keptText,
+    unknownLearners: [...unknown],
+    ambiguousLearners: [...ambiguous],
+    matched,
+    unmapped,
+    mismatched,
+  };
 }

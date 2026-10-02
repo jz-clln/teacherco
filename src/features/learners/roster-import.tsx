@@ -12,7 +12,7 @@ import { updateClassDetails } from "@/features/classes/details-actions";
 import type { ClassDetails } from "@/features/classes/details";
 import { ImportLoader } from "@/features/learners/import-loader";
 import { importGrades } from "@/features/learners/grade-actions";
-import { importLearners } from "@/features/learners/import-actions";
+import { findSimilarLearners, importLearners, type LearnerMatch } from "@/features/learners/import-actions";
 import type { GradeSheet } from "@/lib/excel/grades";
 import { hasClassInfo, type ClassInfo } from "@/lib/excel/class-info";
 import { openWorkbook, type SheetInfo } from "@/lib/excel/parser";
@@ -89,6 +89,10 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   const [fileInfo, setFileInfo] = useState<ClassInfo | null>(null);
   const [infoEdits, setInfoEdits] = useState<Record<string, { use?: boolean; value?: string }>>({});
   const [gradePick, setGradePick] = useState<Record<string, boolean>>({});
+  // "Same learner?" step. matches is null until the teacher presses Import for the first time.
+  const [matches, setMatches] = useState<Record<string, LearnerMatch[]> | null>(null);
+  // Row index -> id of the learner to link, or "new" to keep separate.
+  const [decisions, setDecisions] = useState<Record<string, string>>({});
 
   function load(next: Source, fallbackSheet: string, found: RosterDetection) {
     setSource(next);
@@ -99,6 +103,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
     setGradeSheets(null);
     setGradePick({});
     setInfoEdits({});
+    setMatches(null);
+    setDecisions({});
     setFileInfo(next.classInfo ? next.classInfo() : null);
     setError(null);
     // Read the grades right away so the teacher sees them without having to ask.
@@ -174,6 +180,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   function remap(patch: Partial<RosterMapping>) {
     setMapping((m) => (m ? { ...m, ...patch } : m));
     setEdits({});
+    setMatches(null);
+    setDecisions({});
   }
 
   function changeSheet(name: string) {
@@ -181,6 +189,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
     setMapping(suggestMapping(source.read(name)));
     setConfident(false);
     setEdits({});
+    setMatches(null);
+    setDecisions({});
   }
 
   async function scanGrades(src: Source) {
@@ -204,6 +214,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
 
   function patchRow(key: string, patch: Edit) {
     setEdits((cur) => ({ ...cur, [key]: { ...cur[key], ...patch } }));
+    setMatches(null);
+    setDecisions({});
   }
 
   const sheetName = mapping?.sheet;
@@ -213,7 +225,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
 
   const picked = rows.filter((r) => r.include);
   const incomplete = picked.filter((r) => !r.firstName.trim() || !r.lastName.trim());
-  const canImport = picked.length > 0 && incomplete.length === 0 && !pending;
+  const undecided = matches ? Object.keys(matches).filter((i) => !decisions[i]).length : 0;
+  const canImport = picked.length > 0 && incomplete.length === 0 && undecided === 0 && !pending;
 
   // Grades are matched to learners by name, so show how many names match the list being imported.
   const rosterKeys = new Set(picked.map((r) => nameKey(r.firstName.trim(), r.lastName.trim())));
@@ -248,9 +261,29 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   function runImport() {
     setError(null);
     start(async () => {
+      // Only names leave the browser. The LRN column is used here to catch duplicates and nowhere else.
+      const names = picked.map((r) => ({ firstName: r.firstName.trim(), lastName: r.lastName.trim() }));
+
+      // First press: ask whether any name is a learner the teacher already has in another class.
+      if (matches === null) {
+        const found = await findSimilarLearners({ classId, rows: names });
+        if (!found.ok) {
+          setError(found.error);
+          return;
+        }
+        if (Object.keys(found.matches).length > 0) {
+          setMatches(found.matches);
+          setDecisions({});
+          return; // wait for the teacher to answer "Same learner?"
+        }
+      }
+
       const result = await importLearners({
         classId,
-        rows: picked.map((r) => ({ firstName: r.firstName.trim(), lastName: r.lastName.trim(), lrn: r.lrn.trim() })),
+        rows: names.map((n, i) => {
+          const pick = decisions[String(i)];
+          return { ...n, link: pick && pick !== "new" ? pick : null };
+        }),
       });
       if (!result.ok) {
         setError(result.error);
@@ -263,7 +296,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
           classId,
           sheets: chosenGrades.map(({ g }) => ({
             label: g.term,
-            learners: g.learners.map((l) => ({ firstName: l.firstName, lastName: l.lastName, lrn: l.lrn })),
+            learners: g.learners.map((l) => ({ firstName: l.firstName, lastName: l.lastName })),
             columns: g.columns.map((c) => ({ title: c.title, total: c.total, scores: c.scores })),
           })),
         });
@@ -431,7 +464,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
             )}
             <Select
               name="lrnCol"
-              label="LRN column"
+              label="LRN column (used here only, never saved)"
               emptyLabel="No LRN column"
               options={columns}
               value={mapping.lrnCol == null ? "" : String(mapping.lrnCol)}
@@ -522,7 +555,9 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
                   <th className="px-2 py-2.5 font-medium">Row</th>
                   <th className="px-2 py-2.5 font-medium">Surname</th>
                   <th className="px-2 py-2.5 font-medium">First name</th>
-                  <th className="px-2 py-2.5 font-medium">LRN</th>
+                  <th className="px-2 py-2.5 font-medium">
+                    LRN <span className="font-normal text-[#8B928C]">(not saved)</span>
+                  </th>
                   <th className="px-2 py-2.5 font-medium">Sex</th>
                   <th className="px-2 py-2.5 font-medium">Notes</th>
                 </tr>
@@ -653,6 +688,64 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
         </p>
       ) : null}
 
+      {matches ? (
+        <Card>
+          <h2 className="text-lg font-semibold">Same learner?</h2>
+          <p className="mt-1 text-sm text-[#606861]">
+            These names match learners you already have in another class. Link them to keep one record across classes, or keep
+            them separate. Nothing is linked unless you choose it.
+          </p>
+          <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
+            {Object.entries(matches).map(([index, candidates]) => {
+              const row = picked[Number(index)];
+              if (!row) return null;
+              const choice = decisions[index];
+              const option =
+                "rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E] disabled:opacity-50";
+              const on = "border-[#1A4D2E] bg-[#1A4D2E] text-white";
+              const off = "border-[#E3E5E1] bg-white text-[#1E2420] hover:bg-[#F5F6F4]";
+              return (
+                <li key={index} className="px-4 py-3">
+                  <p className="text-sm font-medium">
+                    {row.lastName}, {row.firstName}{" "}
+                    <span className="font-normal text-[#606861]">(in this file)</span>
+                  </p>
+                  <div role="group" aria-label={`Same learner? ${row.lastName}, ${row.firstName}`} className="mt-2 flex flex-wrap gap-2">
+                    {candidates.map((c) => (
+                      <button
+                        key={c.learnerId}
+                        type="button"
+                        aria-pressed={choice === c.learnerId}
+                        disabled={pending}
+                        onClick={() => setDecisions((cur) => ({ ...cur, [index]: c.learnerId }))}
+                        className={cn(option, choice === c.learnerId ? on : off)}
+                      >
+                        Link to {c.name}
+                        {c.classes.length > 0 ? ` (${c.classes.join(", ")})` : ""}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      aria-pressed={choice === "new"}
+                      disabled={pending}
+                      onClick={() => setDecisions((cur) => ({ ...cur, [index]: "new" }))}
+                      className={cn(option, choice === "new" ? on : off)}
+                    >
+                      Keep separate
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {undecided > 0 ? (
+            <p className="mt-3 text-sm text-amber-700">
+              Choose Link or Keep separate for {undecided} more {undecided === 1 ? "name" : "names"} to continue.
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+
       {pending ? (
         <ImportLoader compact message={chosenGrades.length > 0 ? "Saving learners and grades" : "Saving your learners"} />
       ) : null}
@@ -664,7 +757,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
             : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}${chosenGrades.length > 0 ? " and grades" : ""}${chosenInfo.length > 0 ? " and class details" : ""}`}
         </Button>
         <p className="text-sm text-[#606861]">
-          Your file is read in your browser. Only the names you confirm are saved. Learners already in this class are skipped.
+          Your file is read in your browser. Only the names you confirm are saved. LRNs stay in your file and are never sent to
+          TeacherCo. Learners already in this class are skipped.
         </p>
       </div>
     </div>

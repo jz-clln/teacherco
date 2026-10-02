@@ -309,7 +309,7 @@ export function ExportRecord({ classId }: { classId: string }) {
         </Card>
       ) : null}
 
-      {(formulas.size > 0 || plan.keptText > 0 || plan.unknownLearners.length > 0 || plan.mismatched.length > 0) ? (
+      {(formulas.size > 0 || plan.keptText > 0 || plan.unknownLearners.length > 0 || plan.ambiguousLearners.length > 0 || plan.mismatched.length > 0) ? (
         <Card className="space-y-2 bg-amber-50 text-sm text-amber-900">
           <h2 className="font-semibold">Left alone</h2>
           {formulas.size > 0 ? <p>{formulas.size} cells hold a formula, so they were not touched.</p> : null}
@@ -324,6 +324,13 @@ export function ExportRecord({ classId }: { classId: string }) {
               {plan.unknownLearners.length} {plan.unknownLearners.length === 1 ? "name" : "names"} in your file are not in this class
               ({plan.unknownLearners.slice(0, 3).join("; ")}
               {plan.unknownLearners.length > 3 ? "…" : ""}).
+            </p>
+          ) : null}
+          {plan.ambiguousLearners.length > 0 ? (
+            <p>
+              {plan.ambiguousLearners.length} {plan.ambiguousLearners.length === 1 ? "name appears" : "names appear"} twice in the same sheet
+              ({plan.ambiguousLearners.slice(0, 3).join("; ")}
+              {plan.ambiguousLearners.length > 3 ? "…" : ""}). TeacherCo matches by name, so those rows were not touched.
             </p>
           ) : null}
         </Card>

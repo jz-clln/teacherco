@@ -38,20 +38,26 @@ export interface OverviewRow {
   format: AssessmentFormat;
   date: string | null;
   className: string;
+  classId: string;
+  classTitle: string;
+  subject: string;
+  gradeLevel: string | null;
   checked: number;
   roster: number;
   mean: number | null;
 }
 
+type ClassRef = { name: string; subject: string; grade_level: string | null };
+
 export async function getAssessmentsOverview(): Promise<OverviewRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("assessments")
-    .select("id,title,status,kind,assessment_date,created_at,class_id,classes(name,subject),submissions(score,max_score)")
+    .select("id,title,status,kind,assessment_date,created_at,class_id,classes(name,subject,grade_level),submissions(score,max_score)")
     .order("created_at", { ascending: false });
   const rows = (data ?? []) as {
     id: string; title: string; status: string; kind: string; assessment_date: string | null; class_id: string;
-    classes: { name: string; subject: string } | { name: string; subject: string }[] | null;
+    classes: ClassRef | ClassRef[] | null;
     submissions: { score: number | null; max_score: number | null }[];
   }[];
   if (!rows.length) return [];
@@ -79,11 +85,71 @@ export async function getAssessmentsOverview(): Promise<OverviewRow[]> {
       format: formatOf(r.kind),
       date: r.assessment_date,
       className: cls ? `${cls.name} — ${cls.subject}` : "Class",
+      classId: r.class_id,
+      classTitle: cls?.name ?? "Class",
+      subject: cls?.subject ?? "General",
+      gradeLevel: cls?.grade_level ?? null,
       checked: r.submissions.length,
       roster: rosterByClass.get(r.class_id) ?? 0,
       mean: percents.length ? Math.round((percents.reduce((a, b) => a + b, 0) / percents.length) * 10) / 10 : null,
     };
   });
+}
+
+export interface CheckSubjectGroup {
+  subject: string;
+  /** Class record used for "New assessment" in this subject. */
+  classId: string;
+  assessments: OverviewRow[];
+}
+
+export interface CheckFolder {
+  key: string;
+  name: string;
+  gradeLevel: string | null;
+  subjects: CheckSubjectGroup[];
+  total: number;
+  /** Assessments that are open and still have unchecked sheets. */
+  pending: number;
+}
+
+/** Class folders → subjects → assessments. Classes with no assessments still get a folder. */
+export async function getCheckFolders(): Promise<CheckFolder[]> {
+  const supabase = await createClient();
+  const [overview, classesRes] = await Promise.all([
+    getAssessmentsOverview(),
+    supabase.from("classes").select("id,name,subject,grade_level").eq("status", "active"),
+  ]);
+
+  const folders = new Map<string, CheckFolder>();
+  const subjectGroup = (name: string, grade: string | null, subject: string, classId: string) => {
+    const key = name.trim().toLowerCase();
+    let folder = folders.get(key);
+    if (!folder) {
+      folder = { key, name: name.trim(), gradeLevel: grade, subjects: [], total: 0, pending: 0 };
+      folders.set(key, folder);
+    }
+    let group = folder.subjects.find((g) => g.subject.toLowerCase() === subject.trim().toLowerCase());
+    if (!group) {
+      group = { subject: subject.trim(), classId, assessments: [] };
+      folder.subjects.push(group);
+    }
+    return { folder, group };
+  };
+
+  for (const c of (classesRes.data ?? []) as { id: string; name: string; subject: string; grade_level: string | null }[]) {
+    subjectGroup(c.name, c.grade_level, c.subject, c.id);
+  }
+  for (const a of overview) {
+    const { folder, group } = subjectGroup(a.classTitle, a.gradeLevel, a.subject, a.classId);
+    group.assessments.push(a);
+    folder.total += 1;
+    if (a.status !== "closed" && a.checked < a.roster) folder.pending += 1;
+  }
+
+  const list = [...folders.values()];
+  for (const f of list) f.subjects.sort((x, y) => x.subject.localeCompare(y.subject));
+  return list.sort((x, y) => x.name.localeCompare(y.name, undefined, { numeric: true }));
 }
 
 export interface AssessmentBundle {

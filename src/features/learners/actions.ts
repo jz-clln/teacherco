@@ -14,7 +14,6 @@ export async function addLearner(formData: FormData) {
   const classId = text(formData, "classId");
   const firstName = text(formData, "firstName");
   const lastName = text(formData, "lastName");
-  const externalRef = text(formData, "externalRef");
 
   const back = `/classes/${classId}`;
   const fail = (message: string) => redirect(`${back}?error=${encodeURIComponent(message)}`);
@@ -36,7 +35,6 @@ export async function addLearner(formData: FormData) {
       first_name: firstName,
       last_name: lastName,
       display_name: `${firstName} ${lastName}`,
-      external_ref: externalRef || null,
     })
     .select("id")
     .single();
