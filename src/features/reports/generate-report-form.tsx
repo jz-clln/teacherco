@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { inputClass, labelClass, StatusMessage } from "@/features/settings/settings-ui";
+import { Select } from "@/components/ui/select";
+import { StatusMessage } from "@/features/settings/settings-ui";
 import { generateReport, type ReportState } from "./actions";
 import type { ReportType } from "./format";
 
@@ -50,7 +51,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
         {typeOptions.map(({ value, label, text, icon: Icon }) => (
           <label
             key={value}
-            className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E3E5E1] bg-white p-4 transition hover:border-[#D5E0D5] has-[:checked]:border-[#4F6F52] has-[:checked]:bg-[#F4F7F4] has-[:checked]:ring-4 has-[:checked]:ring-[#4F6F52]/10"
+            className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E3E5E1] bg-white p-4 transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#F4F7F4] has-checked:ring-4 has-checked:ring-[#4F6F52]/10"
           >
             <input
               type="radio"
@@ -72,31 +73,24 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <label className={labelClass}>
-          Class
-          <select name="classId" value={classId} onChange={(event) => setClassId(event.target.value)} className={inputClass}>
-            {classes.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} — {item.subject}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          name="classId"
+          label="Class"
+          required
+          defaultValue={classId}
+          onChange={setClassId}
+          options={classes.map((item) => ({ value: item.id, label: `${item.name} — ${item.subject}` }))}
+        />
 
         {reportType === "learner_progress" ? (
-          <label key={classId} className={labelClass}>
-            Learner
-            <select name="learnerId" defaultValue="" required className={inputClass}>
-              <option value="" disabled>
-                {selectedClass && selectedClass.learners.length > 0 ? "Choose a learner" : "No learners in this class"}
-              </option>
-              {selectedClass?.learners.map((learner) => (
-                <option key={learner.id} value={learner.id}>
-                  {learner.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            key={classId}
+            name="learnerId"
+            label="Learner"
+            required
+            placeholder={selectedClass && selectedClass.learners.length > 0 ? "Choose a learner" : "No learners in this class"}
+            options={(selectedClass?.learners ?? []).map((learner) => ({ value: learner.id, label: learner.name }))}
+          />
         ) : null}
       </div>
 

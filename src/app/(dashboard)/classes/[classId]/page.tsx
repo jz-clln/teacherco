@@ -1,11 +1,26 @@
+// src/app/(dashboard)/classes/[classId]/page.tsx
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Upload, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { addLearner } from "@/features/learners/actions";
+import { DeleteStudentButton } from "@/features/learners/delete-student-button";
 
-export default async function ClassOverviewPage({ params }: { params: Promise<{ classId: string }> }) {
+const inputClass =
+  "mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]";
+
+export default async function ClassOverviewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ classId: string }>;
+  searchParams: Promise<{ error?: string; added?: string; removed?: string }>;
+}) {
   const { classId } = await params;
+  const { error, added, removed } = await searchParams;
   const supabase = await createClient();
 
   const { data: classroom } = await supabase
@@ -15,11 +30,35 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
     .single();
   if (!classroom) notFound();
 
-  const { count } = await supabase
-    .from("class_enrollments")
-    .select("id", { count: "exact", head: true })
-    .eq("class_id", classId)
-    .eq("status", "active");
+  const [{ count }, { data: enrollments }] = await Promise.all([
+    supabase
+      .from("class_enrollments")
+      .select("id", { count: "exact", head: true })
+      .eq("class_id", classId)
+      .eq("status", "active"),
+    supabase
+      .from("class_enrollments")
+      .select("created_at, learner:learners(id,display_name,external_ref)")
+      .eq("class_id", classId)
+      .eq("status", "active")
+      .limit(500),
+  ]);
+
+  const learners = (enrollments ?? [])
+    .flatMap((e) => {
+      const l = Array.isArray(e.learner) ? e.learner[0] : e.learner;
+      return l
+        ? [
+            {
+              id: l.id as string,
+              name: l.display_name as string,
+              ref: (l.external_ref as string | null) ?? "",
+              addedAt: e.created_at as string,
+            },
+          ]
+        : [];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const total = count ?? 0;
 
@@ -65,6 +104,90 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
         <Card className="bg-[#E8DFCA]/55">
           <p className="text-sm text-[#606861]">Lowest competency</p>
           <p className="mt-2 text-lg font-bold">Import data first</p>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Roster */}
+        <Card className="overflow-hidden p-0 lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-[#E3E5E1] px-5 py-4">
+            <h2 className="text-lg font-semibold">Students</h2>
+            <span className="text-sm text-[#606861]">
+              {learners.length < total ? `Showing ${learners.length} of ${total}` : `${total} total`}
+            </span>
+          </div>
+
+          {removed ? (
+            <p className="border-b border-[#E3E5E1] bg-green-50 px-5 py-3 text-sm text-green-800">
+              {removed} was deleted.
+            </p>
+          ) : null}
+
+          {learners.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-[#606861]">
+              No students yet. Add one using the form, or import your record.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-[#F5F6F4] text-xs uppercase tracking-wide text-[#606861]">
+                  <tr>
+                    <th className="px-5 py-2.5 font-medium">#</th>
+                    <th className="px-5 py-2.5 font-medium">Name</th>
+                    <th className="px-5 py-2.5 font-medium">Student ID</th>
+                    <th className="px-5 py-2.5 font-medium">Added</th>
+                    <th className="px-5 py-2.5 text-right font-medium"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E3E5E1]">
+                  {learners.map((l, i) => (
+                    <tr key={l.id}>
+                      <td className="px-5 py-3 text-[#606861]">{i + 1}</td>
+                      <td className="px-5 py-3 font-medium">{l.name}</td>
+                      <td className="px-5 py-3 text-[#606861]">{l.ref || "—"}</td>
+                      <td className="px-5 py-3 text-[#606861]">
+                        {new Date(l.addedAt).toLocaleDateString("en-PH", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="px-3 py-1 text-right">
+                        <DeleteStudentButton classId={classId} learnerId={l.id} name={l.name} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        {/* Add student */}
+        <Card>
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <UserPlus size={18} className="text-[#4F6F52]" /> Add a student
+          </h2>
+          <form action={addLearner} className="mt-4 space-y-4">
+            <input type="hidden" name="classId" value={classId} />
+            {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+            {added ? (
+              <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{added} was added to this class.</p>
+            ) : null}
+            <label className="block text-sm font-medium">
+              First name
+              <input name="firstName" required autoComplete="off" className={inputClass} />
+            </label>
+            <label className="block text-sm font-medium">
+              Last name
+              <input name="lastName" required autoComplete="off" className={inputClass} />
+            </label>
+            <label className="block text-sm font-medium">
+              Student ID / LRN <span className="font-normal text-[#606861]">(optional)</span>
+              <input name="externalRef" autoComplete="off" className={inputClass} />
+            </label>
+            <Button type="submit">Add student</Button>
+          </form>
         </Card>
       </div>
 

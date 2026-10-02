@@ -1,6 +1,13 @@
+// src/lib/ai/privacy.ts -Jabez
+
 import type { ClassEvidence } from "./schemas";
 
-export function buildPseudonymizedEvidence(evidence: ClassEvidence) {
+type PseudonymizeOptions = {
+  /** Teacher notes are free text and can contain names, so they are excluded unless the teacher opts in. */
+  includeNotes?: boolean;
+};
+
+export function buildPseudonymizedEvidence(evidence: ClassEvidence, { includeNotes = false }: PseudonymizeOptions = {}) {
   return {
     ...evidence,
     learners: evidence.learners.map((learner, index) => ({
@@ -8,7 +15,7 @@ export function buildPseudonymizedEvidence(evidence: ClassEvidence) {
       average: learner.average,
       absences: learner.absences,
       missingActivities: learner.missingActivities,
-      notes: learner.notes,
+      ...(includeNotes ? { notes: learner.notes } : {}),
     })),
   };
 }

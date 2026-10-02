@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { fmtDate, reportTypeLabels } from "@/features/reports/format";
 import { GenerateReportForm, type GenerateClassOption } from "@/features/reports/generate-report-form";
-import { inputClass } from "@/features/settings/settings-ui";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Reports" };
@@ -94,19 +94,29 @@ export default async function ReportsPage({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-lg font-semibold">Saved reports</h2>
           <form method="get" className="flex flex-wrap items-center gap-2">
-            <select name="type" defaultValue={typeFilter} aria-label="Report type" className={`${inputClass} mt-0 w-auto py-2.5`}>
-              <option value="">All types</option>
-              <option value="class_performance">{reportTypeLabels.class_performance}</option>
-              <option value="learner_progress">{reportTypeLabels.learner_progress}</option>
-            </select>
-            <select name="class" defaultValue={classFilterId} aria-label="Class" className={`${inputClass} mt-0 w-auto py-2.5`}>
-              <option value="">All classes</option>
-              {classOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              name="type"
+              label="Report type"
+              hideLabel
+              compact
+              className="min-w-40"
+              defaultValue={typeFilter}
+              emptyLabel="All types"
+              options={[
+                { value: "class_performance", label: reportTypeLabels.class_performance },
+                { value: "learner_progress", label: reportTypeLabels.learner_progress },
+              ]}
+            />
+            <Select
+              name="class"
+              label="Class"
+              hideLabel
+              compact
+              className="min-w-40"
+              defaultValue={classFilterId}
+              emptyLabel="All classes"
+              options={classOptions.map((item) => ({ value: item.id, label: item.name }))}
+            />
             <Button type="submit" variant="secondary">
               Filter
             </Button>

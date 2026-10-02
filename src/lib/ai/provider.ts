@@ -1,3 +1,5 @@
+//src/lib/ai/provider.ts - Jabez
+
 export type AITextRequest = {
   system: string;
   prompt: string;

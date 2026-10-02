@@ -5,6 +5,7 @@
 import { useActionState, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { inputClass, labelClass, StatusMessage } from "@/features/settings/settings-ui";
 import { saveReport, type ReportState } from "./actions";
 
@@ -52,13 +53,16 @@ export function ReportEditor({
         />
       </label>
 
-      <label className={`${labelClass} sm:max-w-xs`}>
-        Status
-        <select name="status" defaultValue={status} className={inputClass}>
-          <option value="draft">Draft</option>
-          <option value="final">Final</option>
-        </select>
-      </label>
+      <Select
+        name="status"
+        label="Status"
+        defaultValue={status}
+        className="sm:max-w-xs"
+        options={[
+          { value: "draft", label: "Draft" },
+          { value: "final", label: "Final" },
+        ]}
+      />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
         <Button type="submit" disabled={pending}>

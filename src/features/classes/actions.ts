@@ -1,3 +1,5 @@
+// src/features/classes/actions.ts
+
 "use server";
 
 import { redirect } from "next/navigation";
@@ -25,12 +27,20 @@ export async function createClass(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // New classes start with the benchmark the teacher chose in Settings.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("default_benchmark")
+    .eq("id", user.id)
+    .maybeSingle();
+
   const { data, error } = await supabase.from("classes").insert({
     teacher_id: user.id,
     name: parsed.data.name,
     subject: parsed.data.subject,
     school_year: parsed.data.schoolYear,
     grade_level: parsed.data.gradeLevel,
+    benchmark: profile?.default_benchmark ?? 75,
   }).select("id").single();
 
   if (error) redirect(`/classes/new?error=${encodeURIComponent(error.message)}`);
