@@ -16,6 +16,17 @@ describe("scoreAnswers", () => {
     const r = scoreAnswers([{ id: "x", itemNumber: 1, expected: "B", points: 2.5 }], { 1: "b" });
     expect(r.score).toBe(2.5);
   });
+  it("scores a custom point value across an item range", () => {
+    const weighted = [45, 46, 47, 48, 49, 50].map((itemNumber) => ({
+      id: `i${itemNumber}`,
+      itemNumber,
+      expected: "A",
+      points: itemNumber >= 46 ? 5 : 1,
+    }));
+    const r = scoreAnswers(weighted, { 45: "A", 46: "A" });
+    expect(r.score).toBe(6);
+    expect(r.maxScore).toBe(26);
+  });
 });
 
 describe("normalizeAnswer", () => {

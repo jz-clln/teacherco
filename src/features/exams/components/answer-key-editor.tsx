@@ -17,6 +17,7 @@ export interface KeyDraft {
   /** "" = not set yet */
   answer: string;
   competency: string | null;
+  points: number;
 }
 
 interface Props {
@@ -35,6 +36,10 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
   const [from, setFrom] = useState("1");
   const [to, setTo] = useState("");
   const [rangeName, setRangeName] = useState("");
+  const [pointsFrom, setPointsFrom] = useState("1");
+  const [pointsTo, setPointsTo] = useState("");
+  const [rangePoints, setRangePoints] = useState("1");
+  const [pointsError, setPointsError] = useState<string | null>(null);
 
   function apply(source: string) {
     const parsed = parseAnswerKeyText(source, choices, items.length);
@@ -53,6 +58,22 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
     const b = Math.min(items.length, parseInt(to, 10) || a);
     const name = rangeName.trim() || null;
     onChange(items.map((i) => (i.itemNumber >= a && i.itemNumber <= b ? { ...i, competency: name } : i)));
+  }
+
+  function applyPointsRange() {
+    const a = Number.parseInt(pointsFrom, 10);
+    const b = pointsTo.trim() ? Number.parseInt(pointsTo, 10) : a;
+    const points = Number(rangePoints);
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b < a || b > items.length) {
+      setPointsError(`Choose an item range from 1 to ${items.length}.`);
+      return;
+    }
+    if (!Number.isFinite(points) || points < 0.25 || points > 100) {
+      setPointsError("Points must be between 0.25 and 100.");
+      return;
+    }
+    setPointsError(null);
+    onChange(items.map((i) => (i.itemNumber >= a && i.itemNumber <= b ? { ...i, points } : i)));
   }
 
   const setCount = items.filter((i) => i.answer !== "").length;
@@ -175,6 +196,34 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
         </div>
       </details>
 
+      <details className="rounded-2xl border border-[#E8DFCA]">
+        <summary className={summaryClass}>
+          Set points for an item range
+          <ChevronDown className={chevron} aria-hidden />
+        </summary>
+        <div className="border-t border-[#E8DFCA] p-4">
+          <p className={`text-sm ${muted}`}>Apply the same points to every item in the range, such as items 46 to 50.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[5rem_5rem_7rem_auto] sm:items-end">
+            <div className="min-w-0">
+              <label htmlFor="points-from" className={label}>From</label>
+              <input id="points-from" type="number" min="1" max={items.length} step="1" value={pointsFrom} onChange={(e) => setPointsFrom(e.target.value)} className={field} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="points-to" className={label}>To</label>
+              <input id="points-to" type="number" min="1" max={items.length} step="1" placeholder={pointsFrom} value={pointsTo} onChange={(e) => setPointsTo(e.target.value)} className={field} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="range-points" className={label}>Points each</label>
+              <input id="range-points" type="number" min="0.25" max="100" step="0.25" value={rangePoints} onChange={(e) => setRangePoints(e.target.value)} className={field} />
+            </div>
+            <button type="button" onClick={applyPointsRange} className={`${btnSecondary} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
+              Apply points
+            </button>
+          </div>
+          {pointsError ? <p role="alert" className="mt-2 text-sm text-[#9B2C2C]">{pointsError}</p> : null}
+        </div>
+      </details>
+
       {groups.size ? (
         <ul className="flex flex-wrap gap-2 text-sm">
           {[...groups].map(([name, nums]) => (
@@ -208,6 +257,24 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
                 value={item.answer || undefined}
                 onChange={(v) => onChange(items.map((i) => (i.itemNumber === item.itemNumber ? { ...i, answer: v } : i)))}
               />
+              <label className="ml-auto flex shrink-0 items-center gap-1 text-xs text-[#606861]">
+                <input
+                  type="number"
+                  min="0.25"
+                  max="100"
+                  step="0.25"
+                  aria-label={`Points for item ${item.itemNumber}`}
+                  value={item.points}
+                  onChange={(e) => {
+                    const points = Number(e.target.value);
+                    if (Number.isFinite(points) && points >= 0.25 && points <= 100) {
+                      onChange(items.map((i) => (i.itemNumber === item.itemNumber ? { ...i, points } : i)));
+                    }
+                  }}
+                  className="h-9 w-14 rounded-lg border border-[#E8DFCA] bg-white px-1 text-center text-sm text-[#1F2A22]"
+                />
+                pts
+              </label>
             </li>
           ))}
         </ul>

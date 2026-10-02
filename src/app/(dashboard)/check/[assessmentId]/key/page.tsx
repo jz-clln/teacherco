@@ -30,12 +30,14 @@ export default async function KeyPage({ params }: { params: Promise<{ assessment
           status={assessment.status}
           format={assessment.format}
           choices={assessment.choices}
+          pointsPerItem={assessment.pointsPerItem}
           checkedCount={submissions.length}
           competencySuggestions={competencyNames}
           initialItems={items.map((i) => ({
             itemNumber: i.itemNumber,
             answer: i.expected,
             competency: i.competencies[0] ?? null,
+            points: i.points,
           }))}
         />
       </Card>

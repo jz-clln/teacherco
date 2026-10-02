@@ -19,6 +19,7 @@ const keyItemSchema = z.object({
   itemNumber: z.number().int().min(1).max(100),
   answer: z.string().trim().toUpperCase().min(1, "Every item needs an answer."),
   competency: z.string().trim().max(80).nullable().optional(),
+  points: z.number().min(0.25, "Points per item must be at least 0.25.").max(100).optional(),
 });
 type KeyItemInput = z.infer<typeof keyItemSchema>;
 
@@ -104,6 +105,9 @@ export async function createAssessmentAction(input: unknown): Promise<{ ok: true
   const problem = keyProblem(v.items, allowed);
   if (problem) return fail(problem);
 
+  const pointsFor = (item: KeyItemInput) => item.points ?? v.pointsPerItem;
+  const totalPoints = Math.round(v.items.reduce((sum, item) => sum + pointsFor(item), 0) * 100) / 100;
+
   const { data: cls } = await supabase.from("classes").select("id").eq("id", v.classId).maybeSingle();
   if (!cls) return fail("Class not found.");
 
@@ -115,7 +119,7 @@ export async function createAssessmentAction(input: unknown): Promise<{ ok: true
       kind: v.format,
       status: "active",
       assessment_date: v.assessmentDate ?? null,
-      total_points: Math.round(v.items.length * v.pointsPerItem * 100) / 100,
+      total_points: totalPoints,
       answer_key: { choiceCount: v.choiceCount, pointsPerItem: v.pointsPerItem },
     })
     .select("id")
@@ -130,7 +134,7 @@ export async function createAssessmentAction(input: unknown): Promise<{ ok: true
         item_number: i.itemNumber,
         item_type: v.format,
         expected_answer: { answer: i.answer },
-        max_points: v.pointsPerItem,
+        max_points: pointsFor(i),
       })),
     )
     .select("id,item_number");
@@ -356,7 +360,8 @@ export async function updateAnswerKeyAction(input: unknown): Promise<{ ok: true;
 
   // First-time key: the assessment has no items yet, so create them now.
   if (rows.length === 0) {
-    const pointsPerItem = Number((assessment.answer_key as { pointsPerItem?: number } | null)?.pointsPerItem ?? 1);
+    const defaultPoints = Number((assessment.answer_key as { pointsPerItem?: number } | null)?.pointsPerItem ?? 1);
+    const pointsFor = (item: KeyItemInput) => item.points ?? defaultPoints;
     const { data: created, error: createError } = await supabase
       .from("assessment_items")
       .insert(
@@ -365,7 +370,7 @@ export async function updateAnswerKeyAction(input: unknown): Promise<{ ok: true;
           item_number: i.itemNumber,
           item_type: formatOf(assessment.kind),
           expected_answer: { answer: i.answer },
-          max_points: pointsPerItem,
+          max_points: pointsFor(i),
         })),
       )
       .select("id,item_number");
@@ -373,7 +378,7 @@ export async function updateAnswerKeyAction(input: unknown): Promise<{ ok: true;
 
     await supabase
       .from("assessments")
-      .update({ total_points: Math.round(v.items.length * pointsPerItem * 100) / 100 })
+      .update({ total_points: Math.round(v.items.reduce((sum, item) => sum + pointsFor(item), 0) * 100) / 100 })
       .eq("id", assessment.id);
 
     const firstLinkError = await linkCompetencies(supabase, assessment.class_id, created, v.items);
@@ -393,10 +398,15 @@ export async function updateAnswerKeyAction(input: unknown): Promise<{ ok: true;
       assessment_id: assessment.id,
       item_number: i.itemNumber,
       expected_answer: { answer: i.answer },
+      max_points: i.points,
     })),
     { onConflict: "assessment_id,item_number" },
   );
   if (error) return fail("Could not save the answer key.");
+
+  const totalPoints = Math.round(v.items.reduce((sum, item) => sum + (item.points ?? 1), 0) * 100) / 100;
+  const { error: totalError } = await supabase.from("assessments").update({ total_points: totalPoints }).eq("id", assessment.id);
+  if (totalError) return fail("Key saved, but total points could not be updated.");
 
   await supabase
     .from("assessment_competencies")

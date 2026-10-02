@@ -13,8 +13,8 @@ import { Select } from "@/components/ui/select";
 import { btnPrimary, field, label, muted } from "../ui";
 import { AnswerKeyEditor, type KeyDraft } from "./answer-key-editor";
 
-function blankDrafts(count: number, previous: KeyDraft[] = []): KeyDraft[] {
-  return Array.from({ length: count }, (_, idx) => previous[idx] ?? { itemNumber: idx + 1, answer: "", competency: null });
+function blankDrafts(count: number, previous: KeyDraft[] = [], points = 1): KeyDraft[] {
+  return Array.from({ length: count }, (_, idx) => previous[idx] ?? { itemNumber: idx + 1, answer: "", competency: null, points });
 }
 
 export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassOption[]; initialClassId?: string }) {
@@ -31,7 +31,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
   const [choiceCount, setChoiceCount] = useState(4);
   const [itemCount, setItemCount] = useState(20);
   const [points, setPoints] = useState(1);
-  const [items, setItems] = useState<KeyDraft[]>(() => blankDrafts(20));
+  const [items, setItems] = useState<KeyDraft[]>(() => blankDrafts(20, [], points));
 
   const choices = choicesFor(format, choiceCount);
   const complete = items.every((i) => i.answer !== "") && title.trim() !== "" && classId !== "";
@@ -55,7 +55,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
   function changeItemCount(raw: string) {
     const n = Math.min(100, Math.max(1, parseInt(raw, 10) || 1));
     setItemCount(n);
-    setItems((prev) => blankDrafts(n, prev));
+    setItems((prev) => blankDrafts(n, prev, points));
   }
 
   function submit() {
@@ -68,7 +68,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
         choiceCount,
         assessmentDate: date || null,
         pointsPerItem: points,
-        items: items.map((i) => ({ itemNumber: i.itemNumber, answer: i.answer, competency: i.competency })),
+        items: items.map((i) => ({ itemNumber: i.itemNumber, answer: i.answer, competency: i.competency, points: i.points })),
       });
       if (!result.ok) {
         setError(result.error);
@@ -144,9 +144,18 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
             <label htmlFor="points" className={label}>Points per item</label>
             <input
               id="points"
+              type="number"
+              min="0.25"
+              max="100"
+              step="0.25"
               inputMode="decimal"
               value={points}
-              onChange={(e) => setPoints(Math.max(0, Number(e.target.value) || 0))}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (!Number.isFinite(next) || next < 0.25 || next > 100) return;
+                setPoints(next);
+                setItems((prev) => prev.map((item) => ({ ...item, points: next })));
+              }}
               className={field}
             />
           </div>

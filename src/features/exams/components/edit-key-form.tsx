@@ -13,13 +13,14 @@ interface Props {
   status: string;
   format: AssessmentFormat;
   choices: string[];
+  pointsPerItem: number;
   initialItems: KeyDraft[];
   checkedCount: number;
   competencySuggestions: string[];
 }
 
-function blankDrafts(count: number, previous: KeyDraft[] = []): KeyDraft[] {
-  return Array.from({ length: count }, (_, idx) => previous[idx] ?? { itemNumber: idx + 1, answer: "", competency: null });
+function blankDrafts(count: number, previous: KeyDraft[] = [], points = 1): KeyDraft[] {
+  return Array.from({ length: count }, (_, idx) => previous[idx] ?? { itemNumber: idx + 1, answer: "", competency: null, points });
 }
 
 export function EditKeyForm(p: Props) {
@@ -28,12 +29,12 @@ export function EditKeyForm(p: Props) {
   // An assessment can exist without any answer key items. Then the teacher sets the key for the first time.
   const firstKey = p.initialItems.length === 0;
   const [itemCount, setItemCount] = useState(20);
-  const [items, setItems] = useState(firstKey ? blankDrafts(20) : p.initialItems);
+  const [items, setItems] = useState(firstKey ? blankDrafts(20, [], p.pointsPerItem) : p.initialItems);
 
   function changeItemCount(raw: string) {
     const n = Math.min(100, Math.max(1, parseInt(raw, 10) || 1));
     setItemCount(n);
-    setItems((prev) => blankDrafts(n, prev));
+    setItems((prev) => blankDrafts(n, prev, p.pointsPerItem));
   }
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -44,7 +45,7 @@ export function EditKeyForm(p: Props) {
     startTransition(async () => {
       const result = await updateAnswerKeyAction({
         assessmentId: p.assessmentId,
-        items: items.map((i) => ({ itemNumber: i.itemNumber, answer: i.answer, competency: i.competency })),
+        items: items.map((i) => ({ itemNumber: i.itemNumber, answer: i.answer, competency: i.competency, points: i.points })),
       });
       if (!result.ok) return setMessage({ kind: "error", text: result.error });
       if (firstKey) {
