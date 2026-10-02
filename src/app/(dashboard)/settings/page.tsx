@@ -10,7 +10,7 @@ import { PasswordForm } from "@/features/settings/password-form";
 import { AiPrivacyForm, AttentionForm, LanguageForm } from "@/features/settings/preference-forms";
 import { ProfileForm } from "@/features/settings/profile-form";
 import { SettingsSection } from "@/features/settings/settings-ui";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Settings" };
 
@@ -26,9 +26,7 @@ const sections = [
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const [{ data: profile }, { data: classes }] = await Promise.all([

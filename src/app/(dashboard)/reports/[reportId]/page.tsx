@@ -9,7 +9,7 @@ import { DeleteReportButton } from "@/features/reports/delete-report-button";
 import { EvidenceView, type StoredEvidence } from "@/features/reports/evidence-view";
 import { fallbackMessages, fmtDate, reportTypeLabels } from "@/features/reports/format";
 import { ReportEditor } from "@/features/reports/report-editor";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Report" };
 
@@ -18,9 +18,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
   if (!z.string().uuid().safeParse(reportId).success) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { data: report } = await supabase

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { fmtDate, reportTypeLabels } from "@/features/reports/format";
 import { GenerateReportForm, type GenerateClassOption } from "@/features/reports/generate-report-form";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Reports" };
 
@@ -26,9 +26,7 @@ export default async function ReportsPage({
   const { type, class: classFilter, deleted } = await searchParams;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const typeFilter = type === "class_performance" || type === "learner_progress" ? type : "";

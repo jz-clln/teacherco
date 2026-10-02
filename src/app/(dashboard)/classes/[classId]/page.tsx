@@ -65,26 +65,20 @@ export default async function ClassOverviewPage({
   const gradeCount = Number(grades ?? 0);
   const supabase = await createClient();
 
-  const { data: classroom } = await supabase
-    .from("classes")
-    .select("id,name,subject,grade_level,school_year,benchmark,school_name,school_id,adviser,section")
-    .eq("id", classId)
-    .single();
-  if (!classroom) notFound();
-
-  const [{ count }, { data: enrollments }] = await Promise.all([
+  const [{ data: classroom }, { count, data: enrollments }] = await Promise.all([
+    supabase
+      .from("classes")
+      .select("id,name,subject,grade_level,school_year,benchmark,school_name,school_id,adviser,section")
+      .eq("id", classId)
+      .single(),
     supabase
       .from("class_enrollments")
-      .select("id", { count: "exact", head: true })
-      .eq("class_id", classId)
-      .eq("status", "active"),
-    supabase
-      .from("class_enrollments")
-      .select("created_at, learner:learners(id,display_name)")
+      .select("created_at, learner:learners(id,display_name)", { count: "exact" })
       .eq("class_id", classId)
       .eq("status", "active")
       .limit(500),
   ]);
+  if (!classroom) notFound();
 
   const learners = (enrollments ?? [])
     .flatMap((e) => {

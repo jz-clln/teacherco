@@ -7,7 +7,7 @@ import { z } from "zod";
 import { Card } from "@/components/ui/card";
 import { NewActivityForm } from "@/features/scores/new-activity-form";
 import { ScoreSheet, type ScoreRow } from "@/features/scores/score-sheet";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Record scores" };
 
@@ -23,9 +23,7 @@ export default async function RecordScoresPage({
   if (!z.string().uuid().safeParse(classId).success) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { data: classroom } = await supabase.from("classes").select("id, name, subject").eq("id", classId).maybeSingle();

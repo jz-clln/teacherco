@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { CalendarCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { formatLongDate, todayInManila } from "@/features/attendance/dates";
 
 export const metadata = { title: "Today" };
 
 export default async function TodayPage() {
+  const user = await getCurrentUser();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const firstName = String(user?.user_metadata?.full_name ?? "Teacher").split(" ")[0];
 
   const today = todayInManila();
