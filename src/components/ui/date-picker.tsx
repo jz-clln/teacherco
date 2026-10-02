@@ -43,6 +43,10 @@ type DatePickerProps = {
   hint?: string;
   /** Show a Clear button. Defaults to true. */
   clearable?: boolean;
+  /** Hide the visible label (screen readers still read it). */
+  hideLabel?: boolean;
+  /** Latest date that can be picked, "YYYY-MM-DD". Later days are greyed out and cannot be chosen. */
+  max?: string;
   className?: string;
 };
 
@@ -54,12 +58,22 @@ export function DatePicker({
   placeholder = "Select a date",
   hint,
   clearable = true,
+  hideLabel,
+  max,
   className,
 }: DatePickerProps) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const moveFocus = useRef(false);
+
+  const maxDate = max ? parseKey(max) : null;
+  const maxKey = maxDate ? toKey(maxDate) : "";
+  /** Pulls any date back to the latest allowed day. */
+  const clamp = (d: Date) => (maxDate && d > maxDate ? maxDate : d);
+  /** Keeps the month being shown from going past the latest allowed month. */
+  const clampView = (v: { y: number; m: number }) =>
+    maxDate && new Date(v.y, v.m, 1) > maxDate ? { y: maxDate.getFullYear(), m: maxDate.getMonth() } : v;
 
   const selected = parseKey(value);
   const [open, setOpen] = useState(false);
@@ -85,14 +99,15 @@ export function DatePicker({
   }, [open, focus, view, id]);
 
   function openCalendar() {
-    const base = selected ?? new Date();
+    const base = clamp(selected ?? new Date());
     setFocus(base);
     setView({ y: base.getFullYear(), m: base.getMonth() });
     moveFocus.current = true;
     setOpen(true);
   }
 
-  function goTo(next: Date) {
+  function goTo(requested: Date) {
+    const next = clamp(requested);
     moveFocus.current = true;
     setFocus(next);
     setView({ y: next.getFullYear(), m: next.getMonth() });
@@ -124,6 +139,7 @@ export function DatePicker({
 
   function shiftMonth(n: number) {
     const d = addMonths(new Date(view.y, view.m, 1), n);
+    if (maxDate && d > maxDate) return;
     setView({ y: d.getFullYear(), m: d.getMonth() });
   }
 
@@ -134,23 +150,26 @@ export function DatePicker({
   const days = new Date(view.y, view.m + 1, 0).getDate();
   const inView = focus.getFullYear() === view.y && focus.getMonth() === view.m;
   const tabDay = inView ? focus.getDate() : 1;
+  const nextMonthBlocked = maxDate ? new Date(view.y, view.m + 1, 1) > maxDate : false;
 
+  // Years go back 10 so older attendance days are easy to reach.
   const thisYear = today.getFullYear();
+  const lastYear = maxDate ? maxDate.getFullYear() : thisYear + 5;
   const yearOptions: { value: string; label: string }[] = [];
-  for (let y = Math.min(thisYear - 5, view.y); y <= Math.max(thisYear + 5, view.y); y++) {
+  for (let y = Math.min(thisYear - 10, view.y); y <= Math.max(lastYear, view.y); y++) {
     yearOptions.push({ value: String(y), label: String(y) });
   }
 
   return (
     <div className={cn("block", className)}>
-      <span id={`${id}-label`} className="text-sm font-medium">
+      <span id={`${id}-label`} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
         {label}
         {hint ? <span className="ml-1 font-normal text-[#606861]">{hint}</span> : null}
       </span>
 
       <div
         ref={root}
-        className="relative mt-1.5"
+        className={cn("relative", !hideLabel && "mt-1.5")}
         onKeyDown={(e) => {
           if (e.key === "Escape" && open && !e.defaultPrevented) {
             e.preventDefault();
@@ -200,7 +219,7 @@ export function DatePicker({
                 compact
                 className="min-w-0 flex-1"
                 value={String(view.m)}
-                onChange={(v) => setView((cur) => ({ ...cur, m: Number(v) }))}
+                onChange={(v) => setView((cur) => clampView({ ...cur, m: Number(v) }))}
                 options={MONTHS.map((m, i) => ({ value: String(i), label: m }))}
               />
               <Select
@@ -210,14 +229,15 @@ export function DatePicker({
                 compact
                 className="w-24 shrink-0"
                 value={String(view.y)}
-                onChange={(v) => setView((cur) => ({ ...cur, y: Number(v) }))}
+                onChange={(v) => setView((cur) => clampView({ ...cur, y: Number(v) }))}
                 options={yearOptions}
               />
               <button
                 type="button"
                 aria-label="Next month"
+                disabled={nextMonthBlocked}
                 onClick={() => shiftMonth(1)}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#606861] hover:bg-[#EAF0EA]"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#606861] hover:bg-[#EAF0EA] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 <ChevronRight size={18} />
               </button>
@@ -247,11 +267,13 @@ export function DatePicker({
                 const date = new Date(view.y, view.m, day);
                 const key = toKey(date);
                 const isSelected = key === selectedKey;
+                const blocked = maxKey !== "" && key > maxKey;
                 return (
                   <button
                     key={key}
                     id={`${id}-d-${key}`}
                     type="button"
+                    disabled={blocked}
                     tabIndex={day === tabDay ? 0 : -1}
                     aria-pressed={isSelected}
                     aria-label={date.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
@@ -259,10 +281,12 @@ export function DatePicker({
                     onClick={() => pick(date)}
                     className={cn(
                       "inline-flex h-9 items-center justify-center rounded-lg text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-[#1A4D2E]",
-                      isSelected
-                        ? "bg-[#1A4D2E] font-semibold text-white"
-                        : "text-[#1E2420] hover:bg-[#EAF0EA]",
-                      key === todayKey && !isSelected && "font-semibold text-[#1A4D2E] ring-1 ring-[#4F6F52]",
+                      blocked
+                        ? "cursor-not-allowed text-[#C5CAC6]"
+                        : isSelected
+                          ? "bg-[#1A4D2E] font-semibold text-white"
+                          : "text-[#1E2420] hover:bg-[#EAF0EA]",
+                      !blocked && key === todayKey && !isSelected && "font-semibold text-[#1A4D2E] ring-1 ring-[#4F6F52]",
                     )}
                   >
                     {day}
@@ -275,7 +299,7 @@ export function DatePicker({
             <div className="mt-3 flex items-center justify-between border-t border-[#E3E5E1] pt-2">
               <button
                 type="button"
-                onClick={() => pick(new Date())}
+                onClick={() => pick(clamp(new Date()))}
                 className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-[#1A4D2E] hover:bg-[#EAF0EA]"
               >
                 Today

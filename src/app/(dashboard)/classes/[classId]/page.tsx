@@ -2,20 +2,46 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, Upload, UserPlus } from "lucide-react";
+import { ArrowLeft, CalendarCheck, Download, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { addLearner } from "@/features/learners/actions";
+import { AddStudentDialog } from "@/features/learners/add-student-dialog";
 import { DeleteStudentButton } from "@/features/learners/delete-student-button";
 import { EditClassDetails } from "@/features/classes/edit-class-details";
 import { toClassDetails } from "@/features/classes/details";
 import { getClassStats } from "@/features/classes/stats";
-
-const inputClass =
-  "mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]";
+import {
+  ATTENTION_RULES,
+  buildInsights,
+  readRecentAttendance,
+  type AttentionItem,
+} from "@/features/classes/insights";
 
 const pct = (n: number) => `${Math.round(n * 10) / 10}%`;
+
+/** How many flagged learners show before the rest fold into "Show more". */
+const SHOWN_FLAGS = 5;
+
+const DOT: Record<"good" | "warn" | "neutral", string> = {
+  good: "bg-[#4F6F52]",
+  warn: "bg-amber-500",
+  neutral: "bg-[#8B928C]",
+};
+
+function AttentionRow({ item }: { item: AttentionItem }) {
+  return (
+    <li className="py-3">
+      <p className="font-medium">{item.name}</p>
+      <ul className="mt-1 space-y-0.5">
+        {item.reasons.map((reason) => (
+          <li key={reason} className="text-sm text-[#606861]">
+            {reason}
+          </li>
+        ))}
+      </ul>
+    </li>
+  );
+}
 
 export default async function ClassOverviewPage({
   params,
@@ -77,13 +103,32 @@ export default async function ClassOverviewPage({
 
   const total = count ?? 0;
   const benchmark = Number(classroom.benchmark);
-  const stats = await getClassStats(
-    supabase,
-    classId,
-    learners.map((l) => l.id),
+
+  // Scores and recent attendance load together; the flags and changes are worked out from both.
+  const [stats, recentAttendance] = await Promise.all([
+    getClassStats(
+      supabase,
+      classId,
+      learners.map((l) => l.id),
+      benchmark,
+    ),
+    readRecentAttendance(supabase, classId),
+  ]);
+  const insights = buildInsights({
+    learners,
+    learnerPercents: stats.learnerPercents,
     benchmark,
-  );
+    attendance: recentAttendance,
+  });
+  const hasData = stats.average != null || insights.attendanceDays > 0;
+  const flagsShown = insights.attention.slice(0, SHOWN_FLAGS);
+  const flagsHidden = insights.attention.slice(SHOWN_FLAGS);
+
   const details_ = toClassDetails(classroom);
+
+  const linkBase =
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 py-2 text-center text-sm font-semibold leading-tight sm:px-4";
+  const linkLight = `${linkBase} border border-[#E3E5E1] bg-white text-[#1A4D2E] hover:bg-[#F5F6F4]`;
 
   return (
     <div className="space-y-6">
@@ -105,22 +150,25 @@ export default async function ClassOverviewPage({
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <EditClassDetails classId={classId} initial={details_} />
-          <Link
-            href={`/classes/${classId}/export`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F5F6F4]"
-          >
-            <Download size={18} /> Export record
+
+        {/* Phones: two buttons per row.  Edit | Attendance  /  Import | Export */}
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <div className="[&>button]:h-full [&>button]:w-full [&>button]:justify-center sm:[&>button]:w-auto">
+            <EditClassDetails classId={classId} initial={details_} />
+          </div>
+          <Link href={`/classes/${classId}/attendance`} className={linkLight}>
+            <CalendarCheck size={18} className="shrink-0" /> Take attendance
           </Link>
-          <Link
-            href={`/classes/${classId}/records`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 py-2 text-sm font-semibold text-white"
-          >
-            <Upload size={18} /> Import record
+          <Link href={`/classes/${classId}/records`} className={`${linkBase} bg-[#1A4D2E] text-white hover:bg-[#123820]`}>
+            <Upload size={18} className="shrink-0" /> Import record
+          </Link>
+          <Link href={`/classes/${classId}/export`} className={linkLight}>
+            <Download size={18} className="shrink-0" /> Export record
           </Link>
         </div>
       </div>
+
+      {added ? <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{added} was added to this class.</p> : null}
 
       {imported !== undefined ? (
         <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">
@@ -137,6 +185,10 @@ export default async function ClassOverviewPage({
         <Card>
           <p className="text-sm text-[#606861]">Learners</p>
           <p className="mt-2 text-3xl font-bold text-[#1A4D2E]">{total}</p>
+          <div className="mt-3">
+            {/* New key after each result so the popup closes on success and reopens with the error. */}
+            <AddStudentDialog key={`${added ?? ""}|${error ?? ""}`} classId={classId} error={error} />
+          </div>
         </Card>
         <Card>
           <p className="text-sm text-[#606861]">Class average</p>
@@ -157,7 +209,12 @@ export default async function ClassOverviewPage({
         <Card>
           <p className="text-sm text-[#606861]">Attendance</p>
           <p className="mt-2 text-3xl font-bold">{stats.attendance == null ? "—" : pct(stats.attendance)}</p>
-          {stats.attendance == null ? <p className="mt-1 text-xs text-[#606861]">No attendance recorded yet</p> : null}
+          <p className="mt-1 text-xs text-[#606861]">
+            {stats.attendance == null ? "No attendance recorded yet" : "Present or late, all recorded days"}
+          </p>
+          <Link href={`/classes/${classId}/attendance`} className="mt-2 inline-block text-xs font-semibold text-[#1A4D2E] hover:underline">
+            Take attendance
+          </Link>
         </Card>
         <Card className="bg-[#E8DFCA]/55">
           <p className="text-sm text-[#606861]">Lowest scoring activity</p>
@@ -172,94 +229,130 @@ export default async function ClassOverviewPage({
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Roster */}
-        <Card className="overflow-hidden p-0 lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-[#E3E5E1] px-5 py-4">
-            <h2 className="text-lg font-semibold">Students</h2>
-            <span className="text-sm text-[#606861]">
-              {learners.length < total ? `Showing ${learners.length} of ${total}` : `${total} total`}
-            </span>
-          </div>
-
-          {removed ? (
-            <p className="border-b border-[#E3E5E1] bg-green-50 px-5 py-3 text-sm text-green-800">
-              {removed} was deleted.
-            </p>
-          ) : null}
-
-          {learners.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-[#606861]">
-              No students yet. Add one using the form, or import your record.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-[#F5F6F4] text-xs uppercase tracking-wide text-[#606861]">
-                  <tr>
-                    <th className="px-5 py-2.5 font-medium">#</th>
-                    <th className="px-5 py-2.5 font-medium">Name</th>
-                    <th className="px-5 py-2.5 font-medium">Added</th>
-                    <th className="px-5 py-2.5 text-right font-medium"><span className="sr-only">Actions</span></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E3E5E1]">
-                  {learners.map((l, i) => (
-                    <tr key={l.id}>
-                      <td className="px-5 py-3 text-[#606861]">{i + 1}</td>
-                      <td className="px-5 py-3 font-medium">{l.name}</td>
-                      <td className="px-5 py-3 text-[#606861]">
-                        {new Date(l.addedAt).toLocaleDateString("en-PH", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </td>
-                      <td className="px-3 py-1 text-right">
-                        <DeleteStudentButton classId={classId} learnerId={l.id} name={l.name} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-
-        {/* Add student */}
-        <Card>
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <UserPlus size={18} className="text-[#4F6F52]" /> Add a student
-          </h2>
-          <form action={addLearner} className="mt-4 space-y-4">
-            <input type="hidden" name="classId" value={classId} />
-            {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-            {added ? (
-              <p className="rounded-xl bg-green-50 p-3 text-sm text-green-800">{added} was added to this class.</p>
-            ) : null}
-            <label className="block text-sm font-medium">
-              First name
-              <input name="firstName" required autoComplete="off" className={inputClass} />
-            </label>
-            <label className="block text-sm font-medium">
-              Last name
-              <input name="lastName" required autoComplete="off" className={inputClass} />
-            </label>
-            <Button type="submit">Add student</Button>
-          </form>
-        </Card>
-      </div>
-
+      {/* Needs attention + Recent changes, above the student list */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="text-lg font-semibold">Needs attention</h2>
-          <p className="mt-2 text-sm text-[#606861]">Transparent teacher rules and evidence-backed flags will appear here.</p>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Needs attention</h2>
+            {insights.attention.length > 0 ? (
+              <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                {insights.attention.length} {insights.attention.length === 1 ? "learner" : "learners"}
+              </span>
+            ) : null}
+          </div>
+
+          {insights.attention.length === 0 ? (
+            <p className="mt-2 text-sm text-[#606861]">
+              {hasData
+                ? "No learner needs attention right now."
+                : "Import scores or take attendance, and learners who need a closer look will show here."}
+            </p>
+          ) : (
+            <>
+              <ul className="mt-2 divide-y divide-[#E3E5E1]">
+                {flagsShown.map((item) => (
+                  <AttentionRow key={item.learnerId} item={item} />
+                ))}
+              </ul>
+              {flagsHidden.length > 0 ? (
+                <details className="group mt-1 border-t border-[#E3E5E1]">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-[#1A4D2E] hover:underline">
+                    <span className="group-open:hidden">Show {flagsHidden.length} more</span>
+                    <span className="hidden group-open:inline">Show fewer</span>
+                  </summary>
+                  <ul className="divide-y divide-[#E3E5E1]">
+                    {flagsHidden.map((item) => (
+                      <AttentionRow key={item.learnerId} item={item} />
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </>
+          )}
+
+          <p className="mt-3 border-t border-[#E3E5E1] pt-3 text-xs text-[#606861]">
+            A learner shows here when their score average is under {benchmark}%, they were absent {ATTENTION_RULES.streak} recorded
+            days in a row, or they were here less than {ATTENTION_RULES.lowAttendance}% of the last {ATTENTION_RULES.recentDays}{" "}
+            recorded days.
+          </p>
         </Card>
+
         <Card>
           <h2 className="text-lg font-semibold">Recent changes</h2>
-          <p className="mt-2 text-sm text-[#606861]">TeacherCo will compare record versions after your second import.</p>
+          {insights.changes.length === 0 ? (
+            <p className="mt-2 text-sm text-[#606861]">Changes will show here after you take attendance or add students.</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {insights.changes.map((change) => (
+                <li key={change.id} className="flex gap-3">
+                  <span className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[change.tone]}`} aria-hidden />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{change.title}</p>
+                    {change.details.map((line) => (
+                      <p key={line} className="text-xs text-[#606861]">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
+
+      {/* Roster */}
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center justify-between border-b border-[#E3E5E1] px-5 py-4">
+          <h2 className="text-lg font-semibold">Students</h2>
+          <span className="text-sm text-[#606861]">
+            {learners.length < total ? `Showing ${learners.length} of ${total}` : `${total} total`}
+          </span>
+        </div>
+
+        {removed ? (
+          <p className="border-b border-[#E3E5E1] bg-green-50 px-5 py-3 text-sm text-green-800">{removed} was deleted.</p>
+        ) : null}
+
+        {learners.length === 0 ? (
+          <p className="px-5 py-10 text-center text-sm text-[#606861]">
+            No students yet. Use &quot;Add a student&quot; above, or import your record.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-[#F5F6F4] text-xs uppercase tracking-wide text-[#606861]">
+                <tr>
+                  <th className="px-5 py-2.5 font-medium">#</th>
+                  <th className="px-5 py-2.5 font-medium">Name</th>
+                  <th className="px-5 py-2.5 font-medium">Added</th>
+                  <th className="px-5 py-2.5 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E3E5E1]">
+                {learners.map((l, i) => (
+                  <tr key={l.id}>
+                    <td className="px-5 py-3 text-[#606861]">{i + 1}</td>
+                    <td className="px-5 py-3 font-medium">{l.name}</td>
+                    <td className="px-5 py-3 text-[#606861]">
+                      {new Date(l.addedAt).toLocaleDateString("en-PH", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-3 py-1 text-right">
+                      <DeleteStudentButton classId={classId} learnerId={l.id} name={l.name} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

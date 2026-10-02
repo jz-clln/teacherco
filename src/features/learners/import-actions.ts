@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { nameKey } from "@/lib/excel/roster";
+import { logImportEvent } from "@/features/learners/import-history";
 
 // Only names ever reach the server. LRNs stay in the teacher's browser.
 const NameSchema = z.object({
@@ -113,6 +114,7 @@ export async function findSimilarLearners(input: z.input<typeof LookupSchema>): 
  * A row with `link` enrolls an existing learner (the teacher chose "Same learner? Link"),
  * every other row creates a new learner. Names already in the class are skipped, so importing
  * the same file twice never creates duplicates.
+ * Each import that adds someone is written to the import history for the class page.
  */
 export async function importLearners(input: z.input<typeof ImportSchema>): Promise<ImportLearnersResult> {
   const parsed = ImportSchema.safeParse(input);
@@ -195,6 +197,13 @@ export async function importLearners(input: z.input<typeof ImportSchema>): Promi
     if (createdIds.length > 0) await supabase.from("learners").delete().in("id", createdIds);
     return { ok: false, error: "Could not add the students to this class. Nothing was saved." };
   }
+
+  await logImportEvent(supabase, classId, "learners", {
+    added: createdIds.length + linkIds.length,
+    linked: linkIds.length,
+    skipped,
+    names: fresh.slice(0, 8).map((r) => `${r.firstName} ${r.lastName}`),
+  });
 
   revalidatePath(`/classes/${classId}`);
   revalidatePath("/classes");

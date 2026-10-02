@@ -16,6 +16,8 @@ export type ClassStats = {
   lowest: { title: string; average: number } | null;
   /** 0-100, or null when no attendance has been recorded. */
   attendance: number | null;
+  /** Each learner's own average (0-100) by learner id. Only learners with at least one score. */
+  learnerPercents: Record<string, number>;
 };
 
 const PAGE = 1000; // Supabase returns at most 1000 rows per request.
@@ -62,7 +64,10 @@ export async function getClassStats(
     perAssessment.set(r.assessment_id, a);
   }
 
-  const percents = [...perLearner.values()].map((l) => (l.got / l.max) * 100);
+  const learnerPercents: Record<string, number> = {};
+  for (const [id, l] of perLearner) learnerPercents[id] = (l.got / l.max) * 100;
+
+  const percents = Object.values(learnerPercents);
   const average = percents.length ? percents.reduce((a, b) => a + b, 0) / percents.length : null;
 
   let lowest: ClassStats["lowest"] = null;
@@ -78,6 +83,7 @@ export async function getClassStats(
     assessments: perAssessment.size,
     lowest,
     attendance,
+    learnerPercents,
   };
 }
 

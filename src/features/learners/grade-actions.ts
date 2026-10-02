@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { nameKey } from "@/lib/excel/roster";
+import { logImportEvent, type ChangedScore } from "@/features/learners/import-history";
 
 const SheetSchema = z
   .object({
@@ -53,9 +54,52 @@ export type ImportGradesResult =
   | { ok: false; error: string };
 
 type Prepared = { title: string; total: number; rows: Map<string, number> };
+type Score = { score: number; max: number };
+type Db = Awaited<ReturnType<typeof createClient>>;
 
 const CHUNK = 500;
+const PAGE = 1000; // Supabase returns at most 1000 rows per request.
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Every saved score in the class, keyed "assessmentId|learnerId". Null if it could not be read completely. */
+async function readClassScores(supabase: Db, classId: string): Promise<Map<string, Score> | null> {
+  const out = new Map<string, Score>();
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("assessment_id,learner_id,score,max_score,assessments!inner(class_id)")
+      .eq("assessments.class_id", classId)
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error || !data) return null;
+    for (const r of data) {
+      const score = Number(r.score);
+      const max = Number(r.max_score);
+      if (r.score == null || !Number.isFinite(score) || !(max > 0)) continue;
+      out.set(`${r.assessment_id}|${r.learner_id}`, { score, max });
+    }
+    if (data.length < PAGE) break;
+  }
+  return out;
+}
+
+/** Each learner's own average (0-100) and the class average, same way the class page works them out. */
+function averagesOf(scores: Map<string, Score>, enrolled: Set<string>) {
+  const per = new Map<string, { got: number; max: number }>();
+  for (const [key, s] of scores) {
+    const learnerId = key.split("|")[1];
+    if (!learnerId || !enrolled.has(learnerId)) continue;
+    const t = per.get(learnerId) ?? { got: 0, max: 0 };
+    t.got += s.score;
+    t.max += s.max;
+    per.set(learnerId, t);
+  }
+  const byLearner: Record<string, number> = {};
+  for (const [id, t] of per) byLearner[id] = (t.got / t.max) * 100;
+  const values = Object.values(byLearner);
+  return { byLearner, classAverage: values.length ? values.reduce((a, b) => a + b, 0) / values.length : null };
+}
 
 /**
  * Saves grades read from a class record. Every score column becomes one assessment
@@ -63,6 +107,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * Learners are matched by name against the learners already in the class. LRNs are never sent or stored.
  * Running it twice updates the same assessments and scores instead of duplicating them.
  * Blank cells are never saved as zero.
+ * Each import that changes something is written to the import history, so the class page can show
+ * what is new, what changed, and how the averages moved.
  */
 export async function importGrades(input: z.input<typeof InputSchema>): Promise<ImportGradesResult> {
   const parsed = InputSchema.safeParse(input);
@@ -88,10 +134,16 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   if (enrolledError) return { ok: false, error: "Could not read the class list. Please try again." };
 
   const byName = new Map<string, string>();
+  const enrolledIds = new Set<string>();
+  const nameById = new Map<string, string>();
   for (const e of enrolled ?? []) {
     const l = Array.isArray(e.learner) ? e.learner[0] : e.learner;
     if (!l?.id) continue;
-    if (l.first_name && l.last_name) byName.set(nameKey(l.first_name as string, l.last_name as string), l.id as string);
+    enrolledIds.add(l.id as string);
+    if (l.first_name && l.last_name) {
+      byName.set(nameKey(l.first_name as string, l.last_name as string), l.id as string);
+      nameById.set(l.id as string, `${l.first_name} ${l.last_name}`);
+    }
   }
 
   // Match learners, then build one entry per score column.
@@ -160,6 +212,35 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     })),
   );
 
+  // Compare with what is saved now, before it is overwritten.
+  const before = await readClassScores(supabase, classId);
+  const after = before ? new Map(before) : null;
+  const titleById = new Map([...idByTitle].map(([title, id]) => [id, title]));
+  let scoresNew = 0;
+  let scoresChanged = 0;
+  let scoresSame = 0;
+  const changedAll: ChangedScore[] = [];
+  if (before && after) {
+    for (const r of rows) {
+      const key = `${r.assessment_id}|${r.learner_id}`;
+      const old = before.get(key);
+      if (!old) {
+        scoresNew++;
+      } else if (Math.abs(old.score - r.score) < 0.005) {
+        scoresSame++;
+      } else {
+        scoresChanged++;
+        changedAll.push({
+          name: nameById.get(r.learner_id) ?? "A learner",
+          title: titleById.get(r.assessment_id) ?? "Score",
+          from: old.score,
+          to: r.score,
+        });
+      }
+      after.set(key, { score: r.score, max: r.max_score });
+    }
+  }
+
   for (let i = 0; i < rows.length; i += CHUNK) {
     const { error } = await supabase
       .from("submissions")
@@ -167,6 +248,33 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     if (error) {
       return { ok: false, error: "Some scores were not saved. Import again. It updates instead of duplicating." };
     }
+  }
+
+  // Only log imports that changed something, so repeating the same import adds no noise.
+  if (before && after && (scoresNew + scoresChanged > 0 || missing.length > 0)) {
+    const was = averagesOf(before, enrolledIds);
+    const now_ = averagesOf(after, enrolledIds);
+    const learnerAverages: Record<string, { before: number | null; after: number }> = {};
+    for (const [id, afterPct] of Object.entries(now_.byLearner)) {
+      const beforePct = was.byLearner[id] ?? null;
+      if (beforePct === null || Math.abs(afterPct - beforePct) >= 0.05) {
+        learnerAverages[id] = { before: beforePct === null ? null : round1(beforePct), after: round1(afterPct) };
+      }
+    }
+    changedAll.sort((a, b) => Math.abs(b.to - b.from) - Math.abs(a.to - a.from));
+    await logImportEvent(supabase, classId, "grades", {
+      scoresNew,
+      scoresChanged,
+      scoresSame,
+      assessmentsCreated: missing.map((p) => p.title).slice(0, 12),
+      assessmentsCreatedCount: missing.length,
+      changed: changedAll.slice(0, 15),
+      classAverage: {
+        before: was.classAverage === null ? null : round1(was.classAverage),
+        after: now_.classAverage === null ? null : round1(now_.classAverage),
+      },
+      learnerAverages,
+    });
   }
 
   revalidatePath(`/classes/${classId}`);
