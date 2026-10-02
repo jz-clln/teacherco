@@ -1,7 +1,8 @@
 // src/lib/excel/parser.ts
 
 import ExcelJS from "exceljs";
-import type { SheetGrid } from "@/lib/excel/roster";
+import { detectGradeSheet, type GradeSheet } from "@/lib/excel/grades";
+import { detectRoster, type RosterDetection, type SheetGrid } from "@/lib/excel/roster";
 
 export type SheetPreview = {
   name: string;
@@ -70,11 +71,53 @@ function cellText(value: ExcelJS.CellValue): string {
   return clean(String(value));
 }
 
+export type SheetInfo = { name: string; hidden: boolean };
+
+export type WorkbookReader = {
+  fileName: string;
+  /** Sheet names only. No cell data is read until a sheet is asked for. */
+  sheets: SheetInfo[];
+  /** Converts ONE sheet to a grid of text. Each sheet is converted at most once. */
+  read: (name: string) => SheetGrid;
+  /** Finds the learner list. Stops at the first sheet that clearly has it. */
+  detect: () => { sheetName: string; detection: RosterDetection };
+  /**
+   * Looks for score columns (TERM1, TERM2, ...). Opens every visible sheet, so only
+   * call it when the teacher asks to import grades. Hidden sheets are skipped.
+   */
+  findGrades: () => GradeSheet[];
+};
+
+// Same hint roster.ts uses to prefer the learner sheet (INPUT, SF1, Learners...).
+const LIKELY_ROSTER_SHEET = /input|learner|student|sf1|master|enrol|roster|names/i;
+
 /**
- * Reads every sheet into a grid of text. Merged cells keep their value only in
+ * Reads ONE worksheet into a grid of text. Merged cells keep their value only in
  * the top-left cell, so a title merged across 12 columns is read once, not 12 times.
  */
-export async function readWorkbookGrids(file: File): Promise<{ fileName: string; sheets: SheetGrid[] }> {
+function sheetToGrid(sheet: ExcelJS.Worksheet): SheetGrid {
+  const rowCount = Math.min(sheet.rowCount, MAX_ROWS);
+  const colCount = Math.min(sheet.columnCount, MAX_COLS);
+  const rows: string[][] = [];
+  for (let r = 1; r <= rowCount; r++) {
+    const row = sheet.getRow(r);
+    const values: string[] = [];
+    for (let c = 1; c <= colCount; c++) {
+      const cell = row.getCell(c);
+      values.push(cell.type === ExcelJS.ValueType.Merge ? "" : cellText(cell.value));
+    }
+    rows.push(values);
+  }
+  return { name: sheet.name, hidden: sheet.state !== "visible", rows };
+}
+
+/**
+ * Opens a workbook WITHOUT turning its sheets into grids. A class record can have
+ * 7+ sheets (INPUT, TERM1-3, SUMMARY, hidden helpers) and only one holds the
+ * learner list, so a sheet is converted only when detection or the teacher needs it.
+ * Hidden sheets are never opened automatically.
+ */
+export async function openWorkbook(file: File): Promise<WorkbookReader> {
   if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("Please choose an .xlsx workbook.");
   const workbook = new ExcelJS.Workbook();
   try {
@@ -83,21 +126,48 @@ export async function readWorkbookGrids(file: File): Promise<{ fileName: string;
     throw new Error("This file could not be opened. Check that it is a valid .xlsx workbook.");
   }
 
-  const sheets: SheetGrid[] = workbook.worksheets.map((sheet) => {
-    const rowCount = Math.min(sheet.rowCount, MAX_ROWS);
-    const colCount = Math.min(sheet.columnCount, MAX_COLS);
-    const rows: string[][] = [];
-    for (let r = 1; r <= rowCount; r++) {
-      const row = sheet.getRow(r);
-      const values: string[] = [];
-      for (let c = 1; c <= colCount; c++) {
-        const cell = row.getCell(c);
-        values.push(cell.type === ExcelJS.ValueType.Merge ? "" : cellText(cell.value));
-      }
-      rows.push(values);
-    }
-    return { name: sheet.name, hidden: sheet.state !== "visible", rows };
-  });
+  const sheets: SheetInfo[] = workbook.worksheets.map((s) => ({ name: s.name, hidden: s.state !== "visible" }));
+  if (sheets.length === 0) throw new Error("This workbook has no sheets.");
 
-  return { fileName: file.name, sheets };
+  const cache = new Map<string, SheetGrid>();
+  const read = (name: string): SheetGrid => {
+    const hit = cache.get(name);
+    if (hit) return hit;
+    const sheet = workbook.getWorksheet(name);
+    if (!sheet) throw new Error(`Sheet "${name}" was not found.`);
+    const grid = sheetToGrid(sheet);
+    cache.set(name, grid);
+    return grid;
+  };
+
+  const detect = () => {
+    const visible = sheets.filter((s) => !s.hidden);
+    const ordered = [
+      ...visible.filter((s) => LIKELY_ROSTER_SHEET.test(s.name)),
+      ...visible.filter((s) => !LIKELY_ROSTER_SHEET.test(s.name)),
+    ];
+
+    let weak: { sheetName: string; detection: RosterDetection } | null = null;
+    for (const info of ordered) {
+      const detection = detectRoster([read(info.name)]);
+      if (detection.confidence === "high") return { sheetName: info.name, detection };
+      if (detection.mapping && !weak) weak = { sheetName: info.name, detection };
+    }
+    return (
+      weak ?? {
+        sheetName: (ordered[0] ?? sheets[0]).name,
+        detection: { mapping: null, confidence: "none" } as RosterDetection,
+      }
+    );
+  };
+
+  const findGrades = () =>
+    sheets
+      .filter((s) => !s.hidden)
+      .flatMap((s) => {
+        const found = detectGradeSheet(read(s.name));
+        return found ? [found] : [];
+      });
+
+  return { fileName: file.name, sheets, read, detect, findGrades };
 }

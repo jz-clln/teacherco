@@ -8,23 +8,34 @@ import { ClipboardPaste, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { importGrades } from "@/features/learners/grade-actions";
 import { importLearners } from "@/features/learners/import-actions";
-import { readWorkbookGrids } from "@/lib/excel/parser";
+import type { GradeSheet } from "@/lib/excel/grades";
+import { openWorkbook, type SheetInfo } from "@/lib/excel/parser";
 import {
   columnOptions,
   defaultMapping,
   detectRoster,
   extractRoster,
   gridFromPaste,
+  nameKey,
   suggestMapping,
   type NameFormat,
+  type RosterDetection,
   type RosterMapping,
   type RosterRow,
   type SheetGrid,
 } from "@/lib/excel/roster";
 import { cn } from "@/lib/utils";
 
-type Source = { label: string; sheets: SheetGrid[] };
+// Sheets are listed by name only. A sheet is read when it is first needed.
+type Source = {
+  label: string;
+  sheets: SheetInfo[];
+  read: (name: string) => SheetGrid;
+  /** Only workbooks can have grades. Opens every visible sheet, so it runs on request. */
+  findGrades?: () => GradeSheet[];
+};
 type Edit = Partial<Pick<RosterRow, "firstName" | "lastName" | "lrn" | "include">>;
 
 const FORMAT_OPTIONS: { value: NameFormat; label: string }[] = [
@@ -48,18 +59,19 @@ export function RosterImport({ classId }: { classId: string }) {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [wantGrades, setWantGrades] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [gradeSheets, setGradeSheets] = useState<GradeSheet[] | null>(null);
+  const [gradePick, setGradePick] = useState<Record<string, boolean>>({});
 
-  function load(next: Source) {
-    if (next.sheets.length === 0) {
-      setError("This workbook has no sheets.");
-      return;
-    }
-    const found = detectRoster(next.sheets);
-    const fallback = next.sheets.find((s) => !s.hidden) ?? next.sheets[0];
+  function load(next: Source, fallbackSheet: string, found: RosterDetection) {
     setSource(next);
-    setMapping(found.mapping ?? defaultMapping(fallback));
+    setMapping(found.mapping ?? defaultMapping(next.read(fallbackSheet)));
     setConfident(found.confidence === "high");
     setEdits({});
+    setWantGrades(false);
+    setGradeSheets(null);
+    setGradePick({});
     setError(null);
   }
 
@@ -68,8 +80,9 @@ export function RosterImport({ classId }: { classId: string }) {
     setBusy(true);
     setError(null);
     try {
-      const wb = await readWorkbookGrids(file);
-      load({ label: wb.fileName, sheets: wb.sheets });
+      const wb = await openWorkbook(file);
+      const { sheetName, detection } = wb.detect();
+      load({ label: wb.fileName, sheets: wb.sheets, read: wb.read, findGrades: wb.findGrades }, sheetName, detection);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read this workbook.");
     } finally {
@@ -98,12 +111,16 @@ export function RosterImport({ classId }: { classId: string }) {
   }
 
   function onPaste() {
-    const sheet = gridFromPaste(pasted);
-    if (sheet.rows.length === 0) {
+    const grid = gridFromPaste(pasted);
+    if (grid.rows.length === 0) {
       setError("Paste at least one name first.");
       return;
     }
-    load({ label: "Pasted list", sheets: [sheet] });
+    load(
+      { label: "Pasted list", sheets: [{ name: grid.name, hidden: false }], read: () => grid },
+      grid.name,
+      detectRoster([grid]),
+    );
   }
 
   function remap(patch: Partial<RosterMapping>) {
@@ -112,24 +129,48 @@ export function RosterImport({ classId }: { classId: string }) {
   }
 
   function changeSheet(name: string) {
-    const next = source?.sheets.find((s) => s.name === name);
-    if (!next) return;
-    setMapping(suggestMapping(next));
+    if (!source?.sheets.some((s) => s.name === name)) return;
+    setMapping(suggestMapping(source.read(name)));
     setConfident(false);
     setEdits({});
+  }
+
+  async function toggleGrades(on: boolean) {
+    setWantGrades(on);
+    if (!on || gradeSheets || !source?.findGrades) return;
+    setScanning(true);
+    await new Promise((resolve) => setTimeout(resolve, 0)); // let "Looking for grades" show first
+    try {
+      setGradeSheets(source.findGrades());
+    } catch {
+      setError("Could not read the grade sheets in this file.");
+      setWantGrades(false);
+    } finally {
+      setScanning(false);
+    }
   }
 
   function patchRow(key: string, patch: Edit) {
     setEdits((cur) => ({ ...cur, [key]: { ...cur[key], ...patch } }));
   }
 
-  const sheet = source?.sheets.find((s) => s.name === mapping?.sheet) ?? null;
+  const sheetName = mapping?.sheet;
+  const sheet = useMemo(() => (source && sheetName ? source.read(sheetName) : null), [source, sheetName]);
   const base = useMemo(() => (sheet && mapping ? extractRoster(sheet.rows, mapping) : []), [sheet, mapping]);
   const rows = useMemo(() => base.map((r) => ({ ...r, ...edits[r.key] })), [base, edits]);
 
   const picked = rows.filter((r) => r.include);
   const incomplete = picked.filter((r) => !r.firstName.trim() || !r.lastName.trim());
   const canImport = picked.length > 0 && incomplete.length === 0 && !pending;
+
+  // Grades are matched to learners by name, so show how many names match the list being imported.
+  const rosterKeys = new Set(picked.map((r) => nameKey(r.firstName.trim(), r.lastName.trim())));
+  const gradeInfo = (gradeSheets ?? []).map((g) => {
+    const matched = g.learners.filter((l) => rosterKeys.has(nameKey(l.firstName, l.lastName))).length;
+    const on = matched > 0 && (gradePick[g.sheet] ?? matched * 2 >= g.learners.length);
+    return { g, matched, on };
+  });
+  const chosenGrades = wantGrades ? gradeInfo.filter((x) => x.on) : [];
 
   const columns = useMemo(
     () =>
@@ -150,7 +191,26 @@ export function RosterImport({ classId }: { classId: string }) {
         setError(result.error);
         return;
       }
-      router.push(`/classes/${classId}?imported=${result.added}&skipped=${result.skipped}`);
+
+      let gradeScores = 0;
+      if (chosenGrades.length > 0) {
+        const grades = await importGrades({
+          classId,
+          sheets: chosenGrades.map(({ g }) => ({
+            label: g.term,
+            learners: g.learners.map((l) => ({ firstName: l.firstName, lastName: l.lastName, lrn: l.lrn })),
+            columns: g.columns.map((c) => ({ title: c.title, total: c.total, scores: c.scores })),
+          })),
+        });
+        if (!grades.ok) {
+          setError(`Learners were saved. ${grades.error}`);
+          return;
+        }
+        gradeScores = grades.scores;
+      }
+
+      const gradesParam = gradeScores > 0 ? `&grades=${gradeScores}` : "";
+      router.push(`/classes/${classId}?imported=${result.added}&skipped=${result.skipped}${gradesParam}`);
     });
   }
 
@@ -397,6 +457,76 @@ export function RosterImport({ classId }: { classId: string }) {
         )}
       </Card>
 
+      {source.findGrades ? (
+        <Card>
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={wantGrades}
+              disabled={scanning || pending}
+              onChange={(e) => void toggleGrades(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="block font-semibold">Also import grades</span>
+              <span className="block text-sm text-[#606861]">
+                Reads the score columns (written works, performance tasks, exams) from the term sheets and matches them to
+                learners by name. Totals, term grades and the summary sheet are ignored.
+              </span>
+            </span>
+          </label>
+
+          {scanning ? <p className="mt-3 text-sm text-[#606861]">Looking for grade sheets…</p> : null}
+
+          {wantGrades && !scanning && gradeSheets ? (
+            gradeInfo.length === 0 ? (
+              <p className="mt-3 text-sm text-amber-700">
+                No score columns found. Grades are read from sheets that have a &quot;Highest possible score&quot; row.
+              </p>
+            ) : (
+              <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
+                {gradeInfo.map(({ g, matched, on }) => (
+                  <li key={g.sheet} className="flex items-start gap-3 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Import grades from ${g.sheet}`}
+                      checked={on}
+                      disabled={matched === 0 || pending}
+                      onChange={(e) => setGradePick((cur) => ({ ...cur, [g.sheet]: e.target.checked }))}
+                      className="mt-1"
+                    />
+                    <div className="text-sm">
+                      <p className="font-medium">
+                        {g.term} <span className="font-normal text-[#606861]">(sheet {g.sheet})</span>
+                      </p>
+                      <p className="text-[#606861]">
+                        {g.columns.length} score {g.columns.length === 1 ? "column" : "columns"}. {matched} of {g.learners.length}{" "}
+                        learners matched by name.
+                      </p>
+                      {matched === 0 ? (
+                        <p className="mt-1 text-amber-700">
+                          No names match the learner list above, so this sheet is skipped. It may belong to a different class list.
+                        </p>
+                      ) : matched * 2 < g.learners.length ? (
+                        <p className="mt-1 text-amber-700">
+                          Fewer than half the names match. Only matched learners get grades.
+                        </p>
+                      ) : null}
+                      {g.ignored > 0 ? (
+                        <p className="mt-1 text-amber-700">
+                          {g.ignored} {g.ignored === 1 ? "cell was" : "cells were"} not a number or above the highest possible score, and{" "}
+                          {g.ignored === 1 ? "is" : "are"} left out.
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
+        </Card>
+      ) : null}
+
       {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       {incomplete.length > 0 ? (
         <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">
@@ -406,7 +536,9 @@ export function RosterImport({ classId }: { classId: string }) {
 
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={runImport} disabled={!canImport}>
-          {pending ? "Importing…" : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}`}
+          {pending
+            ? "Importing…"
+            : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}${chosenGrades.length > 0 ? " and grades" : ""}`}
         </Button>
         <p className="text-sm text-[#606861]">
           Your file is read in your browser. Only the names you confirm are saved. Learners already in this class are skipped.

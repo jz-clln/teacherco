@@ -17,12 +17,13 @@ export default async function ClassOverviewPage({
   searchParams,
 }: {
   params: Promise<{ classId: string }>;
-  searchParams: Promise<{ error?: string; added?: string; removed?: string; imported?: string; skipped?: string }>;
+  searchParams: Promise<{ error?: string; added?: string; removed?: string; imported?: string; skipped?: string; grades?: string }>;
 }) {
   const { classId } = await params;
-  const { error, added, removed, imported, skipped } = await searchParams;
+  const { error, added, removed, imported, skipped, grades } = await searchParams;
   const importedCount = Number(imported ?? 0);
   const skippedCount = Number(skipped ?? 0);
+  const gradeCount = Number(grades ?? 0);
   const supabase = await createClient();
 
   const { data: classroom } = await supabase
@@ -92,6 +93,7 @@ export default async function ClassOverviewPage({
             ? "No new students were added."
             : `${importedCount} ${importedCount === 1 ? "student was" : "students were"} imported.`}
           {skippedCount > 0 ? ` ${skippedCount} already in this class ${skippedCount === 1 ? "was" : "were"} skipped.` : ""}
+          {gradeCount > 0 ? ` ${gradeCount} ${gradeCount === 1 ? "score was" : "scores were"} saved from your record.` : ""}
         </p>
       ) : null}
 
