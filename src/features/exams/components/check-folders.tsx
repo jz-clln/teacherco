@@ -13,6 +13,9 @@ const STORAGE_KEY = "teacherco.check.folders";
 
 const defaultOpen = (f: CheckFolder, total: number) => total === 1 || f.pending > 0;
 
+// A subject with more assessments than this gets its own search box.
+const SEARCH_FROM = 6;
+
 // ---------------------------------------------------------------- saved open/closed folders
 // The browser's localStorage is an external system, so it is read with useSyncExternalStore.
 // That avoids setting state inside an effect and keeps server and first client render identical.
@@ -78,14 +81,14 @@ function AssessmentCard({ a }: { a: OverviewRow }) {
         <Card>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h4 className="truncate font-semibold">{a.title}</h4>
+              <h4 className="truncate text-base font-semibold">{a.title}</h4>
               {a.date ? <p className="mt-0.5 truncate text-sm text-[#606861]">{a.date}</p> : null}
             </div>
-            <span className="shrink-0 rounded-full bg-[#E8DFCA] px-2.5 py-1 text-xs font-medium">
-              {a.format === "true_false" ? "True or false" : "Multiple choice"}
-            </span>
+            {a.format === "true_false" ? (
+              <span className="shrink-0 rounded-full bg-[#E8DFCA] px-2.5 py-1 text-sm font-medium">True or false</span>
+            ) : null}
           </div>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#E8DFCA]">
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#E8DFCA]">
             <div className="h-full bg-[#1A4D2E]" style={{ width: `${progress}%` }} />
           </div>
           <p className="mt-2 text-sm text-[#606861]">
@@ -123,6 +126,8 @@ function filterFolders(folders: CheckFolder[], query: string): CheckFolder[] {
 
 export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
   const [query, setQuery] = useState("");
+  // What the teacher typed in each subject's own search box.
+  const [subjectQuery, setSubjectQuery] = useState<Record<string, string>>({});
   // Folders the teacher opened or closed by hand. Anything missing uses the default.
   const raw = useSyncExternalStore(subscribe, readSaved, readSavedOnServer);
   const saved = useMemo(() => parseSaved(raw), [raw]);
@@ -183,7 +188,7 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
           }}
           className="teacherco-card overflow-hidden"
         >
-          <summary className="flex cursor-pointer list-none items-center gap-3 p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF0EA] text-[#1A4D2E]">
               <Folder size={20} aria-hidden />
             </span>
@@ -200,33 +205,54 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
               </span>
             </span>
             {folder.pending > 0 ? (
-              <span className="shrink-0 rounded-full bg-[#E8DFCA] px-2.5 py-1 text-xs font-medium">
+              <span className="shrink-0 rounded-full bg-[#E8DFCA] px-2.5 py-1 text-sm font-medium">
                 {folder.pending} to check
               </span>
             ) : null}
-            <ChevronDown size={18} aria-hidden className="shrink-0 text-[#606861] transition-transform [details[open]_&]:rotate-180" />
+            <ChevronDown size={20} aria-hidden className="shrink-0 text-[#606861] transition-transform [details[open]_&]:rotate-180" />
           </summary>
 
-          <div className="space-y-6 border-t border-[#E8DFCA] p-5">
-            {folder.subjects.map((group) => (
-              <section key={group.subject} aria-label={`${folder.name}, ${group.subject}`} className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-[#4F6F52]">{group.subject}</h3>
-                  <Link href={`/check/new?classId=${group.classId}`} className={btnQuiet}>
-                    <Plus size={16} aria-hidden /> New assessment
-                  </Link>
-                </div>
-                {group.assessments.length === 0 ? (
-                  <p className="text-sm text-[#606861]">No assessments in {group.subject} yet.</p>
-                ) : (
-                  <ul className="grid gap-3 md:grid-cols-2">
-                    {group.assessments.map((a) => (
-                      <AssessmentCard key={a.id} a={a} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
+          <div className="space-y-4 border-t border-[#E8DFCA] p-4">
+            {folder.subjects.map((group) => {
+              const key = `${folder.key}|${group.subject}`;
+              const typed = subjectQuery[key] ?? "";
+              const q = typed.trim().toLowerCase();
+              const shown = q ? group.assessments.filter((a) => a.title.toLowerCase().includes(q)) : group.assessments;
+              return (
+                <section key={group.subject} aria-label={`${folder.name}, ${group.subject}`} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-[#4F6F52]">{group.subject}</h3>
+                    <Link href={`/check/new?classId=${group.classId}`} className={btnQuiet}>
+                      <Plus size={16} aria-hidden /> New assessment
+                    </Link>
+                  </div>
+                  {group.assessments.length > SEARCH_FROM ? (
+                    <div className="relative">
+                      <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#8A918B]" />
+                      <input
+                        type="search"
+                        value={typed}
+                        onChange={(e) => setSubjectQuery((cur) => ({ ...cur, [key]: e.target.value }))}
+                        placeholder="Search assessments"
+                        aria-label={`Search ${group.subject} assessments`}
+                        className={`${field} pl-9`}
+                      />
+                    </div>
+                  ) : null}
+                  {group.assessments.length === 0 ? (
+                    <p className="text-sm text-[#606861]">No assessments in {group.subject} yet.</p>
+                  ) : shown.length === 0 ? (
+                    <p role="status" className="text-sm text-[#606861]">No assessment matches “{typed.trim()}”.</p>
+                  ) : (
+                    <ul className="grid gap-3 md:grid-cols-2">
+                      {shown.map((a) => (
+                        <AssessmentCard key={a.id} a={a} />
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
           </div>
         </details>
       ))}

@@ -55,16 +55,16 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-semibold text-[#1E2420]">Summary</h2>
           {hasEdits ? (
-            <span className="rounded-full bg-[#EAF0EA] px-2.5 py-1 text-xs font-medium text-[#1A4D2E]">Edited by you</span>
+            <span className="rounded-full bg-[#EAF0EA] px-2.5 py-1 text-sm font-medium text-[#1A4D2E]">Edited by you</span>
           ) : (
-            <span className="rounded-full bg-[#E8DFCA]/60 px-2.5 py-1 text-xs font-medium text-[#606861]">
-              {isAi ? "AI draft · review before using" : "Written from your records · no AI"}
+            <span className="rounded-full bg-[#E8DFCA]/60 px-2.5 py-1 text-sm font-medium text-[#606861]">
+              {isAi ? "AI draft · please review" : "From your records · no AI"}
             </span>
           )}
         </div>
 
         {!isAi && generation.fallbackReason ? (
-          <p className="mt-3 text-xs leading-5 text-[#8B928C]">{fallbackMessages[generation.fallbackReason]}</p>
+          <p className="mt-3 text-sm leading-5 text-[#606861]">{fallbackMessages[generation.fallbackReason]}</p>
         ) : null}
 
         <div className="mt-5">
@@ -84,7 +84,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
       <section className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold">Evidence</h2>
-          <p className="mt-1 text-sm text-[#606861]">Where every number in the summary comes from.</p>
+          <p className="mt-1 text-sm text-[#606861]">Where each number comes from.</p>
         </div>
         <EvidenceView evidence={evidence} />
       </section>

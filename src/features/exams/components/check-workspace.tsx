@@ -338,11 +338,8 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
       ) : (
         <>
           {allChecked ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E8DFCA] bg-white p-4">
-              <div>
-                <h2 className="font-semibold">All sheets are checked</h2>
-                <p className={`text-sm ${muted}`}>See the class results, learning gaps and item analysis.</p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E8DFCA] bg-white p-3">
+              <h2 className="font-semibold">All sheets are checked</h2>
               <Link href={`/check/${assessment.id}`} className={btnPrimary}>View results</Link>
             </div>
           ) : null}
@@ -363,14 +360,18 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                 style={{ width: `${(checkedCount / merged.length) * 100}%` }}
               />
             </div>
-            <label htmlFor="learner-search" className="sr-only">Find a learner</label>
-            <input
-              id="learner-search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Find a learner"
-              className={`${field} mb-3`}
-            />
+            {merged.length > 8 ? (
+              <>
+                <label htmlFor="learner-search" className="sr-only">Find a learner</label>
+                <input
+                  id="learner-search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Find a learner"
+                  className={`${field} mb-3`}
+                />
+              </>
+            ) : null}
             <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
               {filteredRoster.map((r) => (
                 <li key={r.learnerId}>
@@ -380,13 +381,13 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                     onClick={() => pick(r.learnerId)}
                     aria-haspopup="dialog"
                     aria-current={r.learnerId === learnerId ? "true" : undefined}
-                    className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm focus-visible:outline-2 focus-visible:outline-[#1A4D2E] ${
+                    className={`flex min-h-12 w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-base focus-visible:outline-2 focus-visible:outline-[#1A4D2E] ${
                       r.learnerId === learnerId ? "bg-[#E8DFCA] font-semibold" : "hover:bg-[#F5EFE6]"
                     }`}
                   >
                     <span className="truncate">{r.name}</span>
                     {isChecked(r) ? (
-                      <span className="flex shrink-0 items-center gap-1 text-xs text-[#1A4D2E]">
+                      <span className="flex shrink-0 items-center gap-1 text-sm text-[#1A4D2E]">
                         <Check className="h-3.5 w-3.5" aria-hidden />
                         {r.score}/{r.maxScore}
                       </span>
@@ -466,16 +467,12 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                       ) : null}
                       <div>
                         <p className="font-medium">Reading the sheet…</p>
-                        <p className={`text-sm ${muted}`}>This takes a few seconds.</p>
                       </div>
                     </div>
                   ) : order.length === 0 ? (
                     <div className="rounded-xl border border-[#E0B14C] bg-[#FFF8E6] p-4 text-sm">
-                      <p className="font-medium">This assessment has no answer key items yet.</p>
-                      <p className={`mt-1 ${muted}`}>
-                        Sheets are checked against a saved answer key. Create a new assessment and set its key first.
-                      </p>
-                      <Link href="/check/new" className={`${btnPrimary} mt-3`}>New assessment</Link>
+                      <p className="font-medium">This assessment has no answer key yet.</p>
+                      <Link href={`/check/${assessment.id}/key`} className={`${btnPrimary} mt-3`}>Input answer key</Link>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row">
@@ -543,7 +540,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                                   value={c.final}
                                   onChange={(v) => setFinal(n, v)}
                                 />
-                                {c.final === "" ? <span className={`ml-auto text-xs ${muted}`}>No answer</span> : null}
+                                {c.final === "" ? <span className={`ml-auto text-sm ${muted}`}>No answer</span> : null}
                               </li>
                             );
                           })}
@@ -554,7 +551,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm">
                             {flaggedCount === 0
-                              ? "Every answer was read clearly. Check anything that looks off."
+                              ? "All answers were read clearly."
                               : `${flaggedCount} answer${flaggedCount === 1 ? "" : "s"} need your review.`}
                           </p>
                           {flaggedCount > 0 ? (
@@ -563,7 +560,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                             </button>
                           ) : null}
                         </div>
-                        <p className={`mb-3 hidden text-xs sm:block ${muted}`}>
+                        <p className={`mb-2 hidden text-sm sm:block ${muted}`}>
                           Keys: {assessment.choices.join(" / ")} to answer, 0 for no answer, arrows to move.
                         </p>
 
@@ -585,13 +582,13 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                                 <div className="mb-2 flex items-center justify-between gap-2">
                                   <span className="text-sm font-semibold">Item {n}</span>
                                   {needs ? (
-                                    <span className="flex items-center gap-1 text-xs font-medium text-[#8A5A00]">
+                                    <span className="flex items-center gap-1 text-sm font-medium text-[#8A5A00]">
                                       <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                                       {c.reason ?? "Needs review"}
                                     </span>
                                   ) : c.final !== undefined && result ? (
                                     <span
-                                      className={`flex items-center gap-1 text-xs font-medium ${result.isCorrect ? "text-[#1A4D2E]" : "text-[#9B2C2C]"}`}
+                                      className={`flex items-center gap-1 text-sm font-medium ${result.isCorrect ? "text-[#1A4D2E]" : "text-[#9B2C2C]"}`}
                                     >
                                       {result.isCorrect ? <Check className="h-3.5 w-3.5" aria-hidden /> : <X className="h-3.5 w-3.5" aria-hidden />}
                                       {result.isCorrect ? "Correct" : c.final === "" ? "No answer" : "Wrong"}
@@ -608,9 +605,9 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                                   onChange={(v) => setFinal(n, v)}
                                 />
                                 {needs && c.extracted ? (
-                                  <p className={`mt-1.5 text-xs ${muted}`}>
+                                  <p className={`mt-1.5 text-sm ${muted}`}>
                                     Detected {c.extracted}
-                                    {c.confidence !== null ? ` (${Math.round(c.confidence * 100)}% sure)` : ""}. Tap to accept or choose another.
+                                    {c.confidence !== null ? ` (${Math.round(c.confidence * 100)}% sure)` : ""}
                                   </p>
                                 ) : null}
                               </li>

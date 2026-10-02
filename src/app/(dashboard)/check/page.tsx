@@ -17,9 +17,7 @@ export default async function CheckPage() {
         <div>
           <p className="text-sm font-medium text-[#4F6F52]">Check</p>
           <h1 className="mt-1 text-3xl font-bold">Assessment checking</h1>
-          <p className="mt-2 max-w-xl text-[#606861]">
-            Photograph answer sheets, review anything uncertain, and scores land on each learner’s record.
-          </p>
+          <p className="mt-2 max-w-xl text-[#606861]">Photograph answer sheets. Scores land on each learner’s record.</p>
         </div>
         <Link href="/check/new" className={btnPrimary}>New assessment</Link>
       </div>
@@ -27,9 +25,7 @@ export default async function CheckPage() {
       {folders.length === 0 ? (
         <Card>
           <h2 className="font-semibold">No classes yet</h2>
-          <p className="mt-2 text-sm text-[#606861]">
-            Create a class first, then add an assessment with its answer key. You can say the key out loud instead of typing it.
-          </p>
+          <p className="mt-2 text-sm text-[#606861]">Create a class first, then add an assessment.</p>
           <Link href="/classes/new" className={`${btnPrimary} mt-4`}>Create a class</Link>
         </Card>
       ) : (

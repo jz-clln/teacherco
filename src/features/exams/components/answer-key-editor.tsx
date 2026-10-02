@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mic, Square } from "lucide-react";
+import { ChevronDown, Mic, Square } from "lucide-react";
 import { parseAnswerKeyText } from "@/lib/exams/key-parser";
 import { formatItemRange } from "@/lib/exams/analytics";
 import type { AssessmentFormat } from "@/lib/exams/types";
@@ -59,122 +59,136 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
   const groups = new Map<string, number[]>();
   for (const i of items) if (i.competency) groups.set(i.competency, [...(groups.get(i.competency) ?? []), i.itemNumber]);
 
+  const summaryClass =
+    "flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden";
+  const chevron = "h-5 w-5 shrink-0 text-[#606861] transition-transform [details[open]_&]:rotate-180";
+
   return (
-    <div className="space-y-6">
-      <section aria-labelledby="dictate-heading" className="rounded-2xl border border-[#E8DFCA] bg-[#F5EFE6] p-4">
-        <h3 id="dictate-heading" className="font-semibold">Say or paste the answer key</h3>
-        <p className={`mt-1 text-sm ${muted}`}>
-          Try “number one B, number two C” or “1B 2C 3A”. Filipino works too. Check the grid below before saving.
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {dictation.supported ? (
-            <>
-              <button
-                type="button"
-                onClick={dictation.listening ? dictation.stop : dictation.start}
-                aria-pressed={dictation.listening}
-                className={dictation.listening ? btnPrimary : btnSecondary}
-              >
-                {dictation.listening ? <Square className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
-                {dictation.listening ? "Stop listening" : "Speak the key"}
-              </button>
-              <Select
-                name="dictationLang"
-                label="Speaking language"
-                hideLabel
-                compact
-                className="min-w-32"
-                value={lang}
-                disabled={dictation.listening}
-                onChange={(v) => setLang(v as DictationLang)}
-                options={[
-                  { value: "en-PH", label: "English" },
-                  { value: "fil-PH", label: "Filipino" },
-                ]}
-              />
-            </>
-          ) : (
-            <p className={`text-sm ${muted}`}>Voice input needs Chrome or Edge. You can still paste or tap answers.</p>
-          )}
-        </div>
-
-        {dictation.listening ? (
-          <p role="status" className="mt-3 text-sm text-[#1A4D2E]">
-            Listening… {dictation.interim ? <span className={muted}>{dictation.interim}</span> : null}
-          </p>
-        ) : null}
-        {dictation.error ? <p role="alert" className="mt-3 text-sm text-[#9B2C2C]">{dictation.error}</p> : null}
-        {heard ? <p className={`mt-3 text-sm ${muted}`}>Heard: {heard}</p> : null}
-
-        <div className="mt-3">
-          <label htmlFor="key-text" className={label}>Type or paste</label>
-          <textarea
-            id="key-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={3}
-            placeholder="1 B  2 C  3 A  4 D"
-            className={field}
-          />
-          <button type="button" onClick={() => apply(text)} disabled={!text.trim()} className={`${btnSecondary} mt-2`}>
-            Fill the grid
-          </button>
-        </div>
-
-        {warnings.length ? (
-          <ul role="status" className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#8A5A00]">
-            {warnings.slice(0, 6).map((w) => <li key={w}>{w}</li>)}
-            {warnings.length > 6 ? <li>and {warnings.length - 6} more</li> : null}
-          </ul>
-        ) : null}
-      </section>
-
-      <section aria-labelledby="comp-heading" className="rounded-2xl border border-[#E8DFCA] p-4">
-        <h3 id="comp-heading" className="font-semibold">What does each part test? <span className={`font-normal ${muted}`}>(optional)</span></h3>
-        <p className={`mt-1 text-sm ${muted}`}>
-          Name a competency for a range of items, such as items 1 to 5 → Fractions. TeacherCo uses this to find learning gaps.
-        </p>
-        <div className="mt-3 grid grid-cols-[4.5rem_4.5rem_1fr_auto] items-end gap-2">
-          <div>
-            <label htmlFor="range-from" className={label}>From</label>
-            <input id="range-from" inputMode="numeric" value={from} onChange={(e) => setFrom(e.target.value)} className={field} />
+    <div className="space-y-4">
+      <details className="rounded-2xl border border-[#E8DFCA] bg-[#F5EFE6]">
+        <summary className={summaryClass}>
+          Fill faster: speak or paste the key
+          <ChevronDown className={chevron} aria-hidden />
+        </summary>
+        <div className="space-y-3 border-t border-[#E8DFCA] p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {dictation.supported ? (
+              <>
+                <button
+                  type="button"
+                  onClick={dictation.listening ? dictation.stop : dictation.start}
+                  aria-pressed={dictation.listening}
+                  className={dictation.listening ? btnPrimary : btnSecondary}
+                >
+                  {dictation.listening ? <Square className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
+                  {dictation.listening ? "Stop listening" : "Speak the key"}
+                </button>
+                <Select
+                  name="dictationLang"
+                  label="Speaking language"
+                  hideLabel
+                  compact
+                  className="min-w-32"
+                  value={lang}
+                  disabled={dictation.listening}
+                  onChange={(v) => setLang(v as DictationLang)}
+                  options={[
+                    { value: "en-PH", label: "English" },
+                    { value: "fil-PH", label: "Filipino" },
+                  ]}
+                />
+              </>
+            ) : (
+              <p className={`text-sm ${muted}`}>Voice input needs Chrome or Edge.</p>
+            )}
           </div>
+
+          {dictation.listening ? (
+            <p role="status" className="text-sm text-[#1A4D2E]">
+              Listening… {dictation.interim ? <span className={muted}>{dictation.interim}</span> : null}
+            </p>
+          ) : null}
+          {dictation.error ? <p role="alert" className="text-sm text-[#9B2C2C]">{dictation.error}</p> : null}
+          {heard ? <p className={`text-sm ${muted}`}>Heard: {heard}</p> : null}
+
           <div>
-            <label htmlFor="range-to" className={label}>To</label>
-            <input id="range-to" inputMode="numeric" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
-          </div>
-          <div>
-            <label htmlFor="range-name" className={label}>Competency</label>
-            <input
-              id="range-name"
-              list="competency-options"
-              value={rangeName}
-              onChange={(e) => setRangeName(e.target.value)}
-              placeholder="Fractions"
+            <label htmlFor="key-text" className={label}>Type or paste</label>
+            <textarea
+              id="key-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={2}
+              placeholder="1B 2C 3A 4D"
               className={field}
             />
-            <datalist id="competency-options">
-              {competencySuggestions.map((n) => <option key={n} value={n} />)}
-            </datalist>
+            <button type="button" onClick={() => apply(text)} disabled={!text.trim()} className={`${btnSecondary} mt-2`}>
+              Fill the grid
+            </button>
           </div>
-          <button type="button" onClick={applyRange} className={btnSecondary}>Apply</button>
+
+          {warnings.length ? (
+            <ul role="status" className="list-disc space-y-1 pl-5 text-sm text-[#8A5A00]">
+              {warnings.slice(0, 6).map((w) => <li key={w}>{w}</li>)}
+              {warnings.length > 6 ? <li>and {warnings.length - 6} more</li> : null}
+            </ul>
+          ) : null}
         </div>
-        {groups.size ? (
-          <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-            {[...groups].map(([name, nums]) => (
-              <li key={name} className="rounded-full bg-[#E8DFCA] px-3 py-1 text-[#1F2A22]">
-                {name}: items {formatItemRange(nums)}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      </details>
+
+      <details className="rounded-2xl border border-[#E8DFCA]">
+        <summary className={summaryClass}>
+          <span>
+            What does each part test? <span className={`whitespace-nowrap font-normal ${muted}`}>(optional)</span>
+          </span>
+          <ChevronDown className={chevron} aria-hidden />
+        </summary>
+        <div className="border-t border-[#E8DFCA] p-4">
+          <p className={`text-sm ${muted}`}>Name a competency for a range of items, for example items 1 to 5 → Fractions.</p>
+          {/* Phones: From and To side by side, then Competency and Apply full width. Wider screens: one row. */}
+          <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[5rem_5rem_minmax(0,1fr)_auto] sm:items-end">
+            <div className="min-w-0">
+              <label htmlFor="range-from" className={label}>From</label>
+              <input id="range-from" inputMode="numeric" value={from} onChange={(e) => setFrom(e.target.value)} className={field} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor="range-to" className={label}>To</label>
+              <input id="range-to" inputMode="numeric" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
+            </div>
+            <div className="col-span-2 min-w-0 sm:col-span-1">
+              <label htmlFor="range-name" className={label}>Competency</label>
+              <input
+                id="range-name"
+                list="competency-options"
+                value={rangeName}
+                onChange={(e) => setRangeName(e.target.value)}
+                placeholder="Fractions"
+                className={field}
+              />
+              <datalist id="competency-options">
+                {competencySuggestions.map((n) => <option key={n} value={n} />)}
+              </datalist>
+            </div>
+            <button type="button" onClick={applyRange} className={`${btnSecondary} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
+              Apply
+            </button>
+          </div>
+        </div>
+      </details>
+
+      {groups.size ? (
+        <ul className="flex flex-wrap gap-2 text-sm">
+          {[...groups].map(([name, nums]) => (
+            <li key={name} className="rounded-full bg-[#E8DFCA] px-3 py-1 text-[#1F2A22]">
+              {name}: items {formatItemRange(nums)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <section aria-labelledby="grid-heading">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <h3 id="grid-heading" className="font-semibold">Answer key</h3>
-          <p role="status" className={`text-sm ${setCount === items.length ? "text-[#1A4D2E]" : muted}`}>
+          <p role="status" className={`text-base ${setCount === items.length ? "text-[#1A4D2E]" : muted}`}>
             {setCount} of {items.length} set
           </p>
         </div>
@@ -182,11 +196,11 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
           {items.map((item) => (
             <li
               key={item.itemNumber}
-              className={`mb-2 flex break-inside-avoid items-center gap-3 rounded-xl border p-2.5 ${
+              className={`mb-2 flex break-inside-avoid items-center gap-3 rounded-xl border p-2 ${
                 item.answer === "" ? "border-[#E0B14C] bg-[#FFF8E6]" : "border-[#E8DFCA] bg-white"
               }`}
             >
-              <span className="w-8 shrink-0 text-center text-sm font-semibold text-[#4F6F52]">{item.itemNumber}</span>
+              <span className="w-8 shrink-0 text-center text-base font-semibold text-[#4F6F52]">{item.itemNumber}</span>
               <ChoiceButtons
                 groupLabel={`Correct answer for item ${item.itemNumber}`}
                 choices={choices}
@@ -199,7 +213,7 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
         </ul>
         <button
           type="button"
-          className={`${btnQuiet} mt-3`}
+          className={`${btnQuiet} mt-2`}
           onClick={() => onChange(items.map((i) => ({ ...i, answer: "" })))}
           disabled={setCount === 0}
         >

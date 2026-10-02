@@ -36,6 +36,9 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
   const choices = choicesFor(format, choiceCount);
   const complete = items.every((i) => i.answer !== "") && title.trim() !== "" && classId !== "";
   const suggestions = classes.find((c) => c.id === classId)?.competencies ?? [];
+  const missing = items.filter((i) => i.answer === "").length;
+  const hint =
+    title.trim() === "" ? "Add a title." : missing > 0 ? `${missing} ${missing === 1 ? "answer" : "answers"} left.` : "Ready to save.";
 
   function changeFormat(next: AssessmentFormat) {
     setFormat(next);
@@ -79,17 +82,16 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
     return (
       <div className="rounded-2xl border border-[#E8DFCA] bg-white p-6">
         <h2 className="font-semibold">Create a class first</h2>
-        <p className={`mt-1 text-sm ${muted}`}>Assessments belong to a class so scores land on the right learners.</p>
+        <p className={`mt-1 text-sm ${muted}`}>Assessments belong to a class.</p>
         <Link href="/classes/new" className={`${btnPrimary} mt-4`}>Create a class</Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <section aria-labelledby="details-heading" className="space-y-4">
-        <h2 id="details-heading" className="text-lg font-semibold">Assessment details</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-5">
+      <section aria-label="Assessment details">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Select
             name="classId"
             label="Class"
@@ -116,7 +118,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
                   type="button"
                   aria-pressed={format === f}
                   onClick={() => changeFormat(f)}
-                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                  className={`min-h-11 flex-1 rounded-xl border px-3 py-2.5 text-base font-semibold ${
                     format === f ? "border-[#1A4D2E] bg-[#1A4D2E] text-white" : "border-[#E8DFCA] bg-white hover:bg-[#F5EFE6]"
                   }`}
                 >
@@ -162,9 +164,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
       <div className="sticky bottom-0 -mx-4 border-t border-[#E8DFCA] bg-[#F5EFE6]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
         {error ? <p role="alert" className="mb-2 text-sm text-[#9B2C2C]">{error}</p> : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className={`text-sm ${muted}`}>
-            {complete ? "Answer key is complete." : "Set every answer and add a title to continue."}
-          </p>
+          <p role="status" className={`text-base ${complete ? "text-[#1A4D2E]" : muted}`}>{hint}</p>
           <button type="button" onClick={submit} disabled={!complete || pending} className={btnPrimary}>
             {pending ? "Saving…" : "Save and start checking"}
           </button>

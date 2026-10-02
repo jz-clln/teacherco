@@ -77,7 +77,7 @@ export default async function ReportsPage({
         <p className="text-sm font-medium text-[#4F6F52]">REPORTS</p>
         <h1 className="mt-1 text-3xl font-bold">Teacher-ready summaries</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#606861]">
-          Every number comes from your confirmed records. AI only helps with the wording, and you can edit anything before you use it.
+          Numbers come from your confirmed records. AI only helps with the wording.
         </p>
       </div>
 
@@ -150,14 +150,14 @@ export default async function ReportsPage({
                           {learnerName ? ` · ${learnerName}` : ""}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
                         <span className="rounded-full bg-[#EAF0EA] px-2.5 py-1 font-medium text-[#1A4D2E]">
                           {report.status === "final" ? "Final" : "Draft"}
                         </span>
                         <span className="rounded-full bg-[#E8DFCA]/60 px-2.5 py-1 font-medium text-[#606861]">
                           {report.source === "ai" ? "AI draft" : "Facts only"}
                         </span>
-                        <span className="text-[#8B928C]">{fmtDate(String(report.created_at))}</span>
+                        <span className="text-[#606861]">{fmtDate(String(report.created_at))}</span>
                       </div>
                     </Card>
                   </Link>

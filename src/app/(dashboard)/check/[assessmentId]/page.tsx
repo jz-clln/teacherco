@@ -61,7 +61,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
           <div key={s.label} className="rounded-2xl border border-[#E8DFCA] bg-white p-4">
             <dt className="text-sm text-[#606861]">{s.label}</dt>
             <dd className="mt-1 text-2xl font-bold">{s.value}</dd>
-            {s.hint ? <p className="text-xs text-[#606861]">{s.hint}</p> : null}
+            {s.hint ? <p className="text-sm text-[#606861]">{s.hint}</p> : null}
           </div>
         ))}
       </dl>
@@ -69,9 +69,6 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
       {!hasResults ? (
         <Card>
           <h2 className="font-semibold">No scores yet</h2>
-          <p className="mt-2 text-sm text-[#606861]">
-            Check the first answer sheet and results, learning gaps and item analysis appear here.
-          </p>
           <Link href={`/check/${assessment.id}/score`} className={`${btnPrimary} mt-4`}>Check the first sheet</Link>
         </Card>
       ) : (
@@ -80,9 +77,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
             <h2 id="gaps-heading" className="text-xl font-semibold">Possible learning gaps</h2>
             {gaps.length === 0 && competencyStats.length === 0 ? (
               <Card>
-                <p className="text-sm text-[#606861]">
-                  No item was missed by most learners yet. Name what each part tests in the answer key to see competency results.
-                </p>
+                <p className="text-sm text-[#606861]">No item was missed by most learners.</p>
               </Card>
             ) : null}
 
@@ -148,7 +143,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
                       </summary>
                       <div className="mt-2 pl-17 text-sm text-[#606861]">
                         <p>
-                          Key: {choiceLabel(s.expected, assessment.format)} · {s.correct} correct, {s.wrong - s.blank} wrong, {s.blank} blank of {s.total}
+                          Key: {choiceLabel(s.expected, assessment.format)} · {s.correct} correct, {s.wrong - s.blank} wrong, {s.blank} blank
                         </p>
                         <p className="mt-1">
                           Picks:{" "}

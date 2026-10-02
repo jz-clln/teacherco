@@ -349,11 +349,44 @@ export async function updateAnswerKeyAction(input: unknown): Promise<{ ok: true;
     .select("id,item_number")
     .eq("assessment_id", assessment.id);
   const rows = (itemRows ?? []) as { id: string; item_number: number }[];
-  if (rows.length !== v.items.length) return fail("The number of items cannot change after creating an assessment.");
 
   const allowed = choicesFor(formatOf(assessment.kind), choiceCountOf(assessment.answer_key));
   const problem = keyProblem(v.items, allowed);
   if (problem) return fail(problem);
+
+  // First-time key: the assessment has no items yet, so create them now.
+  if (rows.length === 0) {
+    const pointsPerItem = Number((assessment.answer_key as { pointsPerItem?: number } | null)?.pointsPerItem ?? 1);
+    const { data: created, error: createError } = await supabase
+      .from("assessment_items")
+      .insert(
+        v.items.map((i) => ({
+          assessment_id: assessment.id,
+          item_number: i.itemNumber,
+          item_type: formatOf(assessment.kind),
+          expected_answer: { answer: i.answer },
+          max_points: pointsPerItem,
+        })),
+      )
+      .select("id,item_number");
+    if (createError || !created) return fail("Could not save the answer key.");
+
+    await supabase
+      .from("assessments")
+      .update({ total_points: Math.round(v.items.length * pointsPerItem * 100) / 100 })
+      .eq("id", assessment.id);
+
+    const firstLinkError = await linkCompetencies(supabase, assessment.class_id, created, v.items);
+    if (firstLinkError) return fail("Key saved, but competencies could not be linked.");
+
+    // Nothing to re-score: no sheet was ever checked against these items.
+    revalidatePath("/check");
+    revalidatePath(`/check/${assessment.id}`);
+    revalidatePath(`/check/${assessment.id}/score`);
+    return { ok: true, rescored: 0 };
+  }
+
+  if (rows.length !== v.items.length) return fail("The number of items cannot change after creating an assessment.");
 
   const { error } = await supabase.from("assessment_items").upsert(
     v.items.map((i) => ({
