@@ -195,7 +195,7 @@ export default async function ClassOverviewPage({
             {stats.average == null ? "Import grades to see this" : `${stats.scored} learners · ${stats.assessments} score columns`}
           </p>
         </Card>
-        <Card className="order-1 col-span-3 p-3 sm:order-none sm:col-span-1 sm:p-5">
+        <Card className="order-1 col-span-3 p-3 sm:order-0 sm:col-span-1 sm:p-5">
           <p className="text-xs text-[#606861] sm:text-sm">Below {benchmark}%</p>
           <p className={`mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl ${stats.below > 0 ? "text-red-700" : ""}`}>
             {stats.average == null ? "—" : stats.below}
@@ -218,11 +218,11 @@ export default async function ClassOverviewPage({
             Take attendance
           </Link>
         </Card>
-        <Card className="order-2 col-span-3 bg-[#E8DFCA]/55 p-3 sm:order-none sm:col-span-1 sm:p-5">
+        <Card className="order-2 col-span-3 bg-[#E8DFCA]/55 p-3 sm:order-0 sm:col-span-1 sm:p-5">
           <p className="text-xs text-[#606861] sm:text-sm">Lowest scoring activity</p>
           {stats.lowest ? (
             <>
-              <p className="mt-1 text-base font-bold break-words sm:mt-2 sm:text-lg">{stats.lowest.title}</p>
+              <p className="mt-1 text-base font-bold wrap-break-word sm:mt-2 sm:text-lg">{stats.lowest.title}</p>
               <p className="mt-1 text-xs text-[#606861]">{pct(stats.lowest.average)} class average</p>
             </>
           ) : (

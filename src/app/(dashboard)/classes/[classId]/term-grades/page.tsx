@@ -1,3 +1,5 @@
+//src\app\(dashboard)\classes\[classId]\term-grades\page.tsx
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";

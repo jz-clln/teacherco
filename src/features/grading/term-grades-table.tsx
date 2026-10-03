@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check, X } from "lucide-react";
 import { COMPONENT_LABEL, type Component } from "@/lib/grading/deped";
 import type { ClassTermGrades } from "./queries";
 
 const components: Component[] = ["written_work", "performance_task", "assessment"];
+const TERMS = [1, 2, 3];
+/** DepEd passing grade. A term grade of 75 or higher is a pass. */
+const PASSING_GRADE = 75;
 const gradeText = (value: number | null) => value == null ? "—" : Number.isInteger(value) ? String(value) : value.toFixed(2);
 
 function comparisonText(status: string, gap: number | null) {
@@ -15,6 +18,23 @@ function comparisonText(status: string, gap: number | null) {
   if (status === "app_only") return "No printed grade";
   if (status === "record_only") return "Scores incomplete";
   return "Pending";
+}
+
+/** Term Grade cell: green when passed, red when failed. An icon and hidden text back up the color. */
+function TermGradeCell({ value }: { value: number | null }) {
+  if (value == null) {
+    return <td className="border-l border-[#E3E5E1] px-3 py-3 font-semibold tabular-nums">—</td>;
+  }
+  const passed = value >= PASSING_GRADE;
+  return (
+    <td className={`border-l border-[#E3E5E1] px-3 py-3 ${passed ? "bg-green-50" : "bg-red-50"}`}>
+      <span className={`inline-flex items-center gap-1.5 font-semibold tabular-nums ${passed ? "text-green-800" : "text-red-700"}`}>
+        {passed ? <Check size={16} aria-hidden /> : <X size={16} aria-hidden />}
+        {value}
+        <span className="sr-only">{passed ? "Passed" : "Failed"}</span>
+      </span>
+    </td>
+  );
 }
 
 export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
@@ -53,7 +73,7 @@ export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
       <>
       <div className="flex flex-wrap items-center justify-between gap-3 border-y border-[#E3E5E1] py-3">
         <div role="tablist" aria-label="Term" className="inline-flex rounded-xl border border-[#E3E5E1] bg-white p-1">
-          {[1, 2, 3, 4].map((number) => (
+          {TERMS.map((number) => (
             <button
               key={number}
               type="button"
@@ -107,7 +127,7 @@ export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
                     ];
                   })}
                   <td className="border-l border-[#E3E5E1] px-3 py-3 font-medium tabular-nums">{gradeText(grade.result.initialGrade)}</td>
-                  <td className="border-l border-[#E3E5E1] px-3 py-3 font-semibold tabular-nums">{grade.result.termGrade ?? "—"}</td>
+                  <TermGradeCell value={grade.result.termGrade ?? null} />
                   <td className="border-l border-[#E3E5E1] px-3 py-3">{grade.result.descriptor ?? "—"}</td>
                   <td className="border-l border-[#E3E5E1] px-3 py-3">
                     <span className={grade.comparison.status === "match" ? "font-medium text-[#1A4D2E]" : "text-[#606861]"}>

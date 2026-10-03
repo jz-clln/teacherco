@@ -1,7 +1,7 @@
 // src/app/(dashboard)/classes/page.tsx
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 
@@ -39,15 +39,32 @@ export default async function ClassesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {classes.map((item) => (
-            <Link key={item.id} href={`/classes/${item.id}`}>
-              <Card className="h-full transition hover:-translate-y-0.5 hover:shadow-lg">
-                <p className="text-xs font-semibold tracking-wide text-[#4F6F52] uppercase">{item.grade_level}</p>
-                <h2 className="mt-2 text-xl font-bold">{item.name}</h2>
-                <p className="mt-1 text-sm text-[#606861]">
-                  {item.subject} · {item.school_year}
-                </p>
-              </Card>
-            </Link>
+            // A link cannot sit inside another link. The class name's link is stretched over the whole
+            // card, and the shortcut below sits on top of it (relative z-10) so it can be tapped on its own.
+            <Card key={item.id} className="relative flex h-full flex-col transition hover:-translate-y-0.5 hover:shadow-lg">
+              <p className="text-xs font-semibold tracking-wide text-[#4F6F52] uppercase">{item.grade_level}</p>
+              <h2 className="mt-2 text-xl font-bold">
+                <Link
+                  href={`/classes/${item.id}`}
+                  className="after:absolute after:inset-0 after:rounded-[1.25rem] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-[#1A4D2E]"
+                >
+                  {item.name}
+                </Link>
+              </h2>
+              <p className="mt-1 text-sm text-[#606861]">
+                {item.subject} · {item.school_year}
+              </p>
+
+              <div className="relative z-10 mt-auto flex pt-4">
+                <Link
+                  href={`/classes/${item.id}/term-grades`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-3.5 py-2 text-sm font-semibold text-[#1A4D2E] transition-colors hover:bg-[#EAF0EA] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]"
+                >
+                  <GraduationCap size={16} className="shrink-0" aria-hidden />
+                  Term grades
+                </Link>
+              </div>
+            </Card>
           ))}
         </div>
       )}
