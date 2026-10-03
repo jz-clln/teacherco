@@ -145,7 +145,7 @@ export default async function ClassOverviewPage({
           ) : null}
         </div>
 
-        {/* Phones: two buttons per row.  Edit | Attendance  /  Import | Export */}
+        {/* Phones: two buttons per row.  Edit | Attendance  /  Import | Export  /  Add a student (full width) */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
           <div className="[&>button]:h-full [&>button]:w-full [&>button]:justify-center sm:[&>button]:w-auto">
             <EditClassDetails classId={classId} initial={details_} />
@@ -159,6 +159,10 @@ export default async function ClassOverviewPage({
           <Link href={`/classes/${classId}/export`} className={linkLight}>
             <Download size={18} className="shrink-0" /> Export record
           </Link>
+          {/* New key after each result so the popup closes on success and reopens with the error. */}
+          <div className="col-span-2 [&>button]:min-h-11 [&>button]:w-full [&>button]:justify-center sm:col-span-1 sm:[&>button]:w-auto">
+            <AddStudentDialog key={`${added ?? ""}|${error ?? ""}`} classId={classId} error={error} />
+          </div>
         </div>
       </div>
 
@@ -175,50 +179,54 @@ export default async function ClassOverviewPage({
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Card>
-          <p className="text-sm text-[#606861]">Learners</p>
-          <p className="mt-2 text-3xl font-bold text-[#1A4D2E]">{total}</p>
-          <div className="mt-3">
-            {/* New key after each result so the popup closes on success and reopens with the error. */}
-            <AddStudentDialog key={`${added ?? ""}|${error ?? ""}`} classId={classId} error={error} />
-          </div>
+      {/*
+        Phones: Learners | Class average | Attendance on one row, then Below | Lowest scoring activity.
+        Larger screens keep the original order and layout.
+      */}
+      <div className="grid grid-cols-6 gap-2 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
+        <Card className="col-span-2 p-3 sm:col-span-1 sm:p-5">
+          <p className="text-xs text-[#606861] sm:text-sm">Learners</p>
+          <p className="mt-1 text-2xl font-bold text-[#1A4D2E] tabular-nums sm:mt-2 sm:text-3xl">{total}</p>
         </Card>
-        <Card>
-          <p className="text-sm text-[#606861]">Class average</p>
-          <p className="mt-2 text-3xl font-bold">{stats.average == null ? "—" : pct(stats.average)}</p>
-          <p className="mt-1 text-xs text-[#606861]">
+        <Card className="col-span-2 p-3 sm:col-span-1 sm:p-5">
+          <p className="text-xs text-[#606861] sm:text-sm">Class average</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{stats.average == null ? "—" : pct(stats.average)}</p>
+          <p className="mt-1 hidden text-xs text-[#606861] sm:block">
             {stats.average == null ? "Import grades to see this" : `${stats.scored} learners · ${stats.assessments} score columns`}
           </p>
         </Card>
-        <Card>
-          <p className="text-sm text-[#606861]">Below {benchmark}%</p>
-          <p className={`mt-2 text-3xl font-bold ${stats.below > 0 ? "text-red-700" : ""}`}>
+        <Card className="order-1 col-span-3 p-3 sm:order-none sm:col-span-1 sm:p-5">
+          <p className="text-xs text-[#606861] sm:text-sm">Below {benchmark}%</p>
+          <p className={`mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl ${stats.below > 0 ? "text-red-700" : ""}`}>
             {stats.average == null ? "—" : stats.below}
           </p>
           <p className="mt-1 text-xs text-[#606861]">
             {stats.average == null ? "Import grades to see this" : stats.below === 1 ? "learner" : "learners"}
           </p>
         </Card>
-        <Card>
-          <p className="text-sm text-[#606861]">Attendance</p>
-          <p className="mt-2 text-3xl font-bold">{stats.attendance == null ? "—" : pct(stats.attendance)}</p>
-          <p className="mt-1 text-xs text-[#606861]">
+        <Card className="col-span-2 p-3 sm:col-span-1 sm:p-5">
+          <p className="text-xs text-[#606861] sm:text-sm">Attendance</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{stats.attendance == null ? "—" : pct(stats.attendance)}</p>
+          <p className="mt-1 hidden text-xs text-[#606861] sm:block">
             {stats.attendance == null ? "No attendance recorded yet" : "Present or late, all recorded days"}
           </p>
-          <Link href={`/classes/${classId}/attendance`} className="mt-2 inline-block text-xs font-semibold text-[#1A4D2E] hover:underline">
+          {/* "Take attendance" is already a button at the top of the page on phones. */}
+          <Link
+            href={`/classes/${classId}/attendance`}
+            className="mt-2 hidden text-xs font-semibold text-[#1A4D2E] hover:underline sm:inline-block"
+          >
             Take attendance
           </Link>
         </Card>
-        <Card className="bg-[#E8DFCA]/55">
-          <p className="text-sm text-[#606861]">Lowest scoring activity</p>
+        <Card className="order-2 col-span-3 bg-[#E8DFCA]/55 p-3 sm:order-none sm:col-span-1 sm:p-5">
+          <p className="text-xs text-[#606861] sm:text-sm">Lowest scoring activity</p>
           {stats.lowest ? (
             <>
-              <p className="mt-2 text-lg font-bold">{stats.lowest.title}</p>
+              <p className="mt-1 text-base font-bold break-words sm:mt-2 sm:text-lg">{stats.lowest.title}</p>
               <p className="mt-1 text-xs text-[#606861]">{pct(stats.lowest.average)} class average</p>
             </>
           ) : (
-            <p className="mt-2 text-lg font-bold">Import data first</p>
+            <p className="mt-1 text-base font-bold sm:mt-2 sm:text-lg">Import data first</p>
           )}
         </Card>
       </div>

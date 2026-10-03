@@ -1,12 +1,28 @@
 // src/app/(dashboard)/today/page.tsx
 
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, Check, Plus, Upload } from "lucide-react";
+import { ArrowRight, CalendarCheck, Check, ChevronRight, ClipboardList, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 import { formatLongDate, todayInManila } from "@/features/attendance/dates";
 
 export const metadata = { title: "Today" };
+
+/** "Good morning / afternoon / evening" by the hour in Manila. */
+function greetingForManila(): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Manila" }).format(new Date()),
+  );
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+const primaryButton =
+  "inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white transition hover:bg-[#123820]";
+const outlineButton =
+  "inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#4F6F52]/40 bg-white px-4 text-sm font-semibold text-[#1A4D2E] transition hover:bg-[#F4F7F4]";
 
 export default async function TodayPage() {
   const user = await getCurrentUser();
@@ -72,111 +88,201 @@ export default async function TodayPage() {
   const setupClasses = classroomRows.filter((classroom) => classroom.rosterCount === 0);
   const attendanceClasses = classroomRows.filter((classroom) => classroom.rosterCount > 0);
 
+  // Numbers for the summary cards, from the same data as above.
+  const totalLearners = classroomRows.reduce((sum, classroom) => sum + classroom.rosterCount, 0);
+  const learnersToMark = attendanceClasses.reduce((sum, classroom) => sum + classroom.rosterCount, 0);
+  const learnersMarked = attendanceClasses.reduce((sum, classroom) => sum + classroom.markedCount, 0);
+  const classesDone = attendanceClasses.filter((classroom) => classroom.markedCount >= classroom.rosterCount).length;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="w-full sm:flex-1">
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">Good day, {firstName}</h1>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold tracking-wide text-[#4F6F52]">TODAY</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            {greetingForManila()}, {firstName}
+          </h1>
+          {/* Phones: the date, then the classroom count on its own line. Larger screens keep one line. */}
           <p className="mt-2 text-[#606861]">
-            {formatLongDate(today)} · {classroomRows.length} active {classroomRows.length === 1 ? "classroom" : "classrooms"}
+            <span className="block sm:inline">{formatLongDate(today)}</span>
+            <span className="hidden sm:inline"> · </span>
+            <span className="block sm:inline">
+              {classroomRows.length} active {classroomRows.length === 1 ? "classroom" : "classrooms"}
+            </span>
           </p>
-          <p className="mt-2 text-sm font-medium text-[#4F6F52]">TODAY</p>
         </div>
         {classroomRows.length > 0 ? (
-          <Link href="/classes" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-4 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F4F7F4]">
+          <Link href="/classes" className={outlineButton}>
             View classrooms <ArrowRight size={16} />
           </Link>
         ) : null}
-      </div>
+      </header>
 
       {hasOverviewError ? (
         <Card>
           <h2 className="font-semibold">Today’s classroom data isn’t available</h2>
           <p className="mt-2 text-sm text-[#606861]">Your classes and attendance couldn’t be loaded. Try refreshing this page.</p>
-          <Link href="/today" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white hover:bg-[#123820]">
+          <Link href="/today" className={`${primaryButton} mt-4`}>
             Refresh today
           </Link>
         </Card>
       ) : classroomRows.length === 0 ? (
         <Card>
-          <div className="flex items-start gap-3">
-            <Plus size={20} className="mt-0.5 shrink-0 text-[#4F6F52]" />
-            <div>
-              <h2 className="font-semibold">Start with a classroom</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[#606861]">
-                Create a class, then import the class record you already use. Your learners and scores will appear here once they’re added.
-              </p>
-              <Link href="/classes/new" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white hover:bg-[#123820]">
-                Create a class <ArrowRight size={16} />
-              </Link>
-            </div>
+          <div className="flex flex-col items-center py-4 text-center">
+            <Image
+              src="/brand/teacherco-mascot.png"
+              alt=""
+              width={72}
+              height={72}
+              style={{ width: 72, height: 72 }}
+              className="rounded-full bg-[#E8DFCA] object-cover"
+            />
+            <h2 className="mt-4 text-lg font-semibold">Start with a classroom</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-[#606861]">
+              Create a class, then import the class record you already use. Your learners and scores will appear here once
+              they’re added.
+            </p>
+            <Link href="/classes/new" className={`${primaryButton} mt-5`}>
+              Create a class <ArrowRight size={16} />
+            </Link>
           </div>
         </Card>
       ) : (
         <>
+          {/* Three cards in one row, on phones too. The small helper lines only show from sm up, where they fit. */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <Card className="p-3 sm:p-5">
+              <p className="text-xs text-[#606861] sm:text-sm">Classrooms</p>
+              <p className="mt-1 text-2xl font-bold text-[#1A4D2E] tabular-nums sm:mt-2 sm:text-3xl">{classroomRows.length}</p>
+              <p className="mt-1 hidden text-xs text-[#606861] sm:block">active this school year</p>
+            </Card>
+            <Card className="p-3 sm:p-5">
+              <p className="text-xs text-[#606861] sm:text-sm">Learners</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{totalLearners}</p>
+              <p className="mt-1 hidden text-xs text-[#606861] sm:block">across all classrooms</p>
+            </Card>
+            <Card className="bg-[#E8DFCA]/55 p-3 sm:p-5">
+              <p className="text-xs text-[#606861] sm:text-sm">Attendance today</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">
+                {learnersToMark > 0 ? `${learnersMarked}/${learnersToMark}` : "—"}
+              </p>
+              <p className="mt-1 hidden text-xs text-[#606861] sm:block">
+                {learnersToMark > 0
+                  ? `${classesDone} of ${attendanceClasses.length} ${attendanceClasses.length === 1 ? "classroom" : "classrooms"} done`
+                  : "Import learners to start"}
+              </p>
+            </Card>
+          </div>
+
           {setupClasses.length > 0 ? (
-            <section aria-labelledby="setup-heading" className="rounded-xl border border-[#E0B14C] bg-[#FFF8E6] p-5">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3">
-                  <Upload size={20} className="shrink-0 text-[#8A5A00]" />
-                  <div className="min-w-0">
-                  <h2 id="setup-heading" className="font-semibold">Finish setting up your {setupClasses.length === 1 ? "class" : "classes"}</h2>
-                  <p className="mt-1 text-sm leading-6 text-[#606861]">Import a class record to add learners before taking attendance.</p>
-                  </div>
+            <section aria-labelledby="setup-heading" className="rounded-2xl border border-[#E0B14C] bg-[#FFF8E6] p-5">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#F6E3B0] text-[#8A5A00]">
+                  <Upload size={20} aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h2 id="setup-heading" className="font-semibold">
+                    Finish setting up your {setupClasses.length === 1 ? "class" : "classes"}
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-[#606861]">
+                    Import a class record to add learners before taking attendance.
+                  </p>
                 </div>
-                <ul className="ml-8 mt-3 divide-y divide-[#E0B14C]/50">
-                  {setupClasses.map((classroom) => (
-                    <li key={classroom.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{classroom.name}</p>
-                        <p className="truncate text-sm text-[#606861]">{classroom.subject} · no learners imported</p>
-                      </div>
-                      <Link href={`/classes/${classroom.id}/records`} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white hover:bg-[#123820]">
-                        Import class record <ArrowRight size={16} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
               </div>
+              <ul className="mt-4 space-y-2">
+                {setupClasses.map((classroom) => (
+                  <li
+                    key={classroom.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{classroom.name}</p>
+                      <p className="truncate text-sm text-[#606861]">{classroom.subject} · no learners imported</p>
+                    </div>
+                    <Link href={`/classes/${classroom.id}/records`} className={primaryButton}>
+                      Import class record <ArrowRight size={16} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 
           {attendanceClasses.length > 0 ? (
-            <section aria-labelledby="attendance-heading">
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h2 id="attendance-heading" className="flex items-center gap-2 text-lg font-semibold">
-                    <CalendarCheck size={19} className="text-[#4F6F52]" /> Attendance today
-                  </h2>
-                  <p className="mt-1 text-sm text-[#606861]">Progress for classrooms with learners.</p>
-                </div>
+            <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-2xl border border-[#E3E5E1] bg-white shadow-sm">
+              <div className="border-b border-[#E3E5E1] px-5 py-4">
+                <h2 id="attendance-heading" className="flex items-center gap-2 text-lg font-semibold">
+                  <CalendarCheck size={19} className="text-[#4F6F52]" aria-hidden="true" /> Attendance today
+                </h2>
+                <p className="mt-1 text-sm text-[#606861]">Progress for classrooms with learners.</p>
               </div>
-              <ul className="divide-y divide-[#E3E5E1] border-y border-[#E3E5E1]">
+              <ul className="divide-y divide-[#E3E5E1]">
                 {attendanceClasses.map((classroom) => {
                   const complete = classroom.markedCount >= classroom.rosterCount;
-                  const status = classroom.markedCount === 0
+                  const started = classroom.markedCount > 0;
+                  const status = !started
                     ? "Not started"
                     : complete
                       ? `All ${classroom.rosterCount} learners marked`
                       : `${classroom.markedCount} of ${classroom.rosterCount} marked`;
+                  const percent = Math.round((classroom.markedCount / classroom.rosterCount) * 100);
                   return (
-                    <li key={classroom.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-                      <div className="min-w-0">
+                    <li key={classroom.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 px-5 py-4">
+                      <div className="min-w-0 flex-1 basis-56">
                         <p className="truncate font-medium">{classroom.name}</p>
-                        <p className="truncate text-sm text-[#606861]">{classroom.subject} · {status}</p>
+                        <p className="truncate text-sm text-[#606861]">{classroom.subject}</p>
+                        <div className="mt-2.5 flex items-center gap-3">
+                          <div
+                            role="progressbar"
+                            aria-label={`${classroom.name} attendance progress`}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={percent}
+                            className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E8DFCA]"
+                          >
+                            <div className="h-full rounded-full bg-[#1A4D2E]" style={{ width: `${percent}%` }} />
+                          </div>
+                          <p className="flex shrink-0 items-center gap-1 text-xs font-medium text-[#606861]">
+                            {complete ? <Check size={14} className="text-[#1A4D2E]" aria-hidden="true" /> : null}
+                            {status}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {complete ? <Check size={18} className="text-[#1A4D2E]" aria-label="Attendance recorded" /> : null}
-                        <Link
-                          href={`/classes/${classroom.id}/attendance`}
-                          className="inline-flex min-h-11 items-center rounded-xl border border-[#4F6F52]/40 bg-white px-4 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F4F7F4]"
-                        >
-                          {classroom.markedCount === 0 ? "Take attendance" : complete ? "Review" : "Continue"}
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/classes/${classroom.id}/attendance`}
+                        className={complete ? outlineButton : primaryButton}
+                      >
+                        {!started ? "Take attendance" : complete ? "Review" : "Continue"}
+                      </Link>
                     </li>
                   );
                 })}
+              </ul>
+            </section>
+          ) : null}
+
+          {attendanceClasses.length > 0 ? (
+            <section aria-labelledby="scores-heading" className="rounded-2xl border border-[#E3E5E1] bg-white p-5 shadow-sm">
+              <h2 id="scores-heading" className="flex items-center gap-2 text-lg font-semibold">
+                <ClipboardList size={19} className="text-[#4F6F52]" aria-hidden="true" /> Record scores
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[#606861]">
+                For activities with no answer sheet or Excel column, like oral recitations. Pick a classroom and type the scores.
+              </p>
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                {attendanceClasses.map((classroom) => (
+                  <li key={classroom.id}>
+                    <Link
+                      href={`/classes/${classroom.id}/scores`}
+                      className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#1A4D2E] transition hover:border-[#4F6F52]/50 hover:bg-[#F4F7F4]"
+                    >
+                      <span className="truncate">
+                        {classroom.name} — {classroom.subject}
+                      </span>
+                      <ChevronRight size={16} className="shrink-0" aria-hidden="true" />
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </section>
           ) : null}

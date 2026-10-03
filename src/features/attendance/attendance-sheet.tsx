@@ -5,10 +5,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Clock, FileText, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 import { saveAttendance } from "./actions";
-import { formatLongDate, formatUpdatedAt, shiftDate } from "./dates";
+import { formatLongDate, shiftDate } from "./dates";
 import type { AttendanceStatus } from "./types";
 
 type Learner = { id: string; name: string };
@@ -51,7 +52,6 @@ export function AttendanceSheet({
   learners,
   initial,
   taken: initiallyTaken,
-  updatedAt: initialUpdatedAt,
 }: {
   classId: string;
   date: string;
@@ -60,8 +60,6 @@ export function AttendanceSheet({
   /** Marks already saved for this day. Anyone missing starts as present. */
   initial: Record<string, AttendanceStatus>;
   taken: boolean;
-  /** When this day was last saved (a timestamp), or null if it has not been saved or the time was not recorded. */
-  updatedAt: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -72,8 +70,9 @@ export function AttendanceSheet({
   const [marks, setMarks] = useState(startMarks);
   const [baseline, setBaseline] = useState(startMarks);
   const [taken, setTaken] = useState(initiallyTaken);
-  const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  // A day the teacher tried to open while there were unsaved changes.
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
@@ -94,7 +93,10 @@ export function AttendanceSheet({
 
   function goTo(next: string) {
     if (next === date || next > today) return;
-    if (dirty && !window.confirm("You have changes that are not saved. Leave without saving?")) return;
+    if (dirty) {
+      setLeaveTo(next);
+      return;
+    }
     router.push(`/classes/${classId}/attendance?date=${next}`);
   }
 
@@ -112,7 +114,6 @@ export function AttendanceSheet({
       }
       setBaseline(marks);
       setTaken(true);
-      setUpdatedAt(result.updatedAt);
       setMessage({ kind: "ok", text: "Saved." });
       router.refresh();
     });
@@ -136,7 +137,6 @@ export function AttendanceSheet({
           hideLabel
           clearable={false}
           value={date}
-          max={today}
           onChange={(v) => v && goTo(v > today ? today : v)}
           className="min-w-0 flex-1"
         />
@@ -151,22 +151,19 @@ export function AttendanceSheet({
         </button>
       </div>
 
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium text-[#313832]">
-            {formatLongDate(date)}
-            {date === today ? <span className="ml-2 rounded-full bg-[#EAF0EA] px-2 py-0.5 text-xs text-[#1A4D2E]">Today</span> : null}
-          </p>
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium",
-              taken ? "bg-[#EAF0EA] text-[#1A4D2E]" : "bg-amber-100 text-amber-800",
-            )}
-          >
-            {taken ? "Attendance saved" : "Not taken yet"}
-          </span>
-        </div>
-        {updatedAt ? <p className="text-xs text-[#606861]">Last updated {formatUpdatedAt(updatedAt)}</p> : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-[#313832]">
+          {formatLongDate(date)}
+          {date === today ? <span className="ml-2 rounded-full bg-[#EAF0EA] px-2 py-0.5 text-xs text-[#1A4D2E]">Today</span> : null}
+        </p>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-1 text-xs font-medium",
+            taken ? "bg-[#EAF0EA] text-[#1A4D2E]" : "bg-amber-100 text-amber-800",
+          )}
+        >
+          {taken ? "Attendance saved" : "Not taken yet"}
+        </span>
       </div>
 
       {/* quick actions */}
@@ -245,6 +242,21 @@ export function AttendanceSheet({
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={leaveTo !== null}
+        title="Leave without saving?"
+        description="You marked some learners but did not save. If you leave, those changes are lost."
+        confirmLabel="Leave without saving"
+        cancelLabel="Keep editing"
+        destructive
+        onConfirm={() => {
+          const next = leaveTo;
+          setLeaveTo(null);
+          if (next) router.push(`/classes/${classId}/attendance?date=${next}`);
+        }}
+        onCancel={() => setLeaveTo(null)}
+      />
     </div>
   );
 }

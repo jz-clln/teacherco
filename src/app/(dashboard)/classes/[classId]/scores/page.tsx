@@ -99,25 +99,28 @@ export default async function RecordScoresPage({
 
       {activities.length > 0 ? (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Activities">
-            {activities.map((item) => {
-              const active = selected != null && String(item.id) === String(selected.id);
-              return (
-                <Link
-                  key={String(item.id)}
-                  href={`/classes/${classId}/scores?a=${item.id}`}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    active
-                      ? "rounded-full bg-[#1A4D2E] px-3.5 py-2 text-sm font-semibold text-white"
-                      : "rounded-full border border-[#E3E5E1] bg-white px-3.5 py-2 text-sm font-medium text-[#1A4D2E] hover:bg-[#F5F6F4]"
-                  }
-                >
-                  {String(item.title)}
-                </Link>
-              );
-            })}
-          </div>
+          {/* Only needed to switch between activities. With one, the title is already in the card below. */}
+          {activities.length > 1 ? (
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Activities">
+              {activities.map((item) => {
+                const active = selected != null && String(item.id) === String(selected.id);
+                return (
+                  <Link
+                    key={String(item.id)}
+                    href={`/classes/${classId}/scores?a=${item.id}`}
+                    aria-current={active ? "page" : undefined}
+                    className={
+                      active
+                        ? "rounded-full bg-[#1A4D2E] px-3.5 py-2 text-sm font-semibold text-white"
+                        : "rounded-full border border-[#E3E5E1] bg-white px-3.5 py-2 text-sm font-medium text-[#1A4D2E] hover:bg-[#F5F6F4]"
+                    }
+                  >
+                    {String(item.title)}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
 
           {selected ? (
             <ScoreSheet
