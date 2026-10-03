@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessContext } from "@/lib/auth/access-guard";
+import { accessDestination } from "@/lib/auth/access-policy";
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -9,7 +11,9 @@ export async function signIn(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect(`/login?error=${encodeURIComponent(error.message)}`);
-  redirect("/today");
+  const context = await getAccessContext();
+  if (!context) redirect("/login");
+  redirect(accessDestination(!!context.user.email_confirmed_at, context.profile));
 }
 
 export async function signUp(formData: FormData) {
@@ -23,7 +27,7 @@ export async function signUp(formData: FormData) {
     options: { data: { full_name: fullName } },
   });
   if (error) redirect(`/signup?error=${encodeURIComponent(error.message)}`);
-  redirect("/today");
+  redirect("/verify-email");
 }
 
 export async function signOut() {

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { requireAccess } from "@/lib/auth/access-guard";
 
 export type OnboardingState = {
   error?: string;
@@ -49,12 +49,7 @@ export async function completeOnboarding(
     return { error: "Please complete your first class details, or choose to create the class later." };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireAccess();
 
   const { error: profileError } = await supabase
     .from("profiles")

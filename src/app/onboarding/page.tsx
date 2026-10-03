@@ -1,16 +1,11 @@
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/features/onboarding/onboarding-form";
-import { createClient } from "@/lib/supabase/server";
+import { requireAccess } from "@/lib/auth/access-guard";
 
 export const metadata = { title: "Set up your workspace" };
 
 export default async function OnboardingPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
+  const { supabase, user } = await requireAccess();
 
   const { data: profile } = await supabase
     .from("profiles")

@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:invites": "vitest run --config vitest.invites.config.mts --configLoader native",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
@@ -32,12 +33,14 @@
     "react-dom": "latest",
     "react-hook-form": "latest",
     "recharts": "latest",
+    "server-only": "^0.0.1",
     "serwist": "latest",
     "tailwind-merge": "latest",
     "zod": "latest",
     "zustand": "latest"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "latest",
     "@tailwindcss/postcss": "latest",
     "@testing-library/jest-dom": "latest",

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
 
   const redirectTo = request.nextUrl.clone();
-  redirectTo.pathname = "/onboarding";
+  redirectTo.pathname = "/login";
   redirectTo.search = "";
 
   if (tokenHash && type) {
@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!error) {
+      // Confirmation verifies the address; the user then signs in before redemption.
+      await supabase.auth.signOut();
       return NextResponse.redirect(redirectTo);
     }
   }
