@@ -1,7 +1,7 @@
 // src/app/(dashboard)/settings/page.tsx
 
 import { redirect } from "next/navigation";
-import { Database, KeyRound, Languages, ListChecks, Sparkles, User, WifiOff } from "lucide-react";
+import { Database, GraduationCap, KeyRound, Languages, ListChecks, Sparkles, User, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/features/auth/actions";
 import { DataControls } from "@/features/settings/data-controls";
@@ -10,6 +10,8 @@ import { PasswordForm } from "@/features/settings/password-form";
 import { AiPrivacyForm, AttentionForm, LanguageForm } from "@/features/settings/preference-forms";
 import { ProfileForm } from "@/features/settings/profile-form";
 import { SettingsSection } from "@/features/settings/settings-ui";
+import { GradingRulesSettings } from "@/features/grading/grading-rules-settings";
+import { getGradingClassSettings } from "@/features/grading/queries";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata = { title: "Settings" };
@@ -18,13 +20,15 @@ const sections = [
   { id: "profile", label: "Profile" },
   { id: "language", label: "Language" },
   { id: "attention", label: "Attention rules" },
+  { id: "grading", label: "Grading rules" },
   { id: "ai", label: "AI & privacy" },
   { id: "data", label: "Data & storage" },
   { id: "offline", label: "Offline" },
   { id: "account", label: "Account" },
 ];
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
+  const { class: gradingClassId } = await searchParams;
   const supabase = await createClient();
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -51,6 +55,7 @@ export default async function SettingsPage() {
     gradeLevel: row.grade_level as string,
     schoolYear: row.school_year as string,
   }));
+  const gradingClasses = await getGradingClassSettings(supabase, classRows);
 
   return (
     <div className="space-y-6">
@@ -108,6 +113,15 @@ export default async function SettingsPage() {
               dropThreshold={Number(profile?.performance_drop_threshold ?? 10)}
               classCount={classRows.length}
             />
+          </SettingsSection>
+
+          <SettingsSection
+            id="grading"
+            icon={GraduationCap}
+            title="Grading rules"
+            description="Each class starts with its subject preset. Review the weights and conversion tables that turn raw scores into term grades."
+          >
+            <GradingRulesSettings classes={gradingClasses} initialClassId={gradingClassId} />
           </SettingsSection>
 
           <SettingsSection id="ai" icon={Sparkles} title="AI & privacy" description="AI explains and summarizes. TeacherCo's calculation engine produces every number.">
