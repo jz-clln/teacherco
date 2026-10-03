@@ -77,7 +77,7 @@ export function ExportRecord({ classId }: { classId: string }) {
       const remembered: Record<string, ColumnRef> = {};
       const claimed = new Set<string>();
       for (const a of res.data.assessments) {
-        const title = res.exportedTitles[a.id];
+        const title = a.activitySlot ?? res.exportedTitles[a.id];
         if (!title) continue;
         for (const g of grades) {
           const column = g.columns.find((c) => c.title === title);

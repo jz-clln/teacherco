@@ -133,3 +133,35 @@ describe("planExport with free slots", () => {
     expect(new Set(picks).size).toBe(2);
   });
 });
+
+describe("assigned class record activities", () => {
+  it("exports a renamed assessment to its exact slot, including an empty column", () => {
+    const { found, grids, learners } = setup();
+    const plan = planExport([found], grids, { learners, assessments: [{
+      id: "assigned", title: "Respect at home", activitySlot: "Term 2 · Written Work 3",
+      term: 2, component: "written_work", total: 20, scores: [15, 18, 20],
+    }] });
+    expect(plan.writes.map((w) => w.address)).toEqual(["H7", "H8", "H9"]);
+    expect(plan.hpsWrites[0].value).toBe(20);
+    expect(plan.unmapped).toHaveLength(0);
+  });
+  it("does not suggest a different slot when the assigned column is missing", () => {
+    const { found, grids, learners } = setup();
+    const plan = planExport([found], grids, { learners, assessments: [{
+      id: "assigned", title: "Project", activitySlot: "Term 1 · Performance Task 3",
+      term: 1, component: "performance_task", total: 5, scores: [4, 4, 5],
+    }] });
+    expect(plan.writes).toHaveLength(0);
+    expect(plan.unmapped[0].candidates).toHaveLength(0);
+    expect(plan.unmapped[0].suggested).toBeNull();
+  });
+  it("keeps the highest possible score mismatch guard for assigned activities", () => {
+    const { found, grids, learners } = setup();
+    const plan = planExport([found], grids, { learners, assessments: [{
+      id: "assigned", title: "Project", activitySlot: "Term 2 · Performance Task 2",
+      total: 100, scores: [80, 90, 100],
+    }] });
+    expect(plan.writes).toHaveLength(0);
+    expect(plan.mismatched).toHaveLength(1);
+  });
+});

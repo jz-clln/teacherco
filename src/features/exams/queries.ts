@@ -11,7 +11,11 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+import { getActivityChoices } from "./activity-slots";
+import { activityDisplayTitle, type ActivityChoice } from "@/lib/exams/activity-slots";
+
 export interface ClassOption {
+  activityChoices: ActivityChoice[];
   id: string;
   label: string;
   competencies: string[];
@@ -24,11 +28,12 @@ export async function getClassOptions(): Promise<ClassOption[]> {
     .select("id,name,subject,status,competencies(name)")
     .eq("status", "active")
     .order("created_at", { ascending: false });
-  return (data ?? []).map((c: { id: string; name: string; subject: string; competencies: { name: string }[] }) => ({
+  return Promise.all((data ?? []).map(async (c: { id: string; name: string; subject: string; competencies: { name: string }[] }) => ({
     id: c.id,
+    activityChoices: await getActivityChoices(c.id, supabase),
     label: `${c.name} — ${c.subject}`,
     competencies: (c.competencies ?? []).map((x) => x.name),
-  }));
+  })));
 }
 
 export interface OverviewRow {
@@ -53,10 +58,10 @@ export async function getAssessmentsOverview(): Promise<OverviewRow[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("assessments")
-    .select("id,title,status,kind,assessment_date,created_at,class_id,classes(name,subject,grade_level),submissions(score,max_score)")
+    .select("id,title,activity_slot,status,kind,assessment_date,created_at,class_id,classes(name,subject,grade_level),submissions(score,max_score)")
     .order("created_at", { ascending: false });
   const rows = (data ?? []) as {
-    id: string; title: string; status: string; kind: string; assessment_date: string | null; class_id: string;
+    id: string; title: string; activity_slot: string | null; status: string; kind: string; assessment_date: string | null; class_id: string;
     classes: ClassRef | ClassRef[] | null;
     submissions: { score: number | null; max_score: number | null }[];
   }[];
@@ -80,7 +85,7 @@ export async function getAssessmentsOverview(): Promise<OverviewRow[]> {
       .map((s) => (Number(s.score) / Number(s.max_score)) * 100);
     return {
       id: r.id,
-      title: r.title,
+      title: activityDisplayTitle(r.title, r.activity_slot),
       status: r.status,
       format: formatOf(r.kind),
       date: r.assessment_date,
@@ -156,6 +161,7 @@ export interface AssessmentBundle {
   assessment: {
     id: string;
     classId: string;
+    rawTitle: string;
     title: string;
     status: string;
     format: AssessmentFormat;
@@ -176,7 +182,7 @@ export async function getAssessmentBundle(id: string): Promise<AssessmentBundle 
   const supabase = await createClient();
   const { data: a } = await supabase
     .from("assessments")
-    .select("id,class_id,title,kind,status,assessment_date,answer_key,classes(name,subject,benchmark)")
+    .select("id,class_id,title,activity_slot,kind,status,assessment_date,answer_key,classes(name,subject,benchmark)")
     .eq("id", id)
     .maybeSingle();
   if (!a) return null;
@@ -256,7 +262,8 @@ export async function getAssessmentBundle(id: string): Promise<AssessmentBundle 
     assessment: {
       id: a.id,
       classId: a.class_id,
-      title: a.title,
+      title: activityDisplayTitle(a.title, a.activity_slot),
+      rawTitle: a.title,
       status: a.status,
       format,
       choices: choicesFor(format, choiceCount),

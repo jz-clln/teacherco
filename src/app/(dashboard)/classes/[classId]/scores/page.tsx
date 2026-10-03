@@ -9,6 +9,9 @@ import { NewActivityForm } from "@/features/scores/new-activity-form";
 import { ScoreSheet, type ScoreRow } from "@/features/scores/score-sheet";
 import { createClient, getCurrentUser } from "@/lib/supabase/server";
 
+import { getActivityChoices } from "@/features/exams/activity-slots";
+import { activityDisplayTitle } from "@/lib/exams/activity-slots";
+
 export const metadata = { title: "Record scores" };
 
 export default async function RecordScoresPage({
@@ -32,7 +35,7 @@ export default async function RecordScoresPage({
   const [{ data: manual }, { count: lockedCount }] = await Promise.all([
     supabase
       .from("assessments")
-      .select("id, title, total_points")
+      .select("id, title, activity_slot, total_points")
       .eq("class_id", classId)
       .eq("source", "manual")
       .order("created_at"),
@@ -43,7 +46,8 @@ export default async function RecordScoresPage({
       .neq("source", "manual"),
   ]);
 
-  const activities = manual ?? [];
+  const choices = await getActivityChoices(classId, supabase);
+  const activities = (manual ?? []).map((a) => ({ ...a, title: activityDisplayTitle(a.title, a.activity_slot) }));
   const selected = activities.find((item) => String(item.id) === a) ?? activities[activities.length - 1] ?? null;
 
   let rows: ScoreRow[] = [];
@@ -85,7 +89,7 @@ export default async function RecordScoresPage({
         <h1 className="mt-1 text-3xl font-bold">{classroom.name}</h1>
         <p className="mt-1 text-[#606861]">{classroom.subject}</p>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#606861]">
-          For activities with no answer sheet or Excel column, such as oral recitations. Reports and class averages include these scores
+          Choose a class record activity and enter scores for projects, demonstrations, or oral recitations. Reports and class averages include these scores
           automatically.
         </p>
       </div>
@@ -93,7 +97,7 @@ export default async function RecordScoresPage({
       <Card className="sm:p-6">
         <h2 className="font-semibold text-[#1E2420]">New activity</h2>
         <div className="mt-5">
-          <NewActivityForm key={selected ? String(selected.id) : "none"} classId={classId} />
+          <NewActivityForm key={selected ? String(selected.id) : "none"} classId={classId} choices={choices} />
         </div>
       </Card>
 

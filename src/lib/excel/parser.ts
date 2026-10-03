@@ -220,7 +220,7 @@ export async function openWorkbook(file: File): Promise<WorkbookReader> {
     return sheets
       .filter((s) => !s.hidden)
       .flatMap((s) => {
-        const found = detectGradeSheet(read(s.name));
+        const found = detectGradeSheet(read(s.name), { keepEmpty: true, includeFree: true });
         return found ? [{ ...found, ...(gradingRules ? { gradingRules } : {}) }] : [];
       });
   };

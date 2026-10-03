@@ -7,10 +7,13 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { nameKey } from "@/lib/excel/roster";
 import { logImportEvent, type ChangedScore } from "@/features/learners/import-history";
+import { activitySlotSchema } from "@/lib/exams/activity-slots";
+import { inferTermAndComponent } from "@/lib/grading/deped";
 import { defaultGradingConfig } from "@/lib/grading/presets";
 
 const SheetSchema = z
   .object({
+    activitySlots: activitySlotSchema.array().max(60).optional(),
     label: z.string().trim().min(1).max(60),
     learners: z
       .array(
@@ -30,7 +33,7 @@ const SheetSchema = z
       .array(
         z.object({
           title: z.string().trim().min(1).max(160),
-          total: z.number().positive().max(10000),
+          total: z.number().min(0).max(10000),
           scores: z.array(z.number().min(0).max(10000).nullable()).max(500),
         }),
       )
@@ -160,7 +163,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
 
   const { data: savedGradingConfig } = await supabase
     .from("class_grading_config")
-    .select("weights,transmutation,descriptors,term_possible,source_filename")
+    .select("weights,transmutation,descriptors,term_possible,source_filename,activity_slots")
     .eq("class_id", classId)
     .maybeSingle();
 
@@ -245,6 +248,10 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     descriptors,
     term_possible: termPossible,
     source_filename: savedGradingConfig ? savedGradingConfig.source_filename : parsed.data.sourceFilename ?? null,
+    activity_slots: [
+      ...(activitySlotSchema.array().safeParse(savedGradingConfig?.activity_slots).data ?? []).filter((slot) => !sheets.some((s) => s.activitySlots?.some((next) => next.term === slot.term))),
+      ...sheets.flatMap((s) => s.activitySlots ?? []),
+    ],
     verified: false,
   });
   if (configError) return { ok: false, error: "Could not save this class's grading rules. Your scores were not imported." };
@@ -268,6 +275,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
       continue;
     }
     for (const col of sheet.columns) {
+      if (col.total <= 0) continue;
       const entry = prepared.get(col.title) ?? { title: col.title, total: col.total, rows: new Map<string, number>() };
       col.scores.forEach((score, i) => {
         const id = ids[i];
@@ -286,11 +294,12 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   // Reuse imported assessments with the same title. Never reuse a checked or typed-in one,
   // and never import a column that a checked or typed-in activity was exported into.
   const titles = wanted.map((p) => p.title);
-  const [{ data: existing, error: existingError }, { data: exportedTo, error: exportedError }] = await Promise.all([
+  const [{ data: existing, error: existingError }, { data: exportedTo, error: exportedError }, reserved] = await Promise.all([
     supabase.from("assessments").select("id,title,source").eq("class_id", classId).in("title", titles),
     supabase.from("assessments").select("exported_title").eq("class_id", classId).in("exported_title", titles),
+    supabase.from("assessments").select("activity_slot").eq("class_id", classId).neq("source", "imported").in("activity_slot", titles),
   ]);
-  if (existingError || exportedError) {
+  if (existingError || exportedError || reserved.error) {
     return { ok: false, error: "Could not check existing assessments. Please try again." };
   }
 
@@ -303,6 +312,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   for (const a of exportedTo ?? []) {
     if (a.exported_title) protectedSet.add(String(a.exported_title));
   }
+  for (const a of reserved.data ?? []) if (a.activity_slot) protectedSet.add(a.activity_slot);
   const protectedTitles = [...protectedSet];
 
   const list = wanted.filter((p) => !protectedSet.has(p.title));
@@ -322,6 +332,9 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
         missing.map((p, i) => ({
           class_id: classId,
           title: p.title,
+          ...(inferTermAndComponent(p.title).term && inferTermAndComponent(p.title).term! <= 3 && inferTermAndComponent(p.title).component ? {
+            activity_slot: p.title, term: inferTermAndComponent(p.title).term, component: inferTermAndComponent(p.title).component,
+          } : {}),
           kind: "mixed",
           status: "closed",
           source: "imported",

@@ -1,7 +1,8 @@
 // src/app/(dashboard)/settings/page.tsx
 
 import { redirect } from "next/navigation";
-import { Database, GraduationCap, KeyRound, Languages, ListChecks, Sparkles, User, WifiOff } from "lucide-react";
+import { Database, GraduationCap, KeyRound, Languages, ListChecks, ShieldCheck, Sparkles, User, WifiOff } from "lucide-react";
+import { LegalLinks } from "@/features/legal/legal-links";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/features/auth/actions";
 import { DataControls } from "@/features/settings/data-controls";
@@ -24,6 +25,7 @@ const sections = [
   { id: "ai", label: "AI & privacy" },
   { id: "data", label: "Data & storage" },
   { id: "offline", label: "Offline" },
+  { id: "legal", label: "Legal" },
   { id: "account", label: "Account" },
 ];
 
@@ -137,6 +139,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
           <SettingsSection id="offline" icon={WifiOff} title="Offline" description="What TeacherCo has saved on this device.">
             <OfflineControls />
+          </SettingsSection>
+
+          <SettingsSection id="legal" icon={ShieldCheck} title="Legal" description="How TeacherCo handles information and the terms for using the service.">
+            <LegalLinks />
           </SettingsSection>
 
           <SettingsSection id="account" icon={KeyRound} title="Account" description={`Signed in as ${user.email ?? "your account"}.`}>

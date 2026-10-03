@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
+import { LegalLinks } from "@/features/legal/legal-links";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
@@ -19,6 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Button type="submit" className="w-full">Sign in</Button>
         </form>
         <p className="mt-5 text-center text-sm text-[#606861]">New to TeacherCo? <Link href="/signup" className="font-semibold text-[#1A4D2E]">Create an account</Link></p>
+        <footer><LegalLinks footer /></footer>
       </div>
     </main>
   );

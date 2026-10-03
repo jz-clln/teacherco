@@ -4,6 +4,11 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Legal documents must remain readable without an account or an auth service connection.
+  if (request.nextUrl.pathname === "/legal/privacy" || request.nextUrl.pathname === "/legal/terms") {
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,

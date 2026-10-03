@@ -13,6 +13,8 @@ import { Select } from "@/components/ui/select";
 import { btnPrimary, field, label, muted } from "../ui";
 import { AnswerKeyEditor, type KeyDraft } from "./answer-key-editor";
 
+import { ActivitySlotFields } from "./activity-slot-fields";
+
 function blankDrafts(count: number, previous: KeyDraft[] = [], points = 1): KeyDraft[] {
   return Array.from({ length: count }, (_, idx) => previous[idx] ?? { itemNumber: idx + 1, answer: "", competency: null, points });
 }
@@ -25,6 +27,9 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
   const [classId, setClassId] = useState(
     classes.find((c) => c.id === initialClassId)?.id ?? classes[0]?.id ?? "",
   );
+  const [activitySlot, setActivitySlot] = useState("");
+  const activityChoices = classes.find((c) => c.id === classId)?.activityChoices ?? [];
+  const selectedSlot = activityChoices.find((s) => s.title === activitySlot);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [format, setFormat] = useState<AssessmentFormat>("multiple_choice");
@@ -34,11 +39,11 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
   const [items, setItems] = useState<KeyDraft[]>(() => blankDrafts(20, [], points));
 
   const choices = choicesFor(format, choiceCount);
-  const complete = items.every((i) => i.answer !== "") && title.trim() !== "" && classId !== "";
+  const complete = !!selectedSlot && !selectedSlot.assessmentId && items.every((i) => i.answer !== "") && title.trim() !== "" && classId !== "";
   const suggestions = classes.find((c) => c.id === classId)?.competencies ?? [];
   const missing = items.filter((i) => i.answer === "").length;
   const hint =
-    title.trim() === "" ? "Add a title." : missing > 0 ? `${missing} ${missing === 1 ? "answer" : "answers"} left.` : "Ready to save.";
+    !selectedSlot ? "Choose a class record activity." : selectedSlot.assessmentId ? "Choose an available activity." : title.trim() === "" ? "Add a title." : missing > 0 ? `${missing} ${missing === 1 ? "answer" : "answers"} left.` : "Ready to save.";
 
   function changeFormat(next: AssessmentFormat) {
     setFormat(next);
@@ -63,6 +68,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
     startTransition(async () => {
       const result = await createAssessmentAction({
         classId,
+        activitySlot,
         title,
         format,
         choiceCount,
@@ -97,9 +103,10 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
             label="Class"
             required
             defaultValue={classId}
-            onChange={setClassId}
+            onChange={(id) => { setClassId(id); setActivitySlot(""); }}
             options={classes.map((c) => ({ value: c.id, label: c.label }))}
           />
+          <ActivitySlotFields key={classId} choices={activityChoices} value={activitySlot} onChange={setActivitySlot} classId={classId} />
           <div>
             <label htmlFor="title" className={label}>Title</label>
             <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz 1: Fractions" maxLength={120} className={field} />
@@ -110,7 +117,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
             <input id="items" inputMode="numeric" value={itemCount} onChange={(e) => changeItemCount(e.target.value)} className={field} />
           </div>
           <div>
-            <span className={label}>Type</span>
+            <span className={label}>Answer format</span>
             <div role="group" aria-label="Assessment type" className="flex gap-2">
               {(["multiple_choice", "true_false"] as const).map((f) => (
                 <button
@@ -161,6 +168,8 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
           </div>
         </div>
       </section>
+
+      <p className={`text-sm ${muted}`}>For projects, demonstrations, or oral activities, <Link className="font-semibold text-[#1A4D2E] underline" href={`/classes/${classId}/scores`}>enter scores directly</Link>.</p>
 
       <AnswerKeyEditor
         format={format}

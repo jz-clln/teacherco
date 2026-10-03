@@ -13,6 +13,7 @@ import type { ClassDetails } from "@/features/classes/details";
 import { ImportLoader } from "@/features/learners/import-loader";
 import { importGrades } from "@/features/learners/grade-actions";
 import { findSimilarLearners, importLearners, type LearnerMatch } from "@/features/learners/import-actions";
+import { inferTermAndComponent } from "@/lib/grading/deped";
 import type { GradeSheet } from "@/lib/excel/grades";
 import { hasClassInfo, type ClassInfo } from "@/lib/excel/class-info";
 import { openWorkbook, type SheetInfo } from "@/lib/excel/parser";
@@ -302,6 +303,10 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
           sourceFilename: source?.label ?? null,
           sheets: chosenGrades.map(({ g }) => ({
             label: g.term,
+            activitySlots: g.columns.flatMap((c) => {
+              const { term, component } = inferTermAndComponent(c.title);
+              return term && term <= 3 && component ? [{ title: c.title, term, component }] : [];
+            }),
             weights: g.weights,
             gradingRules: g.gradingRules,
             possibleByComponent: g.possibleByComponent,

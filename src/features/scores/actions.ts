@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
+import { resolveActivitySlot } from "@/features/exams/activity-slots";
+
 export type ScoreState = {
   error?: string;
   success?: string;
@@ -31,12 +33,15 @@ const lockedMessage: Record<string, string> = {
 function refresh(classId: string) {
   revalidatePath(`/classes/${classId}`);
   revalidatePath(`/classes/${classId}/scores`);
+  revalidatePath(`/classes/${classId}/term-grades`);
+  revalidatePath("/check");
   revalidatePath("/classes");
   revalidatePath("/reports");
   revalidatePath("/reports/[reportId]", "page");
 }
 
 const CreateSchema = z.object({
+  activitySlot: z.string().min(1).max(160),
   classId: z.string().uuid(),
   title: z.string().trim().min(1).max(120),
   total: z.number().positive().max(10000),
@@ -46,6 +51,7 @@ const CreateSchema = z.object({
 /** Creates an activity whose scores the teacher types in (oral recitation, seatwork, and so on). */
 export async function createManualAssessment(_previous: ScoreState, formData: FormData): Promise<ScoreState> {
   const parsed = CreateSchema.safeParse({
+    activitySlot: formData.get("activitySlot"),
     classId: formData.get("classId"),
     title: formData.get("title"),
     total: Number(String(formData.get("total") ?? "").trim().replace(",", ".")),
@@ -60,21 +66,17 @@ export async function createManualAssessment(_previous: ScoreState, formData: Fo
   const { data: classroom } = await supabase.from("classes").select("id").eq("id", classId).maybeSingle();
   if (!classroom) return { error: "That class could not be found." };
 
-  const { data: existing, error: existingError } = await supabase
-    .from("assessments")
-    .select("title")
-    .eq("class_id", classId)
-    .limit(1000);
-  if (existingError) return { error: "TeacherCo could not check your activities. Please try again." };
-  if ((existing ?? []).some((a) => String(a.title).trim().toLowerCase() === title.toLowerCase())) {
-    return { error: "This class already has an activity with that name. Choose a different name." };
-  }
+  const destination = await resolveActivitySlot(classId, parsed.data.activitySlot, supabase);
+  if (destination.error) return { error: destination.error };
 
   const { data, error } = await supabase
     .from("assessments")
     .insert({
       class_id: classId,
       title,
+      activity_slot: destination.slot.title,
+      term: destination.slot.term,
+      component: destination.slot.component,
       kind: "mixed",
       status: "closed",
       source: "manual",
@@ -83,7 +85,7 @@ export async function createManualAssessment(_previous: ScoreState, formData: Fo
     })
     .select("id")
     .single();
-  if (error || !data) return { error: "TeacherCo could not create the activity. Please try again." };
+  if (error || !data) return { error: error?.code === "23505" ? "That activity was just assigned. Choose another activity." : "TeacherCo could not create the activity. Please try again." };
 
   refresh(classId);
   redirect(`/classes/${classId}/scores?a=${data.id}`);

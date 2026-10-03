@@ -23,6 +23,7 @@ export type ExportData = {
   assessments: {
     id: string;
     title: string;
+    activitySlot?: string | null;
     total: number;
     scores: (number | null)[];
     /** Term and component, when known. They decide which free slots are offered. */
@@ -93,6 +94,7 @@ export type ExportPlan = {
   unmapped: {
     id: string;
     title: string;
+    activitySlot?: string | null;
     total: number;
     component: Component | null;
     candidates: Candidate[];
@@ -184,7 +186,9 @@ export function planExport(
 
   for (const a of data.assessments) {
     const pick = manual[a.id];
-    const titleHit = byTitle.get(a.title);
+    const titleHit = a.activitySlot
+      ? [...byPos.values()].find((at) => at.sheet.columns[at.colIdx].title === a.activitySlot)
+      : byTitle.get(a.title);
     if (!titleHit) needColumn.push(a);
 
     const at = pick ? byPos.get(posKey(pick.sheet, pick.col)) : titleHit;
@@ -301,6 +305,10 @@ export function planExport(
 
     const candidates = slots
       .filter((c) => {
+        if (a.activitySlot) {
+          const at = byPos.get(posKey(c.sheet, c.col));
+          if (at?.sheet.columns[at.colIdx].title !== a.activitySlot) return false;
+        }
         const k = posKey(c.sheet, c.col);
         const owner = usedBy.get(k);
         if (owner && owner !== a.id) return false;

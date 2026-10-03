@@ -83,13 +83,14 @@ export type ClassTermGrades = {
 };
 
 export async function getClassTermGrades(supabase: SupabaseClient, classId: string): Promise<ClassTermGrades | null> {
-  const [input, configResult, recordResult] = await Promise.all([
+  const [input, configResult, recordResult, activityResult] = await Promise.all([
     loadReportInput(supabase as Awaited<ReturnType<typeof createClient>>, classId, { absences: 5, dropPoints: 10 }),
     supabase.from("class_grading_config").select("weights,transmutation,descriptors,term_possible,source_filename").eq("class_id", classId).maybeSingle(),
     supabase.from("teacher_term_grades").select("learner_id,term,initial_grade,term_grade,descriptor").eq("class_id", classId),
+    supabase.from("assessments").select("id,activity_slot,term,component").eq("class_id", classId),
   ]);
   if (!input) return null;
-  if (configResult.error || recordResult.error) throw new Error("Could not load the class grading records.");
+  if (configResult.error || recordResult.error || activityResult.error) throw new Error("Could not load the class grading records.");
 
   const classes = [{ id: classId, name: input.classInfo.name, subject: input.classInfo.subject }];
   const gradingSetting = (await getGradingClassSettings(supabase, classes))[0]!;
@@ -104,7 +105,10 @@ export async function getClassTermGrades(supabase: SupabaseClient, classId: stri
     possible: number;
   }>();
   for (const score of input.scores) {
-    const inferred = inferTermAndComponent(score.assessmentTitle);
+    const activity = activityResult.data?.find((a) => a.id === score.assessmentId);
+    const inferred = inferTermAndComponent(activity?.activity_slot ?? score.assessmentTitle);
+    if (activity?.term) inferred.term = Number(activity.term);
+    if (activity?.component) inferred.component = activity.component as Component;
     const current = assessmentById.get(score.assessmentId);
     assessmentById.set(score.assessmentId, current ?? {
       id: score.assessmentId,
@@ -116,7 +120,7 @@ export async function getClassTermGrades(supabase: SupabaseClient, classId: stri
     });
     scoreByKey.set(`${score.learnerId}|${score.assessmentId}`, { earned: score.earned, possible: score.possible });
   }
-  const assessments = [...assessmentById.values()].filter((item) => item.term != null && item.term >= 1 && item.term <= 4 && item.component != null);
+  const assessments = [...assessmentById.values()].filter((item) => item.term != null && item.term >= 1 && item.term <= 3 && item.component != null);
 
   const termPossibleRaw = configResult.data?.term_possible;
   const termPossible = termPossibleRaw && typeof termPossibleRaw === "object" ? termPossibleRaw as Record<string, Record<string, unknown>> : {};
@@ -144,7 +148,7 @@ export async function getClassTermGrades(supabase: SupabaseClient, classId: stri
     unassignedActivityCount: [...assessmentById.values()].filter((item) => item.term == null || item.component == null).length,
     learners: learners.map((learner) => ({
       ...learner,
-      terms: [1, 2, 3, 4].map((term) => {
+      terms: [1, 2, 3].map((term) => {
         const termAssessments = assessments.filter((item) => item.term === term);
         const items: ScoreItem[] = termAssessments.flatMap((assessment) => {
           if (!assessment.component) return [];

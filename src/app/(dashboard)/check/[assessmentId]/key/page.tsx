@@ -26,7 +26,7 @@ export default async function KeyPage({ params }: { params: Promise<{ assessment
       <Card>
         <EditKeyForm
           assessmentId={assessment.id}
-          title={assessment.title}
+          title={assessment.rawTitle}
           status={assessment.status}
           format={assessment.format}
           choices={assessment.choices}

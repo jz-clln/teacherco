@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { scoreAnswers, type ScorableItem } from "@/lib/exams/scoring";
 import { answerOf, choiceCountOf, choicesFor, formatOf } from "@/lib/exams/types";
 
+import { resolveActivitySlot } from "./activity-slots";
+
 type Fail = { ok: false; error: string };
 const fail = (error: string): Fail => ({ ok: false, error });
 
@@ -84,6 +86,7 @@ async function linkCompetencies(
 // ---------- create ----------
 
 const createSchema = z.object({
+  activitySlot: z.string().min(1).max(160),
   classId: z.string().uuid(),
   title: z.string().trim().min(1, "Add a title.").max(120),
   format: z.enum(["multiple_choice", "true_false"]),
@@ -111,11 +114,17 @@ export async function createAssessmentAction(input: unknown): Promise<{ ok: true
   const { data: cls } = await supabase.from("classes").select("id").eq("id", v.classId).maybeSingle();
   if (!cls) return fail("Class not found.");
 
+  const destination = await resolveActivitySlot(v.classId, v.activitySlot, supabase);
+  if (destination.error) return fail(destination.error);
+
   const { data: assessment, error } = await supabase
     .from("assessments")
     .insert({
       class_id: v.classId,
       title: v.title,
+      activity_slot: destination.slot.title,
+      term: destination.slot.term,
+      component: destination.slot.component,
       kind: v.format,
       status: "active",
       assessment_date: v.assessmentDate ?? null,
@@ -124,7 +133,7 @@ export async function createAssessmentAction(input: unknown): Promise<{ ok: true
     })
     .select("id")
     .single();
-  if (error || !assessment) return fail("Could not create the assessment.");
+  if (error || !assessment) return fail(error?.code === "23505" ? "That activity was just assigned. Choose another activity." : "Could not create the assessment.");
 
   const { data: itemRows, error: itemError } = await supabase
     .from("assessment_items")

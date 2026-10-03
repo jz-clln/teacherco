@@ -43,6 +43,7 @@ export async function getExportData(classId: string): Promise<ExportDataResult> 
     title: string;
     total_points: number | string | null;
     exported_title: string | null;
+    activity_slot?: string | null;
     term?: number | null;
     component?: string | null;
   };
@@ -56,7 +57,7 @@ export async function getExportData(classId: string): Promise<ExportDataResult> 
       .eq("class_id", classId)
       .eq("status", "active")
       .limit(2000),
-    listAssessments("id,title,total_points,created_at,exported_title,term,component"),
+    listAssessments("id,title,total_points,created_at,exported_title,term,component,activity_slot"),
   ]);
   // term and component come from the grading migration. Without them the export still works, it just
   // cannot tell which free slot an activity belongs under.
@@ -109,6 +110,7 @@ export async function getExportData(classId: string): Promise<ExportDataResult> 
     out.push({
       id: String(a.id),
       title: String(a.title),
+      activitySlot: a.activity_slot ?? null,
       total,
       scores: entry.scores,
       term: a.term == null ? null : Number(a.term),
