@@ -45,6 +45,20 @@ const ICON: Record<AttendanceStatus, React.ReactNode> = {
 const chip =
   "inline-flex min-h-12 min-w-16 items-center justify-center rounded-xl border px-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E] disabled:opacity-50";
 
+/** "Oct 3, 2026, 3:46 PM" in Philippine time, so the server and the browser print the same text. */
+function formatSavedAt(iso: string): string | null {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return null;
+  return new Date(time).toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function AttendanceSheet({
   classId,
   date,
@@ -52,6 +66,7 @@ export function AttendanceSheet({
   learners,
   initial,
   taken: initiallyTaken,
+  updatedAt,
 }: {
   classId: string;
   date: string;
@@ -60,6 +75,8 @@ export function AttendanceSheet({
   /** Marks already saved for this day. Anyone missing starts as present. */
   initial: Record<string, AttendanceStatus>;
   taken: boolean;
+  /** Newest save time among this day's saved rows. null when nothing is saved yet. */
+  updatedAt: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -70,6 +87,8 @@ export function AttendanceSheet({
   const [marks, setMarks] = useState(startMarks);
   const [baseline, setBaseline] = useState(startMarks);
   const [taken, setTaken] = useState(initiallyTaken);
+  // Set the moment a save succeeds, so "Last updated" changes before the page refreshes.
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   // A day the teacher tried to open while there were unsaved changes.
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
@@ -80,6 +99,7 @@ export function AttendanceSheet({
     return c;
   }, [learners, marks]);
   const dirty = learners.some((l) => marks[l.id] !== baseline[l.id]);
+  const lastUpdated = taken ? formatSavedAt(savedAt ?? updatedAt ?? "") : null;
 
   function setStatus(id: string, status: AttendanceStatus) {
     setMessage(null);
@@ -114,6 +134,7 @@ export function AttendanceSheet({
       }
       setBaseline(marks);
       setTaken(true);
+      setSavedAt(new Date().toISOString());
       setMessage({ kind: "ok", text: "Saved." });
       router.refresh();
     });
@@ -165,6 +186,7 @@ export function AttendanceSheet({
           {taken ? "Attendance saved" : "Not taken yet"}
         </span>
       </div>
+      {lastUpdated ? <p className="-mt-2 text-xs text-[#606861]">Last updated {lastUpdated}</p> : null}
 
       {/* quick actions */}
       <div className="flex flex-wrap gap-2">
