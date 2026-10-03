@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ChevronDown, Folder, Plus, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { CheckFolder, OverviewRow } from "@/features/exams/queries";
+import { DeleteAssessmentButton } from "@/features/exams/components/delete-assessment-button";
 import { btnQuiet, field } from "@/features/exams/ui";
 
 const STORAGE_KEY = "teacherco.check.folders";
@@ -73,7 +74,7 @@ function parseSaved(raw: string): Record<string, boolean> {
 function AssessmentCard({ a }: { a: OverviewRow }) {
   const progress = a.roster ? Math.min(100, (a.checked / a.roster) * 100) : 0;
   return (
-    <li>
+    <li className="relative">
       <Link
         href={a.checked < a.roster ? `/check/${a.id}/score` : `/check/${a.id}`}
         className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]"
@@ -91,13 +92,14 @@ function AssessmentCard({ a }: { a: OverviewRow }) {
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#E8DFCA]">
             <div className="h-full bg-[#1A4D2E]" style={{ width: `${progress}%` }} />
           </div>
-          <p className="mt-2 text-sm text-[#606861]">
+          <p className="mt-2 pr-12 text-sm text-[#606861]">
             {a.checked} of {a.roster} checked
             {a.mean !== null ? ` · class average ${a.mean}%` : ""}
             {a.status === "closed" ? " · closed" : ""}
           </p>
         </Card>
       </Link>
+      <DeleteAssessmentButton assessmentId={a.id} title={a.title} checked={a.checked} className="absolute bottom-2 right-2" />
     </li>
   );
 }

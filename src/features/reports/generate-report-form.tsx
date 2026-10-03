@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { User, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select } from "@/components/ui/select";
 import { StatusMessage } from "@/features/settings/settings-ui";
 import { generateReport, type ReportState } from "./actions";
@@ -83,12 +84,14 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
         />
 
         {reportType === "learner_progress" ? (
-          <Select
+          <SearchableSelect
             key={classId}
             name="learnerId"
             label="Learner"
             required
             placeholder={selectedClass && selectedClass.learners.length > 0 ? "Choose a learner" : "No learners in this class"}
+            searchPlaceholder="Search learners…"
+            emptyText="No learner matches your search."
             options={(selectedClass?.learners ?? []).map((learner) => ({ value: learner.id, label: learner.name }))}
           />
         ) : null}
