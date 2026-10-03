@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: (url: string) => { throw new Error(`REDIRECT:${url}`); } }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({
+vi.mock("@/lib/supabase/server", () => ({ getCurrentUser: async () => state.user, createClient: async () => ({
   auth: { getUser: async () => ({ data: { user: state.user }, error: null }) },
   from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: state.profile, error: null }) }) }) }),
 }) }));

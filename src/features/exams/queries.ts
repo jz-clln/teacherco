@@ -11,7 +11,7 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
-import { getActivityChoices } from "./activity-slots";
+import { getActivityChoicesByClass } from "./activity-slots";
 import { activityDisplayTitle, type ActivityChoice } from "@/lib/exams/activity-slots";
 
 export interface ClassOption {
@@ -28,12 +28,13 @@ export async function getClassOptions(): Promise<ClassOption[]> {
     .select("id,name,subject,status,competencies(name)")
     .eq("status", "active")
     .order("created_at", { ascending: false });
-  return Promise.all((data ?? []).map(async (c: { id: string; name: string; subject: string; competencies: { name: string }[] }) => ({
+  const activityChoices = await getActivityChoicesByClass((data ?? []).map((c) => String(c.id)), supabase);
+  return (data ?? []).map((c: { id: string; name: string; subject: string; competencies: { name: string }[] }) => ({
     id: c.id,
-    activityChoices: await getActivityChoices(c.id, supabase),
+    activityChoices: activityChoices.get(c.id) ?? [],
     label: `${c.name} — ${c.subject}`,
     competencies: (c.competencies ?? []).map((x) => x.name),
-  })));
+  }));
 }
 
 export interface OverviewRow {

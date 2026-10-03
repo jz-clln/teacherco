@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
-export async function createClient() {
+// Share the cookie-bound client only within a Server Component request, never globally.
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -23,7 +24,7 @@ export async function createClient() {
       },
     },
   );
-}
+});
 
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient();

@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenCheck, ClipboardCheck, FileText, Home, MessageCircle, Settings } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, FileText, Home, LoaderCircle, MessageCircle, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -14,6 +14,13 @@ const nav = [
   { href: "/ask", label: "Ask", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+function NavigationIcon({ icon: Icon, size, label }: { icon: LucideIcon; size: number; label: string }) {
+  const { pending } = useLinkStatus();
+  return pending
+    ? <span role="status" aria-label={`Opening ${label}`}><LoaderCircle size={size} strokeWidth={1.8} className="animate-spin motion-reduce:animate-none" aria-hidden /></span>
+    : <Icon size={size} strokeWidth={1.8} aria-hidden />;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -32,11 +39,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
-              <Link key={href} href={href} className={cn(
+              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition",
                 active ? "bg-[#EAF0EA] text-[#1A4D2E]" : "text-[#606861] hover:bg-[#F4F7F4] hover:text-[#1A4D2E]",
               )}>
-                <Icon size={19} strokeWidth={1.8} />
+                <NavigationIcon icon={Icon} size={19} label={label} />
                 {label}
               </Link>
             );
@@ -54,8 +61,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
-              <Link key={href} href={href} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]", active ? "bg-[#EAF0EA] text-[#1A4D2E]" : "text-[#606861]") }>
-                <Icon size={18} strokeWidth={1.8} />
+              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]", active ? "bg-[#EAF0EA] text-[#1A4D2E]" : "text-[#606861]") }>
+                <NavigationIcon icon={Icon} size={18} label={label} />
                 {label}
               </Link>
             );

@@ -12,6 +12,14 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
+  const gateStart = performance.now();
+  let authMs = 0;
+  let accessMs = 0;
+  function withTiming(result: NextResponse) {
+    result.headers.set("Server-Timing", `auth;dur=${authMs.toFixed(1)}, access;dur=${accessMs.toFixed(1)}, gate;dur=${(performance.now() - gateStart).toFixed(1)}`);
+    return result;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -29,24 +37,28 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  const authStart = performance.now();
   const { data: { user } } = await supabase.auth.getUser();
+  authMs = performance.now() - authStart;
   const publicAuth = ["/login", "/signup", "/verify-email"].includes(path);
   let destination: string | null = null;
   if (!user) {
     if (!publicAuth) destination = "/login";
   } else {
+    const accessStart = performance.now();
     const { data: profile, error } = await supabase.from("profiles")
       .select("access_status,role,onboarding_completed").eq("id", user.id).maybeSingle();
+    accessMs = performance.now() - accessStart;
     // Fail closed instead of looping or treating an unavailable profile as active.
     if (error || !profile) {
       const unavailable = NextResponse.json({ error: "Could not verify account access. Please try again." }, { status: 503 });
       response.cookies.getAll().forEach((cookie) => unavailable.cookies.set(cookie));
       unavailable.headers.set("Cache-Control", "private, no-store");
-      return unavailable;
+      return withTiming(unavailable);
     }
     destination = routeAccessRedirect(path, !!user.email_confirmed_at, profile as AccessProfile);
     if (!destination && path.startsWith("/admin") && profile.role !== "admin") {
-      return new NextResponse("Administrator access required.", { status: 403, headers: { "Cache-Control": "private, no-store" } });
+      return withTiming(new NextResponse("Administrator access required.", { status: 403, headers: { "Cache-Control": "private, no-store" } }));
     }
   }
   if (destination) {
@@ -55,8 +67,8 @@ export async function updateSession(request: NextRequest) {
       : NextResponse.redirect(new URL(destination, request.url));
     response.cookies.getAll().forEach((cookie) => blocked.cookies.set(cookie));
     blocked.headers.set("Cache-Control", "private, no-store");
-    return blocked;
+    return withTiming(blocked);
   }
   response.headers.set("Cache-Control", "private, no-store");
-  return response;
+  return withTiming(response);
 }
