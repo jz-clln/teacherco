@@ -13,14 +13,14 @@ function termSheet(name = "TERM2"): SheetGrid {
     rows: [
       pad({ 0: "Class Record" }),
       pad({ 0: "TERM 2" }),
-      pad({ 1: "LEARNERS' NAMES", 5: "WRITTEN / ORAL WORKS (20%)", 9: "PRODUCT / PERFORMANCE TASK", 12: "Initial Grade" }),
-      pad({ 5: 1, 6: 2, 7: 3, 8: "Total", 9: 1, 10: 2, 11: "PS" }),
-      pad({ 1: "HIGHEST POSSIBLE SCORE", 5: 10, 6: 10, 7: "", 8: 20, 9: 5, 10: 5, 11: 100, 12: 0.2 }),
+      pad({ 1: "LEARNERS' NAMES", 5: "WRITTEN / ORAL WORKS (20%)", 13: "PRODUCT / PERFORMANCE TASKS (50%)", 19: "SUMMATIVE TESTS AND TERM EXAMINATIONS (30%)", 25: "Initial Grade" }, 30),
+      pad({ 5: 1, 6: 2, 7: 3, 8: 4, 9: 5, 10: "Total", 11: "PS", 12: "WS", 13: 1, 14: 2, 15: 3, 16: "Total", 17: "PS", 18: "WS", 19: "ST1", 20: "ST2", 21: "TE", 22: "Total", 23: "PS", 24: "WS", 25: "Initial Grade", 26: "Term Grade", 27: "Descriptor" }, 30),
+      pad({ 1: "HIGHEST POSSIBLE SCORE", 5: 10, 6: 10, 7: 10, 8: 10, 9: 10, 10: 50, 11: 100, 12: 0.2, 13: 100, 14: 100, 15: 100, 16: 300, 17: 100, 18: 0.5, 19: 25, 20: 25, 21: 50, 22: 100, 23: 100, 24: 0.3 }, 30),
       pad({ 1: "MALE" }),
-      pad({ 0: 1, 1: "DELA CRUZ, JUAN", 5: 8, 6: 9, 7: "", 8: 17, 9: 4, 10: 5, 11: 90 }),
-      pad({ 0: 2, 1: "REYES, PEDRO", 5: 10, 6: "ABS", 8: 10, 9: 3, 10: 2, 11: 50 }),
-      pad({ 0: 3, 1: "SANTOS, JOSE", 5: 11, 6: 7, 9: "", 10: "" }),
-      pad({ 0: 4, 1: "LIM, ANA", 5: "", 6: "", 9: "", 10: "" }),
+      pad({ 0: 1, 1: "DELA CRUZ, JUAN", 5: 8, 6: 9, 7: 7, 8: 6, 9: 9, 13: 90, 14: 95, 15: 100, 19: 13, 20: 20, 21: 50 }, 30),
+      pad({ 0: 2, 1: "REYES, PEDRO", 5: 10, 6: "ABS", 8: 10, 13: 85, 14: 95, 15: 100, 19: 25, 20: 25, 21: 50 }, 30),
+      pad({ 0: 3, 1: "SANTOS, JOSE", 5: 11, 6: 7, 13: 85, 14: 95, 15: 100, 19: 20, 20: 25, 21: 50 }, 30),
+      pad({ 0: 4, 1: "LIM, ANA" }, 30),
     ],
   };
 }
@@ -33,9 +33,18 @@ describe("detectGradeSheet", () => {
     expect(found.columns.map((c) => [c.title, c.total])).toEqual([
       ["Term 2 · Written Work 1", 10],
       ["Term 2 · Written Work 2", 10],
-      ["Term 2 · Performance Task 1", 5],
-      ["Term 2 · Performance Task 2", 5],
+      ["Term 2 · Written Work 3", 10],
+      ["Term 2 · Written Work 4", 10],
+      ["Term 2 · Written Work 5", 10],
+      ["Term 2 · Performance Task 1", 100],
+      ["Term 2 · Performance Task 2", 100],
+      ["Term 2 · Performance Task 3", 100],
+      ["Term 2 · Summative Test 1", 25],
+      ["Term 2 · Summative Test 2", 25],
+      ["Term 2 · Term Exam", 50],
     ]);
+    expect(found.possibleByComponent).toEqual({ written_work: 50, performance_task: 300, assessment: 100 });
+    expect(found.weights).toEqual({ written_work: 0.2, performance_task: 0.5, assessment: 0.3 });
   });
 
   it("matches rows to learners, leaves blanks empty, and drops bad cells", () => {

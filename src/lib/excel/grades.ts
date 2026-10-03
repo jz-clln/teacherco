@@ -13,6 +13,7 @@
 // sheet can hold a different class list than the rest of the workbook.
 
 import { extractRoster, suggestMapping, type Grid, type SheetGrid } from "@/lib/excel/roster";
+import type { DescriptorRow, TransmutationRow } from "@/lib/grading/deped";
 
 /** Which DepEd component a column sits under. Oral recitation belongs under written / oral works. */
 export type ColumnComponent = "written_work" | "performance_task" | "assessment";
@@ -35,13 +36,27 @@ export type GradeColumn = {
   scores: (number | null)[];
 };
 
-export type GradeLearner = { firstName: string; lastName: string; lrn: string; sourceRow: number };
+export type RecordedTermGrade = { initialGrade: number | null; termGrade: number | null; descriptor: string | null };
+
+export type GradeLearner = {
+  firstName: string;
+  lastName: string;
+  lrn: string;
+  sourceRow: number;
+  recordedGrade: RecordedTermGrade;
+};
 
 export type GradeSheet = {
   sheet: string;
   term: string;
   learners: GradeLearner[];
   columns: GradeColumn[];
+  /** HPS totals for every recognized column, including columns with no learner scores. */
+  possibleByComponent: Partial<Record<ColumnComponent, number>>;
+  /** Component weights stored in the WS cells of this term sheet. */
+  weights: Partial<Record<ColumnComponent, number>>;
+  /** Active workbook lookups, read by name from the helper sheet when available. */
+  gradingRules?: { transmutation: TransmutationRow[]; descriptors: DescriptorRow[] };
   /** Cells that were not numbers, were negative, or were above the highest possible score. */
   ignored: number;
   /** 1-based row of "HIGHEST POSSIBLE SCORE". Needed to fill a free slot. */
@@ -173,11 +188,58 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
   }
   if (found.length === 0) return null;
 
+  const possibleByComponent: Partial<Record<ColumnComponent, number>> = {};
+  for (const column of found) {
+    if (column.component && column.total > 0) {
+      possibleByComponent[column.component] = (possibleByComponent[column.component] ?? 0) + column.total;
+    }
+  }
+
+  const weights: Partial<Record<ColumnComponent, number>> = {};
+  let activeComponent: string | null = null;
+  for (let c = 0; c < width; c++) {
+    const groupLabel = labelRow >= 0 ? squash(cell(rows, labelRow, c)) : "";
+    if (groupLabel) activeComponent = componentOf(groupLabel);
+    if (squash(cell(rows, subRow, c)).toLowerCase() !== "ws" || !activeComponent) continue;
+    const weight = parseScore(cell(rows, hpsRow, c)).value;
+    const component = COMPONENT_KEY[activeComponent];
+    if (component && weight != null && weight > 0) weights[component] = weight > 1 ? weight / 100 : weight;
+  }
+
+  const outputColumns = { initialGrade: -1, termGrade: -1, descriptor: -1 };
+  for (let c = 0; c < width; c++) {
+    const header = squash(cell(rows, subRow, c)).toLowerCase();
+    if (/^initial\s+grade$/.test(header)) outputColumns.initialGrade = c;
+    else if (/^term\s+grade$/.test(header)) outputColumns.termGrade = c;
+    else if (/^descrip/.test(header)) outputColumns.descriptor = c;
+  }
+
   // 3. The learners in this sheet, read with the same name logic as the roster import.
   const base = suggestMapping(sheet);
   const learners: GradeLearner[] = extractRoster(rows, { ...base, firstRow: Math.max(base.firstRow, hpsRow + 1) })
     .filter((r) => r.include && r.firstName && r.lastName)
-    .map((r) => ({ firstName: r.firstName, lastName: r.lastName, lrn: r.lrn, sourceRow: r.sourceRow }));
+    .map((r) => {
+      const row = r.sourceRow - 1;
+      const gradeAt = (column: number) => {
+        if (column < 0) return null;
+        const raw = squash(cell(rows, row, column));
+        if (!raw || /^#(?:REF!|N\/A|VALUE!|DIV\/0!)/i.test(raw)) return null;
+        const value = Number(raw.replace(",", "."));
+        return Number.isFinite(value) ? value : null;
+      };
+      const descriptorAt = outputColumns.descriptor < 0 ? "" : squash(cell(rows, row, outputColumns.descriptor));
+      return {
+        firstName: r.firstName,
+        lastName: r.lastName,
+        lrn: r.lrn,
+        sourceRow: r.sourceRow,
+        recordedGrade: {
+          initialGrade: gradeAt(outputColumns.initialGrade),
+          termGrade: gradeAt(outputColumns.termGrade),
+          descriptor: descriptorAt && !/^#(?:REF!|N\/A|VALUE!|DIV\/0!)/i.test(descriptorAt) ? descriptorAt : null,
+        },
+      };
+    });
   if (learners.length === 0) return null;
 
   // 4. Scores. Blank stays blank. Never invent a zero.
@@ -199,5 +261,5 @@ export function detectGradeSheet(sheet: SheetGrid, options: DetectGradeOptions =
     .filter((col) => col.free || options.keepEmpty || col.scores.some((s) => s != null));
   if (columns.length === 0) return null;
 
-  return { sheet: sheet.name, term, learners, columns, ignored, hpsRow: hpsRow + 1 };
+  return { sheet: sheet.name, term, learners, columns, possibleByComponent, weights, ignored, hpsRow: hpsRow + 1 };
 }

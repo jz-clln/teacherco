@@ -110,7 +110,7 @@ export type ComponentResult = {
 };
 
 export type TermGradeResult = {
-  /** graded: full grade. incomplete: scores exist but the Term Exam is missing. no_scores: nothing recorded. */
+  /** graded: full grade. incomplete: scores exist but the assessment component is missing. no_scores: nothing recorded. */
   status: "graded" | "incomplete" | "no_scores";
   components: ComponentResult[];
   initialGrade: number | null;
@@ -160,10 +160,9 @@ export function computeTermGrade(
     return { ...base, status: "no_scores", initialGrade: null, termGrade: null, descriptor: null };
   }
 
-  // A sheet only issues a grade once the Term Exam has a score.
+  // The class record issues a grade once any ST or Term Exam score makes its assessment total nonblank.
   const exams = items.filter((i) => i.component === "assessment");
-  const gate = exams.some((i) => i.isTermExam) ? exams.filter((i) => i.isTermExam) : exams;
-  const examRecorded = gate.some((i) => i.earned != null);
+  const examRecorded = exams.some((i) => i.earned != null);
 
   for (const c of components) {
     if (c.weight <= 0) continue;

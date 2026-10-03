@@ -299,9 +299,17 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
       if (chosenGrades.length > 0) {
         const grades = await importGrades({
           classId,
+          sourceFilename: source?.label ?? null,
           sheets: chosenGrades.map(({ g }) => ({
             label: g.term,
-            learners: g.learners.map((l) => ({ firstName: l.firstName, lastName: l.lastName })),
+            weights: g.weights,
+            gradingRules: g.gradingRules,
+            possibleByComponent: g.possibleByComponent,
+            learners: g.learners.map((l) => ({
+              firstName: l.firstName,
+              lastName: l.lastName,
+              recordedGrade: l.recordedGrade,
+            })),
             columns: g.columns.map((c) => ({ title: c.title, total: c.total, scores: c.scores })),
           })),
         });

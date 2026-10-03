@@ -4,6 +4,7 @@ import ExcelJS from "exceljs";
 import { detectClassInfo, type ClassInfo } from "@/lib/excel/class-info";
 import { detectGradeSheet, type GradeSheet } from "@/lib/excel/grades";
 import { detectRoster, type RosterDetection, type SheetGrid } from "@/lib/excel/roster";
+import type { DescriptorRow, TransmutationRow } from "@/lib/grading/deped";
 
 export type SheetPreview = {
   name: string;
@@ -114,6 +115,51 @@ function sheetToGrid(sheet: ExcelJS.Worksheet): SheetGrid {
   return { name: sheet.name, hidden: sheet.state !== "visible", rows };
 }
 
+/** Reads only the workbook's explicitly named active grading tables, even when their helper sheet is hidden. */
+export function readWorkbookGradingRules(workbook: ExcelJS.Workbook) {
+  const definedNames = workbook.definedNames as unknown as { model?: { name: string; ranges: string[] }[] };
+  const readNamedTable = (name: string) => {
+    const range = definedNames.model?.find((entry) => entry.name.toLowerCase() === name.toLowerCase())?.ranges[0];
+    if (!range) return null;
+    const match = /^(?:'((?:[^']|'')+)'|([^!]+))!\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(range);
+    if (!match) return null;
+    const sheetName = (match[1] ?? match[2] ?? "").replace(/''/g, "'");
+    const sheet = workbook.getWorksheet(sheetName);
+    if (!sheet) return null;
+    const columnNumber = (letters: string) => [...letters.toUpperCase()].reduce((n, char) => n * 26 + char.charCodeAt(0) - 64, 0);
+    const fromColumn = columnNumber(match[3] ?? "A");
+    const fromRow = Number(match[4]);
+    const toColumn = columnNumber(match[5] ?? "A");
+    const toRow = Number(match[6]);
+    const valueAt = (row: number, column: number) => {
+      const value = sheet.getCell(row, column).value;
+      if (value && typeof value === "object" && "result" in value) return value.result;
+      return value;
+    };
+    return Array.from({ length: Math.max(0, toRow - fromRow + 1) }, (_, offset) =>
+      Array.from({ length: Math.max(0, toColumn - fromColumn + 1) }, (_, index) => valueAt(fromRow + offset, fromColumn + index)),
+    );
+  };
+
+  const transmutationRows = readNamedTable("NewTransmu");
+  const descriptorRows = readNamedTable("DESCRIPTORS");
+  if (!transmutationRows || !descriptorRows) return undefined;
+  const transmutation: TransmutationRow[] = transmutationRows.flatMap((row) => {
+    const min = Number(row[0]);
+    const maxValue = row[2];
+    const grade = Number(row[3]);
+    if (!Number.isFinite(min) || !Number.isFinite(grade)) return [];
+    const maxNumber = Number(maxValue);
+    return [{ min, max: Number.isFinite(maxNumber) ? maxNumber : null, grade }];
+  });
+  const descriptors: DescriptorRow[] = descriptorRows.flatMap((row) => {
+    const min = Number(row[0]);
+    const label = String(row[3] ?? "").trim();
+    return Number.isFinite(min) && label ? [{ min, label }] : [];
+  });
+  return transmutation.length && descriptors.length ? { transmutation, descriptors } : undefined;
+}
+
 /**
  * Opens a workbook WITHOUT turning its sheets into grids. A class record can have
  * 7+ sheets (INPUT, TERM1-3, SUMMARY, hidden helpers) and only one holds the
@@ -169,13 +215,15 @@ export async function openWorkbook(file: File): Promise<WorkbookReader> {
     );
   };
 
-  const findGrades = () =>
-    sheets
+  const findGrades = () => {
+    const gradingRules = readWorkbookGradingRules(workbook);
+    return sheets
       .filter((s) => !s.hidden)
       .flatMap((s) => {
         const found = detectGradeSheet(read(s.name));
-        return found ? [found] : [];
+        return found ? [{ ...found, ...(gradingRules ? { gradingRules } : {}) }] : [];
       });
+  };
 
   // Stops reading sheets as soon as every detail has been found.
   const classInfo = () =>

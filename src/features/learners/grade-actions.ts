@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { nameKey } from "@/lib/excel/roster";
 import { logImportEvent, type ChangedScore } from "@/features/learners/import-history";
+import { defaultGradingConfig } from "@/lib/grading/presets";
 
 const SheetSchema = z
   .object({
@@ -16,6 +17,11 @@ const SheetSchema = z
         z.object({
           firstName: z.string().trim().min(1).max(120),
           lastName: z.string().trim().min(1).max(120),
+          recordedGrade: z.object({
+            initialGrade: z.number().min(0).max(100).nullable(),
+            termGrade: z.number().min(0).max(100).nullable(),
+            descriptor: z.string().max(80).nullable(),
+          }).optional(),
         }),
       )
       .min(1)
@@ -30,6 +36,20 @@ const SheetSchema = z
       )
       .min(1)
       .max(60),
+    weights: z.object({
+      written_work: z.number().min(0).max(1).optional(),
+      performance_task: z.number().min(0).max(1).optional(),
+      assessment: z.number().min(0).max(1).optional(),
+    }).optional(),
+    gradingRules: z.object({
+      transmutation: z.array(z.object({ min: z.number(), max: z.number().nullable(), grade: z.number() })).optional(),
+      descriptors: z.array(z.object({ min: z.number(), label: z.string().max(80) })).optional(),
+    }).optional(),
+      possibleByComponent: z.object({
+        written_work: z.number().min(0).max(10000).optional(),
+        performance_task: z.number().min(0).max(10000).optional(),
+        assessment: z.number().min(0).max(10000).optional(),
+      }).optional(),
   })
   .superRefine((sheet, ctx) => {
     if (sheet.columns.some((c) => c.scores.length !== sheet.learners.length)) {
@@ -40,6 +60,7 @@ const SheetSchema = z
 const InputSchema = z.object({
   classId: z.string().uuid(),
   sheets: z.array(SheetSchema).min(1).max(8),
+  sourceFilename: z.string().trim().max(255).nullable().optional(),
 });
 
 export type ImportGradesResult =
@@ -134,8 +155,14 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   if (!user) return { ok: false, error: "You are signed out. Please sign in again." };
 
   // RLS only returns classes this teacher owns.
-  const { data: classroom } = await supabase.from("classes").select("id").eq("id", classId).maybeSingle();
+  const { data: classroom } = await supabase.from("classes").select("id,subject").eq("id", classId).maybeSingle();
   if (!classroom) return { ok: false, error: "Class not found." };
+
+  const { data: savedGradingConfig } = await supabase
+    .from("class_grading_config")
+    .select("weights,transmutation,descriptors,term_possible,source_filename")
+    .eq("class_id", classId)
+    .maybeSingle();
 
   const { data: enrolled, error: enrolledError } = await supabase
     .from("class_enrollments")
@@ -158,6 +185,78 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     }
   }
 
+  const termPossible = savedGradingConfig?.term_possible && typeof savedGradingConfig.term_possible === "object"
+    ? { ...(savedGradingConfig.term_possible as Record<string, unknown>) }
+    : {};
+  const printedGrades: {
+    class_id: string;
+    learner_id: string;
+    term: number;
+    initial_grade: number | null;
+    term_grade: number | null;
+    descriptor: string | null;
+    source_sheet: string;
+  }[] = [];
+
+  for (const sheet of sheets) {
+    const termMatch = /(?:term|quarter)\s*([1-4])/i.exec(sheet.label);
+    const term = termMatch ? Number(termMatch[1]) : null;
+    if (term && sheet.possibleByComponent) {
+      const previous = termPossible[String(term)];
+      termPossible[String(term)] = {
+        ...(previous && typeof previous === "object" ? previous as Record<string, number> : {}),
+        ...sheet.possibleByComponent,
+      };
+    }
+    if (!term) continue;
+    sheet.learners.forEach((learner) => {
+      const learnerId = byName.get(nameKey(learner.firstName, learner.lastName));
+      const record = learner.recordedGrade;
+      if (!learnerId || !record || (record.initialGrade == null && record.termGrade == null && record.descriptor == null)) return;
+      printedGrades.push({
+        class_id: classId,
+        learner_id: learnerId,
+        term,
+        initial_grade: record.initialGrade,
+        term_grade: record.termGrade,
+        descriptor: record.descriptor,
+        source_sheet: sheet.label,
+      });
+    });
+  }
+
+  const defaults = defaultGradingConfig(String(classroom.subject));
+  const candidateWeights = sheets.find((sheet) =>
+    sheet.weights?.written_work != null && sheet.weights.performance_task != null && sheet.weights.assessment != null,
+  )?.weights;
+  const candidateWeightTotal = candidateWeights
+    ? candidateWeights.written_work! + candidateWeights.performance_task! + candidateWeights.assessment!
+    : 0;
+  const weights = savedGradingConfig?.weights ?? (
+    candidateWeights && Math.abs(candidateWeightTotal - 1) < 0.001 ? candidateWeights : defaults.weights
+  );
+  const importedRules = sheets.find((sheet) => sheet.gradingRules)?.gradingRules;
+  const transmutation = savedGradingConfig?.transmutation ?? importedRules?.transmutation ?? defaults.transmutation;
+  const descriptors = savedGradingConfig?.descriptors ?? importedRules?.descriptors ?? defaults.descriptors;
+  const { error: configError } = await supabase.from("class_grading_config").upsert({
+    class_id: classId,
+    weights,
+    transmutation,
+    descriptors,
+    term_possible: termPossible,
+    source_filename: savedGradingConfig ? savedGradingConfig.source_filename : parsed.data.sourceFilename ?? null,
+    verified: false,
+  });
+  if (configError) return { ok: false, error: "Could not save this class's grading rules. Your scores were not imported." };
+
+  const savePrintedGrades = async () => {
+    if (!printedGrades.length) return true;
+    const { error } = await supabase
+      .from("teacher_term_grades")
+      .upsert(printedGrades, { onConflict: "class_id,learner_id,term" });
+    return !error;
+  };
+
   // Match learners, then build one entry per score column.
   const prepared = new Map<string, Prepared>();
   const skippedSheets: string[] = [];
@@ -179,7 +278,10 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   }
 
   const wanted = [...prepared.values()];
-  if (wanted.length === 0) return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles: [] };
+  if (wanted.length === 0) {
+    if (!(await savePrintedGrades())) return { ok: false, error: "Grading rules were saved, but workbook term grades could not be stored." };
+    return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles: [] };
+  }
 
   // Reuse imported assessments with the same title. Never reuse a checked or typed-in one,
   // and never import a column that a checked or typed-in activity was exported into.
@@ -204,7 +306,10 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   const protectedTitles = [...protectedSet];
 
   const list = wanted.filter((p) => !protectedSet.has(p.title));
-  if (list.length === 0) return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles };
+  if (list.length === 0) {
+    if (!(await savePrintedGrades())) return { ok: false, error: "Grading rules were saved, but workbook term grades could not be stored." };
+    return { ok: true, scores: 0, created: 0, skippedSheets, protectedTitles };
+  }
 
   const missing = list.filter((p) => !idByTitle.has(p.title));
 
@@ -275,6 +380,10 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
     }
   }
 
+  if (!(await savePrintedGrades())) {
+    return { ok: false, error: "Scores were imported, but workbook term grades could not be stored." };
+  }
+
   // Only log imports that changed something, so repeating the same import adds no noise.
   if (before && after && (scoresNew + scoresChanged > 0 || missing.length > 0)) {
     const was = averagesOf(before, enrolledIds);
@@ -303,6 +412,7 @@ export async function importGrades(input: z.input<typeof InputSchema>): Promise<
   }
 
   revalidatePath(`/classes/${classId}`);
+  revalidatePath(`/classes/${classId}/term-grades`);
   revalidatePath("/classes");
   revalidatePath("/reports");
   return { ok: true, scores: rows.length, created: missing.length, skippedSheets, protectedTitles };
