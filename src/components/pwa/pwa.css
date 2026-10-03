@@ -1,0 +1,17 @@
+.pwa-install-control { max-width: 100%; }
+.pwa-install-control button { cursor: pointer; }
+.pwa-install-control button:disabled { cursor: wait; opacity: .65; }
+.pwa-install-message { max-width: 300px; margin-top: 10px; font-size: .8rem; color: var(--text-secondary); }
+.pwa-dialog { margin: auto; width: min(28rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; padding: 26px; border: 1px solid var(--sand); border-radius: 24px; background: var(--ivory); color: var(--text-primary); box-shadow: 0 20px 70px #12382026; }
+.pwa-dialog::backdrop { background: #10281880; }
+.pwa-dialog .pwa-dialog-brand { color: var(--teacherco-800); font-size: .9rem; font-weight: 700; margin-bottom: 12px; }
+.pwa-dialog h2 { font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
+.pwa-dialog p { font-size: .85rem; line-height: 1.7; margin-top: 12px; }
+.pwa-dialog ol { display: grid; gap: 20px; margin-block: 24px; }
+.pwa-dialog li { display: flex; align-items: flex-start; gap: 12px; font-size: .9rem; line-height: 1.65; }
+.pwa-dialog li > :first-child { flex-shrink: 0; color: var(--teacherco-800); }
+.pwa-step-number { width: 22px; text-align: center; font-weight: 600; }
+.pwa-dialog .pwa-guidance { color: var(--text-secondary); font-size: .8rem; margin-bottom: 24px; }
+.pwa-dialog button { width: 100%; }
+.pwa-dialog button:focus-visible { outline: 3px solid var(--teacherco-600); outline-offset: 4px; }
+.pwa-offline-status { position: fixed; z-index: 60; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 12px 18px; border: 1px solid var(--sand); border-radius: 14px; background: var(--ivory); color: var(--teacherco-900); font-size: .8rem; box-shadow: 0 8px 30px #12382020; }

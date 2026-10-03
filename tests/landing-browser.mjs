@@ -20,7 +20,7 @@ try {
     assert.equal(await page.title(), "TeacherCo — Your Classroom Companion");
     assert.equal(await page.locator("h1").count(), 1);
     assert.ok(await page.locator('.landing-hero a[href="/request-access"]').isVisible());
-    assert.ok(await page.locator('.landing-hero a[href="/login"]').isVisible());
+    assert.ok(await page.locator('.landing-hero').getByRole("link", { name: "Log in", exact: true }).isVisible());
     for (const img of await page.locator("main img").all()) {
       await img.scrollIntoViewIfNeeded();
       await img.evaluate(image => image.decode());
@@ -43,7 +43,7 @@ try {
     await page.screenshot({ path: `test-results/landing/${width}.png`, fullPage: true });
     console.log(`${width}px: images, layout, navigation, FAQ passed`);
   }
-  await page.locator('.landing-hero a[href="/login"]').click();
+  await page.locator('.landing-hero').getByRole("link", { name: "Log in", exact: true }).click();
   await page.waitForURL("**/login");
   await page.goto("/");
   await page.locator('.landing-hero a[href="/request-access"]').click();

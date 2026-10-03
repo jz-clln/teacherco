@@ -8,7 +8,7 @@ export async function updateSession(request: NextRequest) {
 
   // Public content remains readable without an account or an auth service connection.
   const path = request.nextUrl.pathname;
-  if (["/", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
+  if (["/", "/offline.html", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
     return response;
   }
 

@@ -9,11 +9,13 @@ import ask from "../../../public/brand/ask-visual.png";
 import check from "../../../public/brand/check-visual.png";
 import cta from "../../../public/brand/cta.png";
 import { LandingHeader } from "./landing-header";
+import { InstallTeacherCoButton } from "@/components/pwa/install-teacherco-button";
 import "./landing.css";
 
-function AccountActions({ destination }: { destination: string | null }) {
+function AccountActions({ destination, install = false }: { destination: string | null; install?: boolean }) {
   return <div className="landing-account-actions">
     <Link prefetch={false} href={destination ?? "/request-access"} className="landing-button landing-button-primary">{destination ? "Go to TeacherCo" : "Request Early Access"}<ArrowUpRight size={18} aria-hidden="true" /></Link>
+    {install && <InstallTeacherCoButton destination={destination} />}
     {!destination && <Link prefetch={false} href="/login" className="landing-button landing-button-secondary">Log in<ArrowRight size={17} aria-hidden="true" /></Link>}
   </div>;
 }
@@ -59,7 +61,8 @@ export function LandingPage({ destination }: { destination: string | null }) {
           <p className="landing-tagline">Your classroom companion.</p>
           <p className="landing-hero-value">Spend less time on repetitive classroom work and more time teaching.</p>
           <p className="landing-description">A calmer way to work with the class records and assessments you already use. Organize, check, ask, and prepare reports in one workspace.</p>
-          <AccountActions destination={destination} />
+          <AccountActions destination={destination} install />
+          <p className="landing-small-note">Available on the web · Installable on supported devices</p>
           <p className="landing-small-note"><Check size={15} aria-hidden="true" />Your records. Your classroom. You’re in control.</p>
         </div>
         <figure className="landing-hero-visual"><Image src={today} alt="TeacherCo mascot beside a Today workspace with classroom, learner, and attendance summaries." priority sizes="(max-width: 767px) calc(100vw - 40px), (max-width: 1279px) 55vw, 700px" /></figure>

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
+import { PwaStatus } from "@/components/pwa/pwa-status";
+import "@/components/pwa/pwa.css";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -16,9 +18,10 @@ export const metadata: Metadata = {
   },
   description: "Your classroom companion.",
   applicationName: "TeacherCo",
+  appleWebApp: { capable: true, title: "TeacherCo", statusBarStyle: "default" },
   icons: {
     icon: "/brand/teacherco-mascot.png",
-    apple: "/brand/teacherco-mascot.png",
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -32,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={poppins.className} suppressHydrationWarning>
-        <AppProviders>{children}</AppProviders>
+        <AppProviders><PwaStatus />{children}</AppProviders>
       </body>
     </html>
   );
