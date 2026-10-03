@@ -1,3 +1,9 @@
-import { Card } from "@/components/ui/card";
+import { AskWorkspace } from "@/features/ask/ask-workspace";
+import { getAskClassOptions } from "@/features/ask/queries";
+
 export const metadata = { title: "Ask" };
-export default function AskPage() { return <div className="space-y-6"><div><p className="text-sm font-medium text-[#4F6F52]">ASK TEACHERCO</p><h1 className="mt-1 text-3xl font-bold">Ask about your classroom</h1><p className="mt-2 text-[#606861]">Simple factual questions should resolve through structured queries. AI is reserved for interpretation and writing.</p></div><Card><div className="rounded-xl border border-[#E3E5E1] bg-[#F4F7F4] p-4 text-sm text-[#8B928C]">Import a class record before asking classroom questions.</div></Card></div>; }
+
+export default async function AskPage() {
+	const result = await getAskClassOptions();
+	return <AskWorkspace classes={result.classes} loadError={result.error} />;
+}
