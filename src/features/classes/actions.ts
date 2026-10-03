@@ -8,6 +8,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
 const ClassSchema = z.object({
+  requestId: z.uuid(),
   name: z.string().trim().min(2).max(120),
   subject: z.string().trim().min(2).max(120),
   schoolYear: z.string().trim().min(4).max(30),
@@ -16,12 +17,13 @@ const ClassSchema = z.object({
 
 export async function createClass(formData: FormData) {
   const parsed = ClassSchema.safeParse({
+    requestId: formData.get("requestId"),
     name: formData.get("name"),
     subject: formData.get("subject"),
     schoolYear: formData.get("schoolYear"),
     gradeLevel: formData.get("gradeLevel"),
   });
-  if (!parsed.success) redirect("/classes/new?error=Please+check+the+class+details");
+  if (!parsed.success) return { error: "Please check the class details." };
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,6 +37,7 @@ export async function createClass(formData: FormData) {
     .maybeSingle();
 
   const { data, error } = await supabase.from("classes").insert({
+    id: parsed.data.requestId,
     teacher_id: user.id,
     name: parsed.data.name,
     subject: parsed.data.subject,
@@ -43,7 +46,19 @@ export async function createClass(formData: FormData) {
     benchmark: profile?.default_benchmark ?? 75,
   }).select("id").single();
 
-  if (error) redirect(`/classes/new?error=${encodeURIComponent(error.message)}`);
+  if (error) {
+    // The primary key serializes concurrent retries of this form submission.
+    // Never update an existing class, and only return a class owned by this teacher.
+    if (error.code === "23505") {
+      const { data: existing } = await supabase.from("classes")
+        .select("id").eq("id", parsed.data.requestId).eq("teacher_id", user.id).maybeSingle();
+      if (existing) {
+        revalidatePath("/classes");
+        return { id: existing.id as string };
+      }
+    }
+    return { error: "Could not create the class. Please try again." };
+  }
   revalidatePath("/classes");
-  redirect(`/classes/${data.id}`);
+  return { id: data.id as string };
 }

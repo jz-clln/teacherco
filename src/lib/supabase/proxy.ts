@@ -6,9 +6,9 @@ import type { AccessProfile } from "@/features/invites/types";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  // Legal documents must remain readable without an account or an auth service connection.
+  // Public content remains readable without an account or an auth service connection.
   const path = request.nextUrl.pathname;
-  if (["/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
+  if (["/", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
     return response;
   }
 

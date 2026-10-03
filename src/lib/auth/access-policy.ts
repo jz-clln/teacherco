@@ -9,8 +9,9 @@ export function accessDestination(verified: boolean, profile: AccessProfile | nu
 }
 
 export function routeAccessRedirect(path: string, verified: boolean, profile: AccessProfile | null): string | null {
+  if (path === "/") return null;
   const destination = accessDestination(verified, profile);
-  if (path === "/login" || path === "/signup" || path === "/") return destination;
+  if (path === "/login" || path === "/signup") return destination;
   if (destination === "/verify-email") return path === destination ? null : destination;
   if (destination === "/suspended") return path === destination ? null : destination;
   if (destination === "/invite") return path === "/invite" || path === "/request-access" ? null : destination;
