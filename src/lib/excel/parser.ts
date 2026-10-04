@@ -115,6 +115,30 @@ function sheetToGrid(sheet: ExcelJS.Worksheet): SheetGrid {
   return { name: sheet.name, hidden: sheet.state !== "visible", rows };
 }
 
+/**
+ * The last row and column that actually hold a value. A sheet can be formatted far below its data
+ * (the DepEd record is styled down to row 1000), so rowCount and columnCount alone overstate its size.
+ */
+function dataExtent(sheet: ExcelJS.Worksheet) {
+  let rows = 0;
+  let cols = 0;
+  sheet.eachRow({ includeEmpty: false }, (row, r) => {
+    row.eachCell({ includeEmpty: false }, (cell, c) => {
+      if (cell.type === ExcelJS.ValueType.Merge || cellText(cell.value) === "") return;
+      if (r > rows) rows = r;
+      if (c > cols) cols = c;
+    });
+  });
+  return { rows, cols };
+}
+
+/** True when real data sits past the rows or columns the reader supports. */
+function hasDataBeyondLimits(sheet: ExcelJS.Worksheet) {
+  if (sheet.rowCount <= MAX_ROWS && sheet.columnCount <= MAX_COLS) return false;
+  const { rows, cols } = dataExtent(sheet);
+  return rows > MAX_ROWS || cols > MAX_COLS;
+}
+
 /** Reads only the workbook's explicitly named active grading tables, even when their helper sheet is hidden. */
 export function readWorkbookGradingRules(workbook: ExcelJS.Workbook) {
   const definedNames = workbook.definedNames as unknown as { model?: { name: string; ranges: string[] }[] };
@@ -177,7 +201,7 @@ export async function openWorkbook(file: File, options: { rejectTruncation?: boo
 
   const sheets: SheetInfo[] = workbook.worksheets.map((s) => ({ name: s.name, hidden: s.state !== "visible" }));
   if (sheets.length === 0) throw new Error("This workbook has no sheets.");
-  if (options.rejectTruncation && workbook.worksheets.some(s => s.state === "visible" && (s.rowCount > MAX_ROWS || s.columnCount > MAX_COLS))) {
+  if (options.rejectTruncation && workbook.worksheets.some(s => s.state === "visible" && hasDataBeyondLimits(s))) {
     throw new Error(`This workbook exceeds the supported ${MAX_ROWS} rows or ${MAX_COLS} columns per visible sheet. Split the record before syncing so no data is skipped.`);
   }
 
