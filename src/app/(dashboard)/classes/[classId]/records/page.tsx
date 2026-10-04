@@ -34,6 +34,10 @@ export default async function RecordImportPage({ params }: { params: Promise<{ c
           they are added to this class.
         </p>
       </div>
+      <Link href={`/classes/${classId}/records/sync`} className="block rounded-2xl border border-[#D5E0D5] bg-[#EAF0EA] p-5 text-[#1A4D2E] hover:bg-[#D5E0D5]">
+        <span className="font-semibold">Updating an existing class record? Sync your updated Excel file →</span>
+        <span className="mt-1 block text-sm">Review new scores, corrected grades, learners and attendance before applying. Previous versions are kept.</span>
+      </Link>
       <RosterImport classId={classId} currentClass={toClassDetails(classroom)} />
     </div>
   );

@@ -166,7 +166,7 @@ export function readWorkbookGradingRules(workbook: ExcelJS.Workbook) {
  * learner list, so a sheet is converted only when detection or the teacher needs it.
  * Hidden sheets are never opened automatically.
  */
-export async function openWorkbook(file: File): Promise<WorkbookReader> {
+export async function openWorkbook(file: File, options: { rejectTruncation?: boolean } = {}): Promise<WorkbookReader> {
   if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("Please choose an .xlsx workbook.");
   const workbook = new ExcelJS.Workbook();
   try {
@@ -177,6 +177,9 @@ export async function openWorkbook(file: File): Promise<WorkbookReader> {
 
   const sheets: SheetInfo[] = workbook.worksheets.map((s) => ({ name: s.name, hidden: s.state !== "visible" }));
   if (sheets.length === 0) throw new Error("This workbook has no sheets.");
+  if (options.rejectTruncation && workbook.worksheets.some(s => s.state === "visible" && (s.rowCount > MAX_ROWS || s.columnCount > MAX_COLS))) {
+    throw new Error(`This workbook exceeds the supported ${MAX_ROWS} rows or ${MAX_COLS} columns per visible sheet. Split the record before syncing so no data is skipped.`);
+  }
 
   const cache = new Map<string, SheetGrid>();
   const read = (name: string): SheetGrid => {

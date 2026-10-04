@@ -159,6 +159,9 @@ export default async function ClassOverviewPage({
           <Link href={`/classes/${classId}/export`} className={linkLight}>
             <Download size={18} className="shrink-0" /> Export record
           </Link>
+          <Link href={`/classes/${classId}/records/sync`} className={linkLight}>
+            <Upload size={18} className="shrink-0" /> Sync updated record
+          </Link>
           {/* New key after each result so the popup closes on success and reopens with the error. */}
           <div className="col-span-2 [&>button]:min-h-11 [&>button]:w-full [&>button]:justify-center sm:col-span-1 sm:[&>button]:w-auto">
             <AddStudentDialog key={`${added ?? ""}|${error ?? ""}`} classId={classId} error={error} />
