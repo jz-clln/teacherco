@@ -10,6 +10,7 @@ import check from "../../../public/brand/check-visual.png";
 import cta from "../../../public/brand/cta.png";
 import { LandingHeader } from "./landing-header";
 import { InstallTeacherCoButton } from "@/components/pwa/install-teacherco-button";
+import { AndroidApkLink } from "@/components/pwa/android-apk-link";
 import "./landing.css";
 
 function AccountActions({ destination, install = false }: { destination: string | null; install?: boolean }) {
@@ -63,6 +64,7 @@ export function LandingPage({ destination }: { destination: string | null }) {
           <p className="landing-description">A calmer way to work with the class records and assessments you already use. Organize, check, ask, and prepare reports in one workspace.</p>
           <AccountActions destination={destination} install />
           <p className="landing-small-note">Available on the web · Installable on supported devices</p>
+          <AndroidApkLink />
           <p className="landing-small-note"><Check size={15} aria-hidden="true" />Your records. Your classroom. You’re in control.</p>
         </div>
         <figure className="landing-hero-visual"><Image src={today} alt="TeacherCo mascot beside a Today workspace with classroom, learner, and attendance summaries." priority sizes="(max-width: 767px) calc(100vw - 40px), (max-width: 1279px) 55vw, 700px" /></figure>

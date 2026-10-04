@@ -11,7 +11,12 @@
     "test": "vitest run",
     "test:invites": "vitest run --config vitest.invites.config.mts --configLoader native",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "android:doctor": "node android-twa/scripts/android.mjs doctor",
+    "android:build": "node android-twa/scripts/android.mjs build",
+    "android:release": "node android-twa/scripts/android.mjs release",
+    "android:bundle": "node android-twa/scripts/android.mjs bundle",
+    "android:bundle:debug": "node android-twa/scripts/android.mjs bundle-debug"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

@@ -32,6 +32,23 @@ pnpm-debug.log*
 # vercel
 .vercel
 
+# Android local tooling, signing material, and build artifacts
+**/node_modules/
+**/.gradle/
+**/local.properties
+**/keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.apk
+*.aab
+/android-twa/**/build/
+/android-twa/.signing/
+/android-twa/.tooling/
+/android-twa/.gradle-user-home/
+/android-twa/.generation/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
