@@ -15,11 +15,11 @@ export async function addLearner(formData: FormData) {
   const firstName = text(formData, "firstName");
   const lastName = text(formData, "lastName");
 
-  const back = `/classes/${classId}`;
+  const back = `/classes/${classId}/learners`;
   const fail = (message: string) => redirect(`${back}?error=${encodeURIComponent(message)}`);
 
   if (!classId) redirect("/classes");
-  if (!firstName || !lastName) fail("Enter the student's first and last name.");
+  if (!firstName || !lastName) fail("Enter the learner's first and last name.");
 
   const supabase = await createClient();
   const {
@@ -38,7 +38,7 @@ export async function addLearner(formData: FormData) {
     })
     .select("id")
     .single();
-  if (learnerError || !learner) fail("Could not add the student. Please try again.");
+  if (learnerError || !learner) fail("Could not add the learner. Please try again.");
 
   const { error: enrollError } = await supabase
     .from("class_enrollments")
@@ -47,10 +47,11 @@ export async function addLearner(formData: FormData) {
   if (enrollError) {
     // Don't leave an orphan learner behind.
     await supabase.from("learners").delete().eq("id", learner!.id);
-    fail("Could not add the student to this class.");
+    fail("Could not add the learner to this class.");
   }
 
   revalidatePath(back);
+  revalidatePath(`/classes/${classId}`);
   redirect(`${back}?added=${encodeURIComponent(`${firstName} ${lastName}`)}`);
 }
 
@@ -59,7 +60,7 @@ export async function deleteLearner(formData: FormData) {
   const learnerId = text(formData, "learnerId");
   const name = text(formData, "name");
 
-  const back = `/classes/${classId}`;
+  const back = `/classes/${classId}/learners`;
   const fail = (message: string) => redirect(`${back}?error=${encodeURIComponent(message)}`);
 
   if (!classId || !learnerId) redirect("/classes");
@@ -85,7 +86,7 @@ export async function deleteLearner(formData: FormData) {
       .delete()
       .eq("class_id", classId)
       .eq("learner_id", learnerId);
-    if (error) fail("Could not remove the student. Please try again.");
+    if (error) fail("Could not remove the learner. Please try again.");
   } else {
     // Only in this class: delete the learner. Their enrollment, scores
     // and attendance are removed automatically (on delete cascade).
@@ -94,9 +95,10 @@ export async function deleteLearner(formData: FormData) {
       .delete()
       .eq("id", learnerId)
       .eq("teacher_id", user!.id);
-    if (error) fail("Could not delete the student. Please try again.");
+    if (error) fail("Could not delete the learner. Please try again.");
   }
 
   revalidatePath(back);
-  redirect(`${back}?removed=${encodeURIComponent(name || "Student")}`);
+  revalidatePath(`/classes/${classId}`);
+  redirect(`${back}?removed=${encodeURIComponent(name || "Learner")}`);
 }

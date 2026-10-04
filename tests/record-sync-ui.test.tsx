@@ -2,17 +2,24 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { RecordSync } from "@/features/records/record-sync";
 
-const mocks = vi.hoisted(() => ({ preview: vi.fn(), apply: vi.fn(), history: vi.fn(), read: vi.fn(), refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({ preview: vi.fn(), apply: vi.fn(), history: vi.fn(), read: vi.fn(), refresh: vi.fn(), changes: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
-vi.mock("@/features/records/sync-actions", () => ({ previewRecordSync: mocks.preview, applyRecordSync: mocks.apply, listSyncVersions: mocks.history, readSyncVersion: vi.fn(), readSyncChanges: vi.fn() }));
+vi.mock("@/features/records/sync-actions", () => ({ previewRecordSync: mocks.preview, applyRecordSync: mocks.apply, listSyncVersions: mocks.history, readSyncVersion: vi.fn(), readSyncChanges: mocks.changes }));
 vi.mock("@/features/records/read-sync-workbook", () => ({ readSyncWorkbook: mocks.read }));
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.read.mockResolvedValue({ input: { filename: "updated.xlsx", learners: [{ firstName: "Ana", lastName: "Cruz" }], sheets: [{ term: 1 }], attendance: [] }, warnings: [] });
+  mocks.read.mockResolvedValue({ input: { filename: "updated.xlsx", learners: [{ firstName: "Ana", lastName: "Cruz" }], sheets: [{ term: 1 }], attendance: [] }, warnings: [], display: [{ firstName: "Ana", lastName: "Cruz", sex: "female" }] });
   mocks.preview.mockResolvedValue({ ok: true, data: { revision: 1, count: 1, changes: [{ kind: "score", label: "Ana Cruz · Written Work 1", before: "8/10", after: "9/10" }] } });
   mocks.history.mockResolvedValue({ ok: true, data: [] });
 });
 afterEach(cleanup);
+it("opens the linked version and lazily loads its existing comparison", async () => {
+  mocks.changes.mockResolvedValue({ ok: true, data: [{ kind: "score", label: "Ana Cruz", before: "8/10", after: "9/10" }] });
+  render(<RecordSync classId="class" className="Grade 1" initialVersions={[{ id: "linked", version_number: 1, filename: "saved.xlsx", created_at: "2026-10-01T00:00:00Z", change_count: 1 }]} initialOpenVersion="linked" />);
+  await waitFor(() => expect(mocks.changes).toHaveBeenCalledWith("class", "linked"));
+  expect(document.getElementById("version-linked")).toHaveAttribute("open");
+  await screen.findByText("9/10");
+});
 async function review() {
   render(<RecordSync classId="class" className="Grade 1" initialVersions={[]} />);
   fireEvent.change(screen.getByLabelText(/Updated class record/), { target: { files: [new File(["test"], "updated.xlsx")] } });

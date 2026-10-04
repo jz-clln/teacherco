@@ -14,7 +14,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Adding…" : "Add student"}
+      {pending ? "Adding…" : "Add learner"}
     </Button>
   );
 }
@@ -36,7 +36,7 @@ export function AddStudentDialog({ classId, error }: { classId: string; error?: 
   return (
     <>
       <Button type="button" variant="secondary" onClick={() => setOpen(true)} className="gap-2">
-        <UserPlus size={16} aria-hidden /> Add a student
+        <UserPlus size={16} aria-hidden /> Add learner
       </Button>
 
       {open ? (
@@ -56,7 +56,7 @@ export function AddStudentDialog({ classId, error }: { classId: string; error?: 
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 id="add-student-title" className="flex items-center gap-2 text-xl font-bold">
-                  <UserPlus size={20} className="text-[#4F6F52]" aria-hidden /> Add a student
+                  <UserPlus size={20} className="text-[#4F6F52]" aria-hidden /> Add learner
                 </h2>
                 <p className="mt-1 text-sm text-[#606861]">They will be added to this class.</p>
               </div>

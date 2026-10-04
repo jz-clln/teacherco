@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,18 +11,30 @@ import { GRADES, SUBJECTS, type ClassDetails } from "@/features/classes/details"
 
 const input = "mt-1.5 w-full rounded-xl border border-[#E3E5E1] bg-white px-3 py-3 outline-none focus:border-[#4F6F52]";
 
-export function EditClassDetails({ classId, initial }: { classId: string; initial: ClassDetails }) {
+export function EditClassDetails({ classId, initial, triggerClassName, triggerLabel = "Edit class details" }: { classId: string; initial: ClassDetails; triggerClassName?: string; triggerLabel?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const set = <K extends keyof ClassDetails>(key: K, value: ClassDetails[K]) => setForm((f) => ({ ...f, [key]: value }));
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !pending && setOpen(false);
+    formRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !pending) { setOpen(false); triggerRef.current?.focus(); }
+      if (e.key === "Tab") {
+        const items = formRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');
+        if (!items?.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, pending]);
@@ -31,6 +43,11 @@ export function EditClassDetails({ classId, initial }: { classId: string; initia
     setForm(initial);
     setError(null);
     setOpen(true);
+  }
+
+  function closeDialog() {
+    setOpen(false);
+    triggerRef.current?.focus();
   }
 
   function save(e: React.FormEvent) {
@@ -42,7 +59,7 @@ export function EditClassDetails({ classId, initial }: { classId: string; initia
         setError(result.error);
         return;
       }
-      setOpen(false);
+      closeDialog();
       router.refresh();
     });
   }
@@ -50,19 +67,21 @@ export function EditClassDetails({ classId, initial }: { classId: string; initia
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={openDialog}
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F5F6F4]"
+        className={triggerClassName ?? "inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2 text-sm font-semibold text-[#1A4D2E] hover:bg-[#F5F6F4]"}
       >
-        <Pencil size={16} /> Edit class details
+        <Pencil size={16} aria-hidden /> {triggerLabel}
       </button>
 
       {open ? (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
-          onMouseDown={(e) => e.target === e.currentTarget && !pending && setOpen(false)}
+          onMouseDown={(e) => e.target === e.currentTarget && !pending && closeDialog()}
         >
           <form
+            ref={formRef}
             onSubmit={save}
             role="dialog"
             aria-modal="true"
@@ -76,7 +95,7 @@ export function EditClassDetails({ classId, initial }: { classId: string; initia
                 </h2>
                 <p className="mt-1 text-sm text-[#606861]">These show on your class page and reports.</p>
               </div>
-              <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="rounded-lg p-2 hover:bg-[#F5F6F4]">
+              <button type="button" aria-label="Close" disabled={pending} onClick={closeDialog} className="rounded-lg p-2 hover:bg-[#F5F6F4]">
                 <X size={18} />
               </button>
             </div>
@@ -142,7 +161,7 @@ export function EditClassDetails({ classId, initial }: { classId: string; initia
             {error ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
             <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
+              <Button type="button" variant="ghost" onClick={closeDialog} disabled={pending}>
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>

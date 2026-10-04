@@ -91,6 +91,16 @@ export async function readSyncChanges(classId: string, versionId: string): Promi
   } catch (error) { return failure(error); }
 }
 
+export async function readSyncVersionHeader(classId: string, versionId: string): Promise<Result<SyncVersion>> {
+  try {
+    const { db } = await authorized(classId);
+    if (!z.uuid().safeParse(versionId).success) throw new Error("Version not found.");
+    const { data, error } = await db.from("class_record_sync_versions").select("id,version_number,filename,created_at,change_count").eq("class_id", classId).eq("id", versionId).single();
+    if (error || !data) throw new Error("Could not load this version.");
+    return { ok: true, data: data as SyncVersion };
+  } catch (error) { return failure(error); }
+}
+
 export async function readSyncVersion(classId: string, versionId: string): Promise<Result<{ version_number: number; filename: string; created_at: string; changes: Change[]; before_snapshot: Snapshot; after_snapshot: Snapshot }>> {
   try {
     const { db } = await authorized(classId);

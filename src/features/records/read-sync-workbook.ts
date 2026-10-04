@@ -1,7 +1,14 @@
 import { openWorkbook } from "@/lib/excel/parser";
-import { defaultMapping, detectRoster, extractRoster, nameKey, suggestMapping, type SheetGrid } from "@/lib/excel/roster";
+import { defaultMapping, detectRoster, extractRoster, nameKey, suggestMapping, type Sex, type SheetGrid } from "@/lib/excel/roster";
 import { inferTermAndComponent } from "@/lib/grading/deped";
 import { syncInputSchema, type SyncInput } from "./sync-model";
+
+/**
+ * Learners as shown in the "Check detected learner names" list. Sex comes from the MALE / FEMALE
+ * rows of the teacher's record and is only used to group and count names on this device.
+ * It is never part of SyncInput. Same order as SyncInput.learners.
+ */
+export type DisplayLearner = { firstName: string; lastName: string; sex: Sex };
 
 /** Explicit dates and statuses only: never infer attendance from an empty cell or a day number. */
 export function readAttendance(sheet: SheetGrid): SyncInput["attendance"] {
@@ -31,7 +38,7 @@ export function readAttendance(sheet: SheetGrid): SyncInput["attendance"] {
   }));
 }
 
-export async function readSyncWorkbook(file: File): Promise<{ input: SyncInput; warnings: string[] }> {
+export async function readSyncWorkbook(file: File): Promise<{ input: SyncInput; warnings: string[]; display: DisplayLearner[] }> {
   if (file.size > 15 * 1024 * 1024) throw new Error("Choose a workbook smaller than 15 MB.");
   const workbook = await openWorkbook(file, { rejectTruncation: true });
   const { sheetName, detection } = workbook.detect();
@@ -66,5 +73,7 @@ export async function readSyncWorkbook(file: File): Promise<{ input: SyncInput; 
   const input = parsed.data;
   const keys = new Set(input.learners.map(l => nameKey(l.firstName, l.lastName)));
   if (!keys.size) throw new Error("The workbook contains no learners to compare.");
-  return { input, warnings };
+  // Display only, same order as input.learners. Stays in the browser.
+  const display: DisplayLearner[] = roster.map(l => ({ firstName: l.firstName, lastName: l.lastName, sex: l.sex }));
+  return { input, warnings, display };
 }

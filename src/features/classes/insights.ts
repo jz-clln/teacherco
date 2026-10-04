@@ -69,7 +69,7 @@ export async function readRecentAttendance(supabase: SupabaseClient, classId: st
       .order("attendance_date", { ascending: false })
       .order("id")
       .range(from, from + PAGE - 1);
-    if (error || !data) break;
+    if (error || !data) throw new Error("Could not load recent attendance.");
     for (const r of data) {
       const status = String(r.status);
       if (!STATUSES.has(status)) continue;

@@ -28,7 +28,7 @@ export function DeleteStudentButton({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Delete ${name}`}
-        className="inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg text-[#606861] transition hover:bg-red-50 hover:text-red-700"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[#606861] transition hover:bg-red-50 hover:text-red-700"
       >
         <Trash2 size={16} />
       </button>
@@ -38,7 +38,7 @@ export function DeleteStudentButton({
         destructive
         title={`Delete ${name}?`}
         description="This also removes their scores and attendance and cannot be undone. If they are in another of your classes, they are only removed from this one."
-        confirmLabel="Delete student"
+        confirmLabel="Delete learner"
         onConfirm={() => {
           setOpen(false);
           form.current?.requestSubmit();

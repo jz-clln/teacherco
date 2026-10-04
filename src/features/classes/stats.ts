@@ -29,6 +29,17 @@ type Row = {
   max_score: number | string | null;
 };
 
+export function scoreAverages(scores: Row[], learnerIds: string[]): Record<string, number> {
+  const enrolled = new Set(learnerIds), totals = new Map<string, { got: number; max: number }>();
+  for (const row of scores) {
+    const got = Number(row.score), max = Number(row.max_score);
+    if (row.score === null || !Number.isFinite(got) || !Number.isFinite(max) || max <= 0 || !enrolled.has(row.learner_id)) continue;
+    const total = totals.get(row.learner_id) ?? { got: 0, max: 0 };
+    total.got += got; total.max += max; totals.set(row.learner_id, total);
+  }
+  return Object.fromEntries([...totals].map(([id, total]) => [id, total.got / total.max * 100]));
+}
+
 export async function getClassStats(
   supabase: SupabaseClient,
   classId: string,
@@ -37,15 +48,15 @@ export async function getClassStats(
 ): Promise<ClassStats> {
   const enrolled = new Set(learnerIds);
 
-  const [{ data: assessments }, scores, attendance] = await Promise.all([
+  const [{ data: assessments, error: assessmentError }, scores, attendance] = await Promise.all([
     supabase.from("assessments").select("id,title").eq("class_id", classId).limit(1000),
     readAllScores(supabase, classId),
     readAttendance(supabase, classId),
   ]);
+  if (assessmentError) throw new Error("Could not load class metrics.");
 
   const titles = new Map((assessments ?? []).map((a) => [String(a.id), String(a.title)]));
 
-  const perLearner = new Map<string, { got: number; max: number }>();
   const perAssessment = new Map<string, { sum: number; n: number }>();
 
   for (const r of scores) {
@@ -53,19 +64,13 @@ export async function getClassStats(
     const max = Number(r.max_score);
     if (r.score == null || !(max > 0) || !Number.isFinite(got) || !enrolled.has(r.learner_id)) continue;
 
-    const l = perLearner.get(r.learner_id) ?? { got: 0, max: 0 };
-    l.got += got;
-    l.max += max;
-    perLearner.set(r.learner_id, l);
-
     const a = perAssessment.get(r.assessment_id) ?? { sum: 0, n: 0 };
     a.sum += (got / max) * 100;
     a.n += 1;
     perAssessment.set(r.assessment_id, a);
   }
 
-  const learnerPercents: Record<string, number> = {};
-  for (const [id, l] of perLearner) learnerPercents[id] = (l.got / l.max) * 100;
+  const learnerPercents = scoreAverages(scores, learnerIds);
 
   const percents = Object.values(learnerPercents);
   const average = percents.length ? percents.reduce((a, b) => a + b, 0) / percents.length : null;
@@ -96,7 +101,7 @@ async function readAllScores(supabase: SupabaseClient, classId: string): Promise
       .eq("assessments.class_id", classId)
       .order("id")
       .range(from, from + PAGE - 1);
-    if (error || !data) break;
+    if (error || !data) throw new Error("Could not load class scores.");
     out.push(...(data as unknown as Row[]));
     if (data.length < PAGE) break;
   }
@@ -104,7 +109,7 @@ async function readAllScores(supabase: SupabaseClient, classId: string): Promise
 }
 
 async function readAttendance(supabase: SupabaseClient, classId: string): Promise<number | null> {
-  const [{ count: total }, { count: here }] = await Promise.all([
+  const [{ count: total, error: totalError }, { count: here, error: hereError }] = await Promise.all([
     supabase.from("attendance_entries").select("id", { count: "exact", head: true }).eq("class_id", classId),
     supabase
       .from("attendance_entries")
@@ -112,5 +117,6 @@ async function readAttendance(supabase: SupabaseClient, classId: string): Promis
       .eq("class_id", classId)
       .in("status", ["present", "late"]),
   ]);
+  if (totalError || hereError) throw new Error("Could not load attendance metrics.");
   return total ? ((here ?? 0) / total) * 100 : null;
 }
