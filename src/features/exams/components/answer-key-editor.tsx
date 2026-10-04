@@ -6,8 +6,7 @@ import { useState } from "react";
 import { ChevronDown, Mic, Square } from "lucide-react";
 import { parseAnswerKeyText } from "@/lib/exams/key-parser";
 import { formatItemRange } from "@/lib/exams/analytics";
-import type { AssessmentFormat } from "@/lib/exams/types";
-import { ChoiceButtons } from "./choice-buttons";
+import { choiceLabel, type AssessmentFormat } from "@/lib/exams/types";
 import { useDictation, type DictationLang } from "./use-dictation";
 import { Select } from "@/components/ui/select";
 import { btnPrimary, btnQuiet, btnSecondary, field, label, muted } from "../ui";
@@ -245,18 +244,40 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
           {items.map((item) => (
             <li
               key={item.itemNumber}
-              className={`mb-2 flex break-inside-avoid items-center gap-3 rounded-xl border p-2 ${
+              className={`mb-2 flex break-inside-avoid flex-nowrap items-center gap-2 rounded-xl border p-2 sm:gap-3 ${
                 item.answer === "" ? "border-[#E0B14C] bg-[#FFF8E6]" : "border-[#E8DFCA] bg-white"
               }`}
             >
-              <span className="w-8 shrink-0 text-center text-base font-semibold text-[#4F6F52]">{item.itemNumber}</span>
-              <ChoiceButtons
-                groupLabel={`Correct answer for item ${item.itemNumber}`}
-                choices={choices}
-                format={format}
-                value={item.answer || undefined}
-                onChange={(v) => onChange(items.map((i) => (i.itemNumber === item.itemNumber ? { ...i, answer: v } : i)))}
-              />
+              <span className="w-6 shrink-0 text-center text-base font-semibold text-[#4F6F52] sm:w-8">{item.itemNumber}</span>
+              {/* One row on every screen: equal-width buttons share the space, so they shrink to fit and never wrap. */}
+              <div
+                role="group"
+                aria-label={`Correct answer for item ${item.itemNumber}`}
+                className="grid min-w-0 flex-1 gap-1 sm:gap-1.5"
+                style={{
+                  gridTemplateColumns: `repeat(${choices.length}, minmax(0, 1fr))`,
+                  maxWidth: `${choices.length * 3.5}rem`,
+                }}
+              >
+                {choices.map((c) => {
+                  const selected = item.answer === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => onChange(items.map((i) => (i.itemNumber === item.itemNumber ? { ...i, answer: c } : i)))}
+                      className={`min-h-10 min-w-0 rounded-lg border text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E] ${
+                        selected
+                          ? "border-[#1A4D2E] bg-[#1A4D2E] text-white"
+                          : "border-[#E8DFCA] bg-white text-[#1F2A22] hover:bg-[#F5EFE6]"
+                      }`}
+                    >
+                      {choiceLabel(c, format)}
+                    </button>
+                  );
+                })}
+              </div>
               <label className="ml-auto flex shrink-0 items-center gap-1 text-xs text-[#606861]">
                 <input
                   type="number"
@@ -271,9 +292,9 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
                       onChange(items.map((i) => (i.itemNumber === item.itemNumber ? { ...i, points } : i)));
                     }
                   }}
-                  className="h-9 w-14 rounded-lg border border-[#E8DFCA] bg-white px-1 text-center text-sm text-[#1F2A22]"
+                  className="h-9 w-12 rounded-lg border border-[#E8DFCA] bg-white px-1 text-center text-sm text-[#1F2A22] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
-                pts
+                <span className="hidden sm:inline">pts</span>
               </label>
             </li>
           ))}
