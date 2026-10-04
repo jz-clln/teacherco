@@ -20,9 +20,9 @@ function greetingForManila(): string {
 }
 
 const primaryButton =
-  "inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white transition hover:bg-[#123820]";
+  "tc-button tc-primary";
 const outlineButton =
-  "inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#4F6F52]/40 bg-white px-4 text-sm font-semibold text-[#1A4D2E] transition hover:bg-[#F4F7F4]";
+  "tc-button tc-secondary";
 
 export default async function TodayPage() {
   const user = await getCurrentUser();
@@ -149,29 +149,29 @@ export default async function TodayPage() {
         </Card>
       ) : (
         <>
-          {/* Three cards in one row, on phones too. The small helper lines only show from sm up, where they fit. */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
-            <Card className="p-3 sm:p-5">
+          {/* One surface groups today's three summary values. */}
+          <div className="tc-group grid divide-y divide-[#E3E5E1] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="p-5">
               <p className="text-xs text-[#606861] sm:text-sm">Classrooms</p>
-              <p className="mt-1 text-2xl font-bold text-[#1A4D2E] tabular-nums sm:mt-2 sm:text-3xl">{classroomRows.length}</p>
-              <p className="mt-1 hidden text-xs text-[#606861] sm:block">active this school year</p>
-            </Card>
-            <Card className="p-3 sm:p-5">
+              <p className="mt-1 tc-value tc-value text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{classroomRows.length}</p>
+              <p className="mt-1 text-xs text-[#606861]">active this school year</p>
+            </div>
+            <div className="p-5">
               <p className="text-xs text-[#606861] sm:text-sm">Learners</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{totalLearners}</p>
-              <p className="mt-1 hidden text-xs text-[#606861] sm:block">across all classrooms</p>
-            </Card>
-            <Card className="bg-[#E8DFCA]/55 p-3 sm:p-5">
+              <p className="mt-1 tc-value text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">{totalLearners}</p>
+              <p className="mt-1 text-xs text-[#606861]">across all classrooms</p>
+            </div>
+            <div className="p-5">
               <p className="text-xs text-[#606861] sm:text-sm">Attendance today</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">
+              <p className="mt-1 tc-value text-2xl font-bold tabular-nums sm:mt-2 sm:text-3xl">
                 {learnersToMark > 0 ? `${learnersMarked}/${learnersToMark}` : "—"}
               </p>
-              <p className="mt-1 hidden text-xs text-[#606861] sm:block">
+              <p className="mt-1 text-xs text-[#606861]">
                 {learnersToMark > 0
                   ? `${classesDone} of ${attendanceClasses.length} ${attendanceClasses.length === 1 ? "classroom" : "classrooms"} done`
                   : "Import learners to start"}
               </p>
-            </Card>
+            </div>
           </div>
 
           {setupClasses.length > 0 ? (
@@ -189,11 +189,11 @@ export default async function TodayPage() {
                   </p>
                 </div>
               </div>
-              <ul className="mt-4 space-y-2">
+              <ul className="tc-rows mt-4">
                 {setupClasses.map((classroom) => (
                   <li
                     key={classroom.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/80 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-3 py-4"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{classroom.name}</p>
@@ -209,7 +209,7 @@ export default async function TodayPage() {
           ) : null}
 
           {attendanceClasses.length > 0 ? (
-            <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-2xl border border-[#E3E5E1] bg-white shadow-sm">
+            <section aria-labelledby="attendance-heading" className="overflow-hidden rounded-2xl border border-[#E3E5E1] bg-white">
               <div className="border-b border-[#E3E5E1] px-5 py-4">
                 <h2 id="attendance-heading" className="flex items-center gap-2 text-lg font-semibold">
                   <CalendarCheck size={19} className="text-[#4F6F52]" aria-hidden="true" /> Attendance today
@@ -262,21 +262,21 @@ export default async function TodayPage() {
           ) : null}
 
           {attendanceClasses.length > 0 ? (
-            <section aria-labelledby="scores-heading" className="rounded-2xl border border-[#E3E5E1] bg-white p-5 shadow-sm">
+            <section aria-labelledby="scores-heading" className="rounded-2xl border border-[#E3E5E1] bg-white p-5">
               <h2 id="scores-heading" className="flex items-center gap-2 text-lg font-semibold">
                 <ClipboardList size={19} className="text-[#4F6F52]" aria-hidden="true" /> Record scores
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-[#606861]">
                 For activities with no answer sheet or Excel column, like oral recitations. Pick a classroom and type the scores.
               </p>
-              <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+              <ul className="tc-rows mt-4">
                 {attendanceClasses.map((classroom) => (
                   <li key={classroom.id}>
                     <Link
                       href={`/classes/${classroom.id}/scores`}
-                      className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#1A4D2E] transition hover:border-[#4F6F52]/50 hover:bg-[#F4F7F4]"
+                      className="tc-row justify-between px-0 font-medium"
                     >
-                      <span className="truncate">
+                      <span className="break-words">
                         {classroom.name} — {classroom.subject}
                       </span>
                       <ChevronRight size={16} className="shrink-0" aria-hidden="true" />

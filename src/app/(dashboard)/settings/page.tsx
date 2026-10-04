@@ -75,7 +75,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="shrink-0 rounded-xl px-3.5 py-2.5 text-sm font-medium text-[#606861] transition hover:bg-[#EAF0EA] hover:text-[#1A4D2E]"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3.5 py-2.5 text-sm font-medium text-[#606861] transition hover:bg-[#EAF0EA] hover:text-[#1A4D2E]"
             >
               {section.label}
             </a>

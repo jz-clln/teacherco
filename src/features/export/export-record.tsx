@@ -247,7 +247,7 @@ export function ExportRecord({ classId }: { classId: string }) {
             <p className="text-2xl font-bold text-[#1A4D2E]">{added}</p>
             <p className="text-sm text-[#606861]">scores added to blank cells</p>
           </div>
-          <div className="rounded-xl bg-[#E8DFCA]/60 p-4">
+          <div className="rounded-xl bg-[#F5EFE6] p-4">
             <p className="text-2xl font-bold">{replaced.length}</p>
             <p className="text-sm text-[#606861]">scores replace a different number</p>
           </div>
@@ -406,7 +406,7 @@ export function ExportRecord({ classId }: { classId: string }) {
                 </thead>
                 <tbody className="divide-y divide-[#E3E5E1]">
                   {changedAll.slice(0, SHOW_MAX).map((w) => (
-                    <tr key={w.key} className={cn(skip.has(w.key) && "text-[#8B928C]")}>
+                    <tr key={w.key} className={cn(skip.has(w.key) && "text-[#606861]")}>
                       <td className="px-4 py-2">
                         <input
                           type="checkbox"

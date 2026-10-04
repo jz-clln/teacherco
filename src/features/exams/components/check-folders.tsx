@@ -12,8 +12,6 @@ import { btnQuiet, field } from "@/features/exams/ui";
 
 const STORAGE_KEY = "teacherco.check.folders";
 
-const defaultOpen = (f: CheckFolder, total: number) => total === 1 || f.pending > 0;
-
 // A subject with more assessments than this gets its own search box.
 const SEARCH_FROM = 6;
 
@@ -71,18 +69,18 @@ function parseSaved(raw: string): Record<string, boolean> {
   }
 }
 
-function AssessmentCard({ a }: { a: OverviewRow }) {
+export function AssessmentRow({ a }: { a: OverviewRow }) {
   const progress = a.roster ? Math.min(100, (a.checked / a.roster) * 100) : 0;
   return (
     <li className="relative">
       <Link
         href={a.checked < a.roster ? `/check/${a.id}/score` : `/check/${a.id}`}
-        className="block rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]"
+        className="block hover:bg-[#F4F7F4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]"
       >
-        <Card>
-          <div className="flex items-start justify-between gap-3">
+        <div className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h4 className="truncate text-base font-semibold">{a.title}</h4>
+              <h4 className="wrap-break-word text-base font-semibold">{a.title}</h4>
               {a.date ? <p className="mt-0.5 truncate text-sm text-[#606861]">{a.date}</p> : null}
             </div>
             {a.format === "true_false" ? (
@@ -97,7 +95,7 @@ function AssessmentCard({ a }: { a: OverviewRow }) {
             {a.mean !== null ? ` · class average ${a.mean}%` : ""}
             {a.status === "closed" ? " · closed" : ""}
           </p>
-        </Card>
+        </div>
       </Link>
       <DeleteAssessmentButton assessmentId={a.id} title={a.title} checked={a.checked} className="absolute bottom-2 right-2" />
     </li>
@@ -130,13 +128,13 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
   const [query, setQuery] = useState("");
   // What the teacher typed in each subject's own search box.
   const [subjectQuery, setSubjectQuery] = useState<Record<string, string>>({});
-  // Folders the teacher opened or closed by hand. Anything missing uses the default.
+  // Folders the teacher opened or closed by hand. Anything missing starts collapsed.
   const raw = useSyncExternalStore(subscribe, readSaved, readSavedOnServer);
   const saved = useMemo(() => parseSaved(raw), [raw]);
 
   const searching = query.trim().length > 0;
   const visible = useMemo(() => filterFolders(folders, query), [folders, query]);
-  const isOpen = (f: CheckFolder) => searching || (saved[f.key] ?? defaultOpen(f, folders.length));
+  const isOpen = (f: CheckFolder) => searching || (saved[f.key] ?? false);
 
   function setAll(open: boolean) {
     writeSaved(Object.fromEntries(folders.map((f) => [f.key, open])));
@@ -190,12 +188,12 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
           }}
           className="teacherco-card overflow-hidden"
         >
-          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF0EA] text-[#1A4D2E]">
+          <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-3 p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden">
+            <span className="flex h-10 w-6 shrink-0 items-center justify-center text-[#606861]">
               <Folder size={20} aria-hidden />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-bold">{folder.name}</span>
+              <span className="block wrap-break-word text-lg font-semibold">{folder.name}</span>
               <span className="block truncate text-sm text-[#606861]">
                 {[
                   folder.gradeLevel,
@@ -222,7 +220,7 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
               const shown = q ? group.assessments.filter((a) => a.title.toLowerCase().includes(q)) : group.assessments;
               return (
                 <section key={group.subject} aria-label={`${folder.name}, ${group.subject}`} className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold uppercase tracking-wide text-[#4F6F52]">{group.subject}</h3>
                     <Link href={`/check/new?classId=${group.classId}`} className={btnQuiet}>
                       <Plus size={16} aria-hidden /> New assessment
@@ -246,9 +244,9 @@ export function CheckFolders({ folders }: { folders: CheckFolder[] }) {
                   ) : shown.length === 0 ? (
                     <p role="status" className="text-sm text-[#606861]">No assessment matches “{typed.trim()}”.</p>
                   ) : (
-                    <ul className="grid gap-3 md:grid-cols-2">
+                    <ul className="tc-rows">
                       {shown.map((a) => (
-                        <AssessmentCard key={a.id} a={a} />
+                        <AssessmentRow key={a.id} a={a} />
                       ))}
                     </ul>
                   )}

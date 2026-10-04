@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import type { SettingsState } from "./actions";
 
 export const inputClass =
-  "mt-1.5 w-full rounded-xl border border-[#E3E5E1] bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-[#A0A6A1] focus:border-[#4F6F52] focus:ring-4 focus:ring-[#4F6F52]/10";
+  "mt-1.5 w-full rounded-xl border border-[#E3E5E1] bg-white px-3.5 py-3 text-sm outline-none transition placeholder:text-[#A0A6A1] focus:border-[#4F6F52] focus-visible:outline-2 focus-visible:outline-[#1A4D2E]";
 
 export const labelClass = "block text-sm font-semibold text-[#313832]";
 
@@ -29,10 +29,10 @@ export function SettingsSection({
     <div id={id} className="scroll-mt-6">
       <Card className="sm:p-6">
         <div className="flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#EAF0EA] text-[#1A4D2E]">
+          <span className="grid h-8 w-6 shrink-0 place-items-center text-[#606861]">
             <Icon size={19} strokeWidth={1.8} />
           </span>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-semibold text-[#1E2420]">{title}</h2>
             <p className="mt-1 text-sm leading-6 text-[#606861]">{description}</p>
           </div>
@@ -85,10 +85,10 @@ export function ToggleRow({
   defaultChecked: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#E3E5E1] bg-[#FAFAF8] p-4">
+    <label className="flex cursor-pointer items-center justify-between gap-4 border-b border-[#E3E5E1] py-4">
       <span>
         <span className="block text-sm font-semibold text-[#313832]">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-[#8B928C]">{description}</span>
+        <span className="mt-1 block text-sm leading-5 text-[#606861]">{description}</span>
       </span>
       <input type="checkbox" name={name} defaultChecked={defaultChecked} className="size-4 shrink-0 accent-[#1A4D2E]" />
     </label>

@@ -50,7 +50,7 @@ export function ProfileForm({ values }: { values: ProfileValues }) {
           {schoolTypes.map(({ value, label }) => (
             <label
               key={value}
-              className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[#E3E5E1] bg-white p-4 transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#F4F7F4] has-checked:ring-4 has-checked:ring-[#4F6F52]/10"
+              className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E3E5E1] bg-white p-4 transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#F4F7F4]"
             >
               <input type="radio" name="schoolType" value={value} defaultChecked={values.schoolType === value} className="peer sr-only" />
               <span className="grid size-10 place-items-center rounded-xl bg-[#EAF0EA] text-[#1A4D2E]">
@@ -64,7 +64,7 @@ export function ProfileForm({ values }: { values: ProfileValues }) {
       </div>
 
       <label className={labelClass}>
-        School name <span className="font-normal text-[#8B928C]">(optional)</span>
+        School name <span className="font-normal text-[#606861]">(optional)</span>
         <input name="schoolName" defaultValue={values.schoolName} maxLength={160} placeholder="e.g. San Isidro Elementary School" className={inputClass} />
       </label>
 
@@ -74,7 +74,7 @@ export function ProfileForm({ values }: { values: ProfileValues }) {
           {gradeBandOptions.map((option) => (
             <label
               key={option.value}
-              className="cursor-pointer rounded-full border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#606861] transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#1A4D2E] has-checked:text-white"
+              className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#606861] transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#1A4D2E] has-checked:text-white"
             >
               <input type="checkbox" name="gradeBands" value={option.value} defaultChecked={values.gradeBands.includes(option.value)} className="sr-only" />
               {option.label}

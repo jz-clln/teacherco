@@ -48,11 +48,11 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
 
   return (
     <form action={formAction} className="grid gap-5">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="tc-group tc-rows">
         {typeOptions.map(({ value, label, text, icon: Icon }) => (
           <label
             key={value}
-            className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#E3E5E1] bg-white p-4 transition hover:border-[#D5E0D5] has-checked:border-[#4F6F52] has-checked:bg-[#F4F7F4] has-checked:ring-4 has-checked:ring-[#4F6F52]/10"
+            className="flex min-w-0 cursor-pointer items-start gap-3 p-4 transition hover:bg-[#F4F7F4] has-checked:bg-[#F4F7F4] has-focus-visible:outline-2 has-focus-visible:outline-[#1A4D2E]"
           >
             <input
               type="radio"
@@ -60,14 +60,14 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
               value={value}
               checked={reportType === value}
               onChange={() => setReportType(value)}
-              className="sr-only"
+              className="mt-1 size-4 shrink-0 accent-[#1A4D2E]"
             />
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#EAF0EA] text-[#1A4D2E]">
+            <span className="grid size-6 shrink-0 place-items-center text-[#606861]">
               <Icon size={19} />
             </span>
-            <span>
+            <span className="min-w-0 break-words">
               <span className="block text-sm font-semibold text-[#313832]">{label}</span>
-              <span className="mt-1 block text-xs leading-5 text-[#8B928C]">{text}</span>
+              <span className="mt-1 block text-xs leading-5 text-[#606861]">{text}</span>
             </span>
           </label>
         ))}
@@ -97,7 +97,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
         ) : null}
       </div>
 
-      <p className="text-xs leading-5 text-[#8B928C]">
+      <p className="text-xs leading-5 text-[#606861]">
         {aiEnabled ? (
           <>
             TeacherCo calculates every number from your confirmed scores. AI only writes the wording, and it never receives learner names.

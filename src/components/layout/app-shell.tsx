@@ -5,6 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpenCheck, ClipboardCheck, FileText, Home, LoaderCircle, MessageCircle, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AccountMenu } from "./account-menu";
 
 const nav = [
   { href: "/today", label: "Today", icon: Home },
@@ -26,16 +27,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
+    <div className="tc-app min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="hidden border-r border-[#E3E5E1] bg-white p-5 md:flex md:flex-col">
         <Link href="/today" className="mb-8 flex items-center gap-3">
           <Image src="/brand/teacherco-mascot.png" alt="TeacherCo" width={42} height={42} className="rounded-xl" />
           <div>
-            <div className="text-lg font-bold text-[#1A4D2E]">TeacherCo</div>
-            <div className="text-xs text-[#8B928C]">Your classroom companion</div>
+            <div className="tc-brand text-lg font-bold text-[#1A4D2E]">TeacherCo</div>
+            <div className="text-xs text-[#606861]">Your classroom companion</div>
           </div>
         </Link>
-        <nav className="space-y-1">
+        <nav aria-label="Main navigation" className="space-y-1">
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
@@ -52,16 +53,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex h-16 items-center border-b border-[#E3E5E1]/80 bg-[#F5EFE6]/90 px-4 backdrop-blur md:hidden">
-          <Image src="/brand/teacherco-mascot.png" alt="TeacherCo" width={36} height={36} className="rounded-xl" />
-          <span className="ml-2 font-bold text-[#1A4D2E]">TeacherCo</span>
+        <header className="relative z-20 flex min-h-16 items-center justify-between gap-2 border-b border-[#E3E5E1] bg-[#F5EFE6] px-5 md:justify-end md:border-0 md:px-8">
+          <Link href="/today" className="tc-brand flex min-h-11 items-center gap-2 font-bold text-[#1A4D2E] md:hidden"><Image src="/brand/teacherco-mascot.png" alt="" width={36} height={36} />TeacherCo</Link>
+          <AccountMenu />
         </header>
-        <main className="mx-auto w-full max-w-7xl p-4 pb-24 md:p-8">{children}</main>
-        <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-6 rounded-2xl border border-[#E3E5E1] bg-white/95 p-1.5 shadow-xl backdrop-blur md:hidden">
-          {nav.map(({ href, label, icon: Icon }) => {
+        <main className="mx-auto w-full max-w-[1200px] px-5 pt-6 pb-[calc(96px+env(safe-area-inset-bottom))] md:px-8 md:pt-4 md:pb-8">{children}</main>
+        <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-[#E3E5E1] bg-white px-2 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] md:hidden">
+          {nav.slice(0, 5).map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
-              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]", active ? "bg-[#EAF0EA] text-[#1A4D2E]" : "text-[#606861]") }>
+              <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-xs", active ? "font-semibold text-[#1A4D2E]" : "text-[#606861]") }>
                 <NavigationIcon icon={Icon} size={18} label={label} />
                 {label}
               </Link>

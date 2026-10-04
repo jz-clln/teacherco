@@ -242,7 +242,7 @@ export function AttendanceSheet({
       </ul>
 
       {/* save bar */}
-      <div className="sticky bottom-0 -mx-4 border-t border-[#E3E5E1] bg-[#F5EFE6]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+      <div className="sticky bottom-0 -mx-4 border-t border-[#E3E5E1] bg-[#F5EFE6] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:mx-0 sm:rounded-2xl sm:border">
         {message ? (
           <p role={message.kind === "error" ? "alert" : "status"} className={cn("mb-2 text-sm", message.kind === "error" ? "text-red-700" : "text-[#1A4D2E]")}>
             {message.text}

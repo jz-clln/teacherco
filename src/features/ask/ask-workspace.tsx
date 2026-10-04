@@ -51,7 +51,7 @@ const examples: { text: string; icon: LucideIcon }[] = [
   { text: "Prepare a class report", icon: FileText },
 ];
 
-const surface = "rounded-2xl border border-[#E3E5E1] bg-white shadow-sm";
+const surface = "tc-group";
 const pill = "rounded-full bg-[#F1F3F0] px-2.5 py-1 text-xs font-medium text-[#4F5D52]";
 const primaryLink =
   "inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-4 text-sm font-semibold text-white transition hover:bg-[#123820]";
@@ -169,7 +169,7 @@ function FollowUps({ answer, onAsk }: { answer: AskAnswer; onAsk: (question: str
           key={suggestion}
           type="button"
           onClick={() => onAsk(suggestion)}
-          className="min-h-10 rounded-full border border-[#D5DDD4] bg-white px-4 text-sm font-medium text-[#315F3D] transition hover:border-[#4F6F52] hover:bg-[#F4F7F4]"
+          className="min-h-11 rounded-full border border-[#D5DDD4] bg-white px-4 text-sm font-medium text-[#315F3D] transition hover:border-[#4F6F52] hover:bg-[#F4F7F4]"
         >
           {suggestion}
         </button>
@@ -269,7 +269,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
         maxLength={500}
         rows={3}
         placeholder="Type a question, like “Who is below the benchmark?”"
-        className="block w-full resize-none rounded-t-2xl bg-transparent px-4 pt-4 pb-2 text-base text-[#1F2A22] outline-none placeholder:text-[#8A918B]"
+        className="block w-full resize-none rounded-t-2xl bg-white px-4 pt-4 pb-2 text-base text-[#1F2A22] outline-none placeholder:text-[#8A918B]"
       />
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
         <p className="text-xs text-[#747D76]">Classroom questions only · Enter to ask · Shift+Enter for a new line</p>
@@ -337,7 +337,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
         </section>
       ) : empty ? (
         <>
-          <section className="flex items-center gap-4 rounded-2xl bg-[#E8DFCA]/50 p-4 sm:p-5">
+          <section className="flex items-center gap-4 rounded-2xl bg-[#F0E8DC] p-4 sm:p-5">
             <Avatar size={56} />
             <div className="min-w-0">
               <p className="font-semibold">Hi! What would you like to know about your class?</p>
@@ -351,16 +351,16 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
 
           <section aria-label="Example questions">
             <h2 className="text-sm font-semibold text-[#606861]">Try a classroom question</h2>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="tc-group tc-rows mt-3">
               {examples.map(({ text, icon: Icon }) => (
                 <button
                   key={text}
                   type="button"
                   disabled={pending}
                   onClick={() => ask(text)}
-                  className="flex min-h-14 items-center gap-3 rounded-xl border border-[#E3E5E1] bg-white px-3 py-2.5 text-left text-sm font-medium text-[#28332B] shadow-sm transition hover:border-[#4F6F52]/60 hover:bg-[#F4F7F4] disabled:opacity-50"
+                  className="tc-row w-full text-left font-medium disabled:opacity-50"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF0EA] text-[#1A4D2E]">
+                  <span className="flex size-6 shrink-0 items-center justify-center text-[#606861]">
                     <Icon size={18} aria-hidden="true" />
                   </span>
                   {text}
@@ -377,7 +377,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
                 type="button"
                 onClick={startOver}
                 disabled={pending}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-[#606861] transition hover:bg-white hover:text-[#1A4D2E] disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-[#606861] transition hover:bg-white hover:text-[#1A4D2E] disabled:opacity-50"
               >
                 <RotateCcw size={14} aria-hidden="true" /> Start over
               </button>

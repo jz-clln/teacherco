@@ -56,9 +56,9 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="tc-group grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-[#E8DFCA] bg-white p-4">
+          <div key={s.label} className="border-b border-[#E3E5E1] p-5">
             <dt className="text-sm text-[#606861]">{s.label}</dt>
             <dd className="mt-1 text-2xl font-bold">{s.value}</dd>
             {s.hint ? <p className="text-sm text-[#606861]">{s.hint}</p> : null}
@@ -82,10 +82,10 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
             ) : null}
 
             {competencyStats.length ? (
-              <ul className="grid gap-3 md:grid-cols-2">
+              <ul className="tc-group tc-rows">
                 {competencyStats.map((c) => (
                   <li key={c.name}>
-                    <Card>
+                    <div className="p-5">
                       <div className="flex items-baseline justify-between gap-3">
                         <h3 className="font-semibold">{c.name}</h3>
                         <span className={`text-lg font-bold ${c.percentCorrect < assessment.benchmark ? "text-[#9B2C2C]" : "text-[#1A4D2E]"}`}>
@@ -95,17 +95,17 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
                       <p className="mt-1 text-sm text-[#606861]">
                         Items {formatItemRange(c.itemNumbers)} · {c.learnersBelow} of {c.learnersMeasured} learners below {assessment.benchmark}%
                       </p>
-                    </Card>
+                    </div>
                   </li>
                 ))}
               </ul>
             ) : null}
 
             {gaps.length ? (
-              <ul className="space-y-2">
+              <ul className="tc-group tc-rows">
                 {gaps.map((g) => (
                   <li key={g.itemId}>
-                    <Card>
+                    <div className="p-5">
                       <p className="font-medium">
                         Item {g.itemNumber}: {g.wrong} of {g.total} learners missed it
                         {g.competencies.length ? ` (${g.competencies.join(", ")})` : ""}
@@ -115,7 +115,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
                           ? `Most picked ${choiceLabel(g.topWrong.answer, assessment.format)} instead of ${choiceLabel(g.expected, assessment.format)} (${g.topWrong.count} learners).`
                           : "Many left it blank."}
                       </p>
-                    </Card>
+                    </div>
                   </li>
                 ))}
               </ul>

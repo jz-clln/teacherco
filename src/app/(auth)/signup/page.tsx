@@ -1,3 +1,5 @@
+//src\app\(auth)\signup\page.tsx
+
 import Link from "next/link";
 import { signUp } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";

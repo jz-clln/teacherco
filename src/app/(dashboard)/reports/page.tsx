@@ -96,14 +96,14 @@ export default async function ReportsPage({
             For activities with no answer sheet or Excel column, such as oral recitations. Type the scores here and your reports include
             them. Scores from your Excel record or the Check screen stay locked so they cannot drift from their source.
           </p>
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+          <ul className="tc-rows mt-4">
             {classOptions.map((item) => (
               <li key={item.id}>
                 <Link
                   href={`/classes/${item.id}/scores`}
-                  className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E3E5E1] bg-white px-4 py-2.5 text-sm font-medium text-[#1A4D2E] transition hover:bg-[#F5F6F4]"
+                  className="tc-row justify-between px-0 font-medium"
                 >
-                  <span className="truncate">
+                  <span className="break-words">
                     {item.name} — {item.subject}
                   </span>
                   <ChevronRight size={16} className="shrink-0" />
@@ -159,17 +159,17 @@ export default async function ReportsPage({
             </p>
           </Card>
         ) : (
-          <ul className="mt-4 grid gap-3">
+          <ul className="tc-group tc-rows mt-4">
             {(reports ?? []).map((report) => {
               const classroom = one(report.class);
               const learnerName = report.learner_name ? String(report.learner_name) : null;
               return (
                 <li key={String(report.id)}>
-                  <Link href={`/reports/${report.id}`} className="block rounded-2xl transition hover:shadow-sm focus-visible:outline-2 focus-visible:outline-[#4F6F52]">
-                    <Card className="flex flex-wrap items-center justify-between gap-3">
+                  <Link href={`/reports/${report.id}`} className="tc-row flex-wrap justify-between">
+
                       <div className="min-w-0">
                         <p className="font-semibold text-[#1E2420]">{reportTypeLabels[report.report_type as keyof typeof reportTypeLabels]}</p>
-                        <p className="mt-0.5 truncate text-sm text-[#606861]">
+                        <p className="mt-0.5 break-words text-sm text-[#606861]">
                           {classroom ? String(classroom.name) : "Deleted class"}
                           {learnerName ? ` · ${learnerName}` : ""}
                         </p>
@@ -178,13 +178,12 @@ export default async function ReportsPage({
                         <span className="rounded-full bg-[#EAF0EA] px-2.5 py-1 font-medium text-[#1A4D2E]">
                           {report.status === "final" ? "Final" : "Draft"}
                         </span>
-                        <span className="rounded-full bg-[#E8DFCA]/60 px-2.5 py-1 font-medium text-[#606861]">
+                        <span className="rounded-full bg-[#F5EFE6] px-2.5 py-1 font-medium text-[#606861]">
                           {report.source === "ai" ? "AI draft" : "Facts only"}
                         </span>
                         <span className="text-[#606861]">{fmtDate(String(report.created_at))}</span>
                       </div>
-                    </Card>
-                  </Link>
+                    </Link>
                 </li>
               );
             })}

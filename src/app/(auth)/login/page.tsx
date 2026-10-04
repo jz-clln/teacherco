@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { error } = await searchParams;
   return (
     <main className="grid min-h-screen place-items-center bg-[#F5EFE6] p-5">
-      <div className="w-full max-w-md rounded-[28px] border border-[#E3E5E1] bg-white p-7 shadow-xl shadow-[#123820]/5">
+      <div className="w-full max-w-md rounded-2xl border border-[#E3E5E1] bg-white p-7">
         <div className="mb-7 flex items-center gap-3">
           <Image src="/brand/teacherco-mascot.png" alt="TeacherCo" width={52} height={52} className="rounded-2xl" />
           <div><h1 className="text-2xl font-bold text-[#1A4D2E]">TeacherCo</h1><p className="text-sm text-[#606861]">Welcome back, teacher.</p></div>

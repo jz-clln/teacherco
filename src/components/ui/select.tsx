@@ -156,7 +156,7 @@ export function Select({
   );
 
   return (
-    <div className={cn("block", className)}>
+    <div className={cn("block min-w-0", className)}>
       <span id={`${id}-label`} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
         {label}
       </span>
@@ -184,7 +184,7 @@ export function Select({
               setCustom(false);
               setValue("");
             }}
-            className="absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[#606861] hover:bg-[#EAF0EA]"
+            className="absolute right-1.5 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-[#606861] hover:bg-[#EAF0EA]"
           >
             <X size={16} />
           </button>
@@ -210,7 +210,7 @@ export function Select({
               disabled && "cursor-not-allowed opacity-50",
             )}
           >
-            <span className={cn("truncate", !selected && "text-[#8B928C]")}>{selected?.label ?? placeholder}</span>
+            <span className={cn("truncate", !selected && "text-[#606861]")}>{selected?.label ?? placeholder}</span>
             <ChevronDown
               size={18}
               className={cn("shrink-0 text-[#606861] transition-transform", open && "rotate-180")}
@@ -233,7 +233,7 @@ export function Select({
               id={`${id}-list`}
               role="listbox"
               aria-labelledby={`${id}-label`}
-              className="teacherco-card absolute z-20 mt-1.5 max-h-60 min-w-full w-max max-w-[90vw] sm:max-w-md overflow-auto rounded-xl p-1"
+              className="tc-floating absolute z-20 mt-1.5 max-h-60 w-full overflow-auto p-1"
             >
               {items.map((item, i) => (
                 <li
@@ -245,7 +245,7 @@ export function Select({
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => choose(item)}
                   className={cn(
-                    "flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm",
+                    "flex min-h-11 cursor-pointer items-center justify-between gap-3 break-words rounded-lg px-3 py-2.5 text-sm",
                     i === active && "bg-[#EAF0EA]",
                     item.value === value && "font-semibold text-[#1A4D2E]",
                   )}

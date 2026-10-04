@@ -9,6 +9,7 @@ const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
+  variable: "--font-brand",
 });
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={poppins.className} suppressHydrationWarning>
+      <body className={`${poppins.className} ${poppins.variable}`} suppressHydrationWarning>
         <AppProviders><PwaStatus />{children}</AppProviders>
       </body>
     </html>

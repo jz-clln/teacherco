@@ -179,7 +179,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
         competencySuggestions={suggestions}
       />
 
-      <div className="sticky bottom-0 -mx-4 border-t border-[#E8DFCA] bg-[#F5EFE6]/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-2xl sm:border">
+      <div className="sticky bottom-0 -mx-4 border-t border-[#E8DFCA] bg-[#F5EFE6] px-4 py-3 sm:mx-0 sm:rounded-2xl sm:border">
         {error ? <p role="alert" className="mb-2 text-sm text-[#9B2C2C]">{error}</p> : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p role="status" className={`text-base ${complete ? "text-[#1A4D2E]" : muted}`}>{hint}</p>

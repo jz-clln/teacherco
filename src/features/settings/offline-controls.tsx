@@ -46,7 +46,7 @@ export function OfflineControls() {
         </span>
         <div>
           <p className="text-sm font-semibold text-[#313832]">{online ? "You are online" : "You are offline"}</p>
-          <p className="mt-0.5 text-xs leading-5 text-[#8B928C]">
+          <p className="mt-0.5 text-xs leading-5 text-[#606861]">
             {online
               ? "Your classroom records are cached on this device so they stay available without internet."
               : "Your cached records are still available. AI assistance returns when you reconnect."}
@@ -54,15 +54,15 @@ export function OfflineControls() {
         </div>
       </div>
 
-      <dl className="grid grid-cols-3 gap-3">
+      <dl className="tc-group grid divide-y divide-[#E3E5E1] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {[
           { label: "Classes cached", value: summary?.classes },
           { label: "Learners cached", value: summary?.learners },
           { label: "Waiting to sync", value: summary?.pendingChanges },
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-[#E3E5E1] bg-white p-4">
+          <div key={item.label} className="p-4">
             <dd className="text-2xl font-bold text-[#1E2420]">{item.value ?? "–"}</dd>
-            <dt className="mt-1 text-xs leading-5 text-[#8B928C]">{item.label}</dt>
+            <dt className="mt-1 text-xs leading-5 text-[#606861]">{item.label}</dt>
           </div>
         ))}
       </dl>
