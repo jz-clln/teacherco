@@ -29,6 +29,9 @@ pnpm-debug.log*
 .env*
 !.env.example
 
+# Supabase machine-local linkage and cached connection metadata
+/supabase/.temp/
+
 # vercel
 .vercel
 
