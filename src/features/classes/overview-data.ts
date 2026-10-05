@@ -11,7 +11,7 @@ export const ownedClass = cache(async (classId: string) => {
   const context = await requireAccess({ onboarded: true });
   if (!z.uuid().safeParse(classId).success) notFound();
   const { data, error } = await context.supabase.from("classes")
-    .select("id,name,subject,grade_level,school_year,benchmark,school_name,school_id,adviser,section")
+    .select("id,name,subject,grade_level,school_year,benchmark,school_name,school_id,adviser,section,section_id,section_link:sections(id,name,grade_level)")
     .eq("id", classId).eq("teacher_id", context.user.id).maybeSingle();
   if (error) throw new Error("Could not load this class. Please try again.");
   if (!data) notFound();

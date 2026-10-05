@@ -9,6 +9,7 @@ import type { ClassDetails } from "./details";
 import type { ClassStats } from "./stats";
 import type { ClassInsights } from "./insights";
 import type { ChangeSummary } from "./change-summary";
+import { sectionLabel } from '@/features/sections/model';
 
 export const overviewLink = "inline-flex min-h-11 items-center text-sm font-semibold text-[#1A4D2E] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-[#1A4D2E]";
 export function OverviewHeader({ classId, details }: { classId: string; details: ClassDetails }) {
@@ -18,6 +19,7 @@ export function OverviewHeader({ classId, details }: { classId: string; details:
       <div className="min-w-0"><h1>{details.name}</h1><p className="mt-2 break-words text-sm text-[#606861]">{details.subject}</p><p className="mt-1 text-xs text-[#606861]">{details.gradeLevel} · SY {details.schoolYear}</p></div>
       <EditClassDetails classId={classId} initial={details} triggerLabel="Edit" triggerClassName="tc-button tc-quiet shrink-0 px-2" />
     </div>
+    <div className="flex flex-wrap items-center gap-x-3 text-sm"><span className="text-[#606861]">Section</span>{details.sectionLink ? <Link className={overviewLink} href={`/sections/${details.sectionLink.id}`}>{sectionLabel(details.sectionLink)}</Link> : <span>Not linked</span>}<Link className={overviewLink} href={`/classes/${classId}/section`}>{details.sectionLink ? 'Manage link' : 'Link to Section'}</Link></div>
     <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
       <Link href={`/classes/${classId}/attendance`} className="tc-button tc-primary w-full sm:w-auto">Take attendance</Link>
       <div className="grid grid-cols-3 gap-2 sm:flex" aria-label="Record utilities">

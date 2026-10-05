@@ -72,13 +72,18 @@ export async function deleteLearner(formData: FormData) {
   if (!user) fail("You are signed out. Please sign in again.");
 
   // Is this student enrolled in any other class?
-  const { count: otherClasses } = await supabase
+  const { count: otherClasses, error: classError } = await supabase
     .from("class_enrollments")
     .select("id", { count: "exact", head: true })
     .eq("learner_id", learnerId)
     .neq("class_id", classId);
 
-  if ((otherClasses ?? 0) > 0) {
+  // Inactive memberships are still Section history and retain the learner.
+  const { count: sections, error: sectionError } = await supabase.from("section_enrollments")
+    .select("id", { count: "exact", head: true }).eq("learner_id", learnerId);
+  if (classError || sectionError) fail("Could not verify the learner's memberships. Please try again.");
+
+  if ((otherClasses ?? 0) > 0 || (sections ?? 0) > 0) {
     // Keep the learner, only take them out of this class.
     await supabase.from("attendance_entries").delete().eq("class_id", classId).eq("learner_id", learnerId);
     const { error } = await supabase

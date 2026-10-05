@@ -1,6 +1,8 @@
 // src/features/classes/edit-class-details.tsx
 
 "use client";
+import Link from 'next/link';
+import { sectionLabel } from '@/features/sections/model';
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -100,6 +102,7 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
               </button>
             </div>
 
+            <div className="mt-4 border-b border-[#E3E5E1] pb-3 text-sm"><p>Section: {initial.sectionLink ? sectionLabel(initial.sectionLink) : 'Not linked'}</p><Link className="tc-button tc-quiet" href={`/classes/${classId}/section`}>{initial.sectionLink ? 'Change or unlink Section' : 'Link to Section'}</Link></div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-medium sm:col-span-2">
                 School name
@@ -118,7 +121,7 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
                 <input required list="tc-grades" className={input} value={form.gradeLevel} onChange={(e) => set("gradeLevel", e.target.value)} />
               </label>
               <label className="block text-sm font-medium">
-                Section
+                Section label in record
                 <input className={input} value={form.section} onChange={(e) => set("section", e.target.value)} />
               </label>
               <label className="block text-sm font-medium">

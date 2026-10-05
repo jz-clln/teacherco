@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Link>
         <nav aria-label="Main navigation" className="space-y-1">
           {nav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const active = pathname === href || pathname.startsWith(`${href}/`) || (href === '/classes' && (pathname === '/sections' || pathname.startsWith('/sections/')));
             return (
               <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition",
@@ -60,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="mx-auto w-full max-w-[1200px] px-5 pt-6 pb-[calc(96px+env(safe-area-inset-bottom))] md:px-8 md:pt-4 md:pb-8">{children}</main>
         <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-[#E3E5E1] bg-white px-2 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] md:hidden">
           {nav.slice(0, 5).map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const active = pathname === href || pathname.startsWith(`${href}/`) || (href === '/classes' && (pathname === '/sections' || pathname.startsWith('/sections/')));
             return (
               <Link key={href} href={href} aria-current={active ? "page" : undefined} className={cn("flex min-h-12 flex-col items-center justify-center gap-1 rounded-lg text-xs", active ? "font-semibold text-[#1A4D2E]" : "text-[#606861]") }>
                 <NavigationIcon icon={Icon} size={18} label={label} />

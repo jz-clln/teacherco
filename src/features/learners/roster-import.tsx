@@ -283,6 +283,29 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
         }
       }
 
+      // Validate and save selected metadata before any learner/score writes.
+      // The DB context guard closes the race between preflight and metadata save.
+      if (currentClass && chosenInfo.length > 0) {
+        const pick = (key: InfoKey, fallback: string) => chosenInfo.find((r) => r.key === key)?.value.trim() ?? fallback;
+        const details = await updateClassDetails({
+          classId,
+          name: pick("name", currentClass.name),
+          schoolName: pick("schoolName", currentClass.schoolName),
+          schoolId: pick("schoolId", currentClass.schoolId),
+          adviser: pick("adviser", currentClass.adviser),
+          gradeLevel: pick("gradeLevel", currentClass.gradeLevel),
+          section: pick("section", currentClass.section),
+          subject: pick("subject", currentClass.subject),
+          schoolYear: pick("schoolYear", currentClass.schoolYear),
+          benchmark: currentClass.benchmark,
+        });
+        if (!details.ok) {
+          setError(details.error);
+          return;
+        }
+      }
+
+
       const result = await importLearners({
         classId,
         rows: names.map((n, i) => {
@@ -326,25 +349,6 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
         protectedTitles = grades.protectedTitles ?? [];
       }
 
-      if (currentClass && chosenInfo.length > 0) {
-        const pick = (key: InfoKey, fallback: string) => chosenInfo.find((r) => r.key === key)?.value.trim() ?? fallback;
-        const details = await updateClassDetails({
-          classId,
-          name: pick("name", currentClass.name),
-          schoolName: pick("schoolName", currentClass.schoolName),
-          schoolId: pick("schoolId", currentClass.schoolId),
-          adviser: pick("adviser", currentClass.adviser),
-          gradeLevel: pick("gradeLevel", currentClass.gradeLevel),
-          section: pick("section", currentClass.section),
-          subject: pick("subject", currentClass.subject),
-          schoolYear: pick("schoolYear", currentClass.schoolYear),
-          benchmark: currentClass.benchmark,
-        });
-        if (!details.ok) {
-          setError(`Learners were saved. ${details.error}`);
-          return;
-        }
-      }
 
       const gradesParam = gradeScores > 0 ? `&grades=${gradeScores}` : "";
       const detailsParam = currentClass && chosenInfo.length > 0 ? "&details=1" : "";

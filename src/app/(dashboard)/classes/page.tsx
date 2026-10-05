@@ -4,6 +4,7 @@ import Link from "next/link";
 import { GraduationCap, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
+import { ClassAreaTabs } from '@/features/sections/area-tabs';
 
 export const metadata = { title: "Classes" };
 
@@ -16,6 +17,7 @@ export default async function ClassesPage() {
 
   return (
     <div className="space-y-6">
+      <ClassAreaTabs />
       {/* items-center keeps the button in the vertical middle of the title block, even when the title wraps. */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">

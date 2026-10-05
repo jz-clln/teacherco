@@ -243,11 +243,18 @@ export async function deleteClass(formData: FormData): Promise<SettingsState> {
 
   // Learners belong to the teacher, not the class. Remove the ones that are no longer in any class.
   if (learnerIds.length > 0) {
-    const { data: stillEnrolled } = await supabase
+    const { data: stillEnrolled, error: enrollmentError } = await supabase
       .from("class_enrollments")
       .select("learner_id")
       .in("learner_id", learnerIds);
-    const keep = new Set((stillEnrolled ?? []).map((row) => row.learner_id as string));
+    const { data: sectionEnrolled, error: sectionError } = await supabase.from("section_enrollments")
+      .select("learner_id").in("learner_id", learnerIds);
+    // Fail closed: cleanup must never infer an empty roster from a failed read.
+    if (enrollmentError || sectionError) {
+      revalidatePath("/", "layout");
+      return { success: `${teacherClass.name} was deleted. Learner profiles were retained because their memberships could not be verified.` };
+    }
+    const keep = new Set([...(stillEnrolled ?? []), ...(sectionEnrolled ?? [])].map((row) => row.learner_id as string));
     const orphaned = learnerIds.filter((id) => !keep.has(id));
     if (orphaned.length > 0) {
       await supabase.from("learners").delete().in("id", orphaned).eq("teacher_id", user.id);
@@ -286,9 +293,13 @@ export async function deleteAllData(formData: FormData): Promise<SettingsState> 
 
   // Classes cascade to enrollments, assessments, submissions, attendance, imports, rules and reports.
   const classes = await supabase.from("classes").delete().eq("teacher_id", user.id);
+  if (classes.error) return { error: "Some of your data could not be deleted. Please try again." };
+  // Section deletion cascades memberships; learners can then be safely removed.
+  const sections = await supabase.from("sections").delete().eq("teacher_id", user.id);
+  if (sections.error) return { error: "Some of your data could not be deleted. Please try again." };
   const learners = await supabase.from("learners").delete().eq("teacher_id", user.id);
   const notes = await supabase.from("teacher_notes").delete().eq("teacher_id", user.id);
-  if (classes.error || learners.error || notes.error) {
+  if (learners.error || notes.error) {
     return { error: "Some of your data could not be deleted. Please try again." };
   }
 

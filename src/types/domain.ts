@@ -8,12 +8,37 @@ export type AssessmentStatus = "draft" | "active" | "closed";
 
 export interface TeacherClass {
   id: UUID;
+  section_id?: UUID | null;
   teacher_id: UUID;
   name: string;
   subject: string;
   grade_level: string;
   school_year: string;
   status: ClassStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Section {
+  id: UUID;
+  teacher_id: UUID;
+  name: string;
+  grade_level: string;
+  school_year: string;
+  school_name: string | null;
+  school_id: string | null;
+  is_adviser: boolean;
+  status: ClassStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SectionEnrollment {
+  id: UUID;
+  teacher_id: UUID;
+  section_id: UUID;
+  learner_id: UUID;
+  status: EnrollmentStatus;
   created_at: string;
   updated_at: string;
 }

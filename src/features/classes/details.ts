@@ -2,6 +2,7 @@
 // Shared (client + server) shape of a class's editable details.
 
 export type ClassDetails = {
+  sectionLink?: { id: string; name: string; grade_level: string } | null;
   name: string;
   schoolName: string;
   schoolId: string;
@@ -31,6 +32,7 @@ export const SUBJECTS = [
 
 /** Turns a classes row into ClassDetails, with safe defaults for new columns. */
 export function toClassDetails(row: {
+  section_link?: { id: string; name: string; grade_level: string } | { id: string; name: string; grade_level: string }[] | null;
   name: string;
   school_name?: string | null;
   school_id?: string | null;
@@ -42,6 +44,7 @@ export function toClassDetails(row: {
   benchmark: number | string;
 }): ClassDetails {
   return {
+    sectionLink: Array.isArray(row.section_link) ? row.section_link[0] ?? null : row.section_link ?? null,
     name: row.name,
     schoolName: row.school_name ?? "",
     schoolId: row.school_id ?? "",

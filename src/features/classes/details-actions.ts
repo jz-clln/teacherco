@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { validateLinkedSection } from "@/features/sections/context";
 
 const InputSchema = z.object({
   classId: z.string().uuid(),
@@ -33,6 +34,9 @@ export async function updateClassDetails(input: z.input<typeof InputSchema>): Pr
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "You are signed out. Please sign in again." };
 
+  const conflict = await validateLinkedSection(supabase, user.id, d.classId, d);
+  if (conflict) return { ok: false, error: conflict };
+
   const { data, error } = await supabase
     .from("classes")
     .update({
@@ -49,7 +53,9 @@ export async function updateClassDetails(input: z.input<typeof InputSchema>): Pr
     .eq("id", d.classId)
     .select("id");
 
-  if (error) return { ok: false, error: "Could not save the class details. Did you run migration 0006?" };
+  if (error) return { ok: false, error: error.code === "23514"
+    ? "These details conflict with the linked Section. Check the grade, school year and school ID, then try again."
+    : "Could not save the class details. Refresh and try again." };
   if (!data?.length) return { ok: false, error: "Class not found." };
 
   revalidatePath(`/classes/${d.classId}`);

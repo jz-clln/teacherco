@@ -1,24 +1,13 @@
 // @vitest-environment node
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { database } from "./helpers/database";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildSyncPlan, type Snapshot, type SyncInput, type SyncPlan } from "@/features/records/sync-model";
 
 let db: PGlite;
 beforeAll(async () => {
-  db = new PGlite();
-  await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth; create schema storage;
-    create table auth.users(id uuid primary key, email text, email_confirmed_at timestamptz, raw_user_meta_data jsonb default '{}');
-    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
-    create table storage.objects(id uuid); alter table storage.objects enable row level security;
-    grant usage on schema public,auth,storage to anon,authenticated,service_role;`);
-  // PGlite provides gen_random_uuid natively; pgcrypto extension is not bundled.
-  await db.exec(readFileSync("supabase/migrations/0001_teacherco_foundation.sql", "utf8").replace("create extension if not exists pgcrypto;", ""));
-  for (const migration of ["0008_assessment_source", "0010_guard_submission_writes", "0011_exported_title", "0012_grading_reference", "0013_assessment_activity_slots", "0014_invite_access"]) await db.exec(readFileSync(`supabase/migrations/${migration}.sql`, "utf8"));
-  await db.exec("grant all on all tables in schema public to authenticated,service_role;");
-  await db.exec(readFileSync("supabase/migrations/0015_class_record_sync.sql", "utf8"));
+  db = await database();
 }, 30000);
 afterAll(async () => { await db?.close(); });
 
