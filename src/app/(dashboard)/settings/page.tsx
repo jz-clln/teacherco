@@ -1,6 +1,7 @@
 // src/app/(dashboard)/settings/page.tsx
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Database, GraduationCap, KeyRound, Languages, ListChecks, ShieldCheck, Sparkles, User, WifiOff } from "lucide-react";
 import { LegalLinks } from "@/features/legal/legal-links";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const sections = [
   { id: "language", label: "Language" },
   { id: "attention", label: "Attention rules" },
   { id: "grading", label: "Grading rules" },
+  { id: "academic-tools", label: "Academic tools" },
   { id: "ai", label: "AI & privacy" },
   { id: "data", label: "Data & storage" },
   { id: "offline", label: "Offline" },
@@ -126,6 +128,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <GradingRulesSettings classes={gradingClasses} initialClassId={gradingClassId} />
           </SettingsSection>
 
+          <SettingsSection id="academic-tools" icon={GraduationCap} title="Academic tools" description="Keep the blank workbook layouts you use at school.">
+            <Link href="/report-cards/templates" className="tc-button tc-secondary">Report card templates</Link>
+          </SettingsSection>
           <SettingsSection id="ai" icon={Sparkles} title="AI & privacy" description="AI explains and summarizes. TeacherCo's calculation engine produces every number.">
             <AiPrivacyForm aiEnabled={profile?.ai_enabled ?? true} includeNotes={profile?.ai_include_notes ?? false} />
           </SettingsSection>

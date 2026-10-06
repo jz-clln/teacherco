@@ -250,7 +250,7 @@ export function DataControls({
         <div className="mt-3 rounded-2xl border border-red-100 bg-white p-4">
           <p className="text-sm font-semibold text-[#313832]">Delete all my classroom data</p>
           <p className="mt-1 text-xs leading-5 text-[#8B928C]">
-            Removes every class, learner, note, report, and file. Your account and settings are kept.
+            Removes every class, learner, note, report, report card template, and file. Your account and settings are kept.
           </p>
           {confirming === "all" ? (
             <ConfirmPanel

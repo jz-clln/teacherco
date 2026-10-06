@@ -1,0 +1,5 @@
+import ExcelJS from 'exceljs';
+import {randomUUID} from 'node:crypto';
+import {emptyDefinition,type MappingDefinition} from '@/features/report-card-mappings/model';
+export async function mappingWorkbook(){const w=new ExcelJS.Workbook(),s=w.addWorksheet('Front page');s.getCell('A1').value='Blank template';s.getCell('I30').value='Layout end';s.mergeCells('C8:F8');s.getCell('C8').value='Protected heading';await s.protect('fixture',{spinCount:1});w.addWorksheet('Hidden lookup',{state:'veryHidden'}).getCell('B5').value='Layout end';return Buffer.from(await w.xlsx.writeBuffer());}
+export function mappingDefinition(hash:string,count=3):MappingDefinition{return {...emptyDefinition(hash),fields:{learner_name:{sheet:'Front page',address:'C8:F8'}},periods:Array.from({length:count},(_,i)=>({key:`period_${i+1}` as MappingDefinition['periods'][number]['key'],label:`Term ${i+1}`})),subjects:[{key:randomUUID(),label:'Local subject',labelLocation:{sheet:'Front page',address:'B15'},outputs:Object.fromEntries(Array.from({length:count},(_,i)=>[`period_${i+1}`,{sheet:'Front page',address:`${String.fromCharCode(68+i)}15`}]))}]};}

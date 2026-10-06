@@ -72,10 +72,10 @@ it('class cleanup fails closed on membership errors', async () => {
 });
 it('delete-all removes classes, Sections/memberships, then learners', async () => {
   expect(await deleteAllData(form({ confirmation: 'DELETE' }))).toHaveProperty('success');
-  expect(mutations().map(q => q.table)).toEqual(['classes', 'sections', 'learners', 'teacher_notes']);
+  expect(mutations().map(q => q.table)).toEqual(['report_card_templates', 'classes', 'sections', 'learners', 'teacher_notes']);
 });
 it('delete-all stops before learners when Section cleanup fails', async () => {
-  mock.results = [{}, { error: { message: 'failed' } }];
+  mock.results = [{}, {}, { error: { message: 'failed' } }];
   expect(await deleteAllData(form({ confirmation: 'DELETE' }))).toHaveProperty('error');
-  expect(mutations().map(q => q.table)).toEqual(['classes', 'sections']);
+  expect(mutations().map(q => q.table)).toEqual(['report_card_templates', 'classes', 'sections']);
 });

@@ -43,20 +43,20 @@ export async function loadReportInput(
   classId: string,
   thresholds: ReportThresholds,
 ): Promise<ReportInput | null> {
-  const { data: classroom } = await supabase
+  const { data: classroom, error: classError } = await supabase
     .from("classes")
     .select("id, name, subject, grade_level, school_year, benchmark")
     .eq("id", classId)
     .maybeSingle();
+  if (classError) throw new Error("Could not read the class.");
   if (!classroom) return null;
 
-  const { data: enrollments, error: enrollmentError } = await supabase
+  const enrollments = await fetchAll((from, to) => supabase
     .from("class_enrollments")
     .select("learner:learners(id, display_name)")
     .eq("class_id", classId)
     .eq("status", "active")
-    .limit(1000);
-  if (enrollmentError) throw new Error("Could not read the class roster.");
+    .order("id").range(from, to));
 
   const learners = (enrollments ?? [])
     .flatMap((enrollment) => {
@@ -65,10 +65,10 @@ export async function loadReportInput(
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const { data: assessments } = await supabase
+  const assessments = await fetchAll((from, to) => supabase
     .from("assessments")
     .select("id, title, assessment_date, created_at")
-    .eq("class_id", classId);
+    .eq("class_id", classId).order("id").range(from, to));
   const assessmentById = new Map<string, Row>((assessments ?? []).map((assessment) => [String(assessment.id), assessment]));
   const assessmentIds = [...assessmentById.keys()];
 

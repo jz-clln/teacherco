@@ -43,10 +43,11 @@ export async function getGradingClassSettings(
   classes: GradingClassInput[],
 ): Promise<GradingClassSetting[]> {
   if (!classes.length) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("class_grading_config")
     .select("class_id,weights,transmutation,descriptors,source_filename")
     .in("class_id", classes.map((classroom) => classroom.id));
+  if (error) throw new Error("Could not load class grading rules.");
   const savedByClass = new Map((data ?? []).map((row) => [String(row.class_id), row]));
 
   return classes.map((classroom) => {
@@ -83,17 +84,31 @@ export type ClassTermGrades = {
 };
 
 export async function getClassTermGrades(supabase: SupabaseClient, classId: string): Promise<ClassTermGrades | null> {
+  async function allRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
+    const rows: T[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await page(offset, offset + 499);
+      if (error || !data) throw new Error("Could not load the class grading records.");
+      rows.push(...data);
+      if (data.length < 500) return rows;
+    }
+  }
   const [input, configResult, recordResult, activityResult] = await Promise.all([
     loadReportInput(supabase as Awaited<ReturnType<typeof createClient>>, classId, { absences: 5, dropPoints: 10 }),
     supabase.from("class_grading_config").select("weights,transmutation,descriptors,term_possible,source_filename").eq("class_id", classId).maybeSingle(),
-    supabase.from("teacher_term_grades").select("learner_id,term,initial_grade,term_grade,descriptor").eq("class_id", classId),
-    supabase.from("assessments").select("id,activity_slot,term,component").eq("class_id", classId),
+    allRows((from, to) => supabase.from("teacher_term_grades").select("learner_id,term,initial_grade,term_grade,descriptor").eq("class_id", classId).order("id").range(from, to)),
+    allRows((from, to) => supabase.from("assessments").select("id,activity_slot,term,component").eq("class_id", classId).order("id").range(from, to)),
   ]);
   if (!input) return null;
-  if (configResult.error || recordResult.error || activityResult.error) throw new Error("Could not load the class grading records.");
+  if (configResult.error) throw new Error("Could not load the class grading records.");
 
-  const classes = [{ id: classId, name: input.classInfo.name, subject: input.classInfo.subject }];
-  const gradingSetting = (await getGradingClassSettings(supabase, classes))[0]!;
+  // Reuse the verified configuration read above; a failed second read must not
+  // silently substitute default rules while copying an official reviewed grade.
+  const saved = configResult.data;
+  const gradingSetting = {
+    config: saved ? asConfig(saved, input.classInfo.subject) : defaultGradingConfig(input.classInfo.subject),
+    customized: Boolean(saved), sourceFilename: saved?.source_filename ?? null,
+  };
   const learners = input.learners;
   const scoreByKey = new Map<string, { earned: number; possible: number }>();
   const assessmentById = new Map<string, {
@@ -105,7 +120,7 @@ export async function getClassTermGrades(supabase: SupabaseClient, classId: stri
     possible: number;
   }>();
   for (const score of input.scores) {
-    const activity = activityResult.data?.find((a) => a.id === score.assessmentId);
+    const activity = activityResult.find((a) => a.id === score.assessmentId);
     const inferred = inferTermAndComponent(activity?.activity_slot ?? score.assessmentTitle);
     if (activity?.term) inferred.term = Number(activity.term);
     if (activity?.component) inferred.component = activity.component as Component;
@@ -128,7 +143,7 @@ export async function getClassTermGrades(supabase: SupabaseClient, classId: stri
     Object.values(components).some((value) => Number(value) > 0),
   );
   const recordedByKey = new Map<string, RecordedGrade>();
-  for (const record of recordResult.data ?? []) {
+  for (const record of recordResult) {
     recordedByKey.set(`${record.learner_id}|${record.term}`, {
       initialGrade: record.initial_grade == null ? null : Number(record.initial_grade),
       termGrade: record.term_grade == null ? null : Number(record.term_grade),

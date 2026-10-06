@@ -287,9 +287,12 @@ export async function deleteAllData(formData: FormData): Promise<SettingsState> 
 
   const { supabase, user } = await requireUser();
 
-  if (!(await removeFiles(supabase, ALL_BUCKETS, user.id))) {
-    return { error: "TeacherCo could not remove your stored files, so nothing was deleted. Please try again." };
+  if (!(await removeFiles(supabase, [...ALL_BUCKETS, "report-card-templates"], user.id))) {
+    return { error: "TeacherCo could not finish removing your stored files. Some files may already be removed. Please retry to finish cleanup." };
   }
+
+  const templates = await supabase.from("report_card_templates").delete().eq("teacher_id", user.id);
+  if (templates.error) return { error: "Some template records could not be deleted. Please retry to finish cleanup." };
 
   // Classes cascade to enrollments, assessments, submissions, attendance, imports, rules and reports.
   const classes = await supabase.from("classes").delete().eq("teacher_id", user.id);
