@@ -5,5 +5,9 @@ import nextTs from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores([".next/**", "public/sw.js", "coverage/**"]),
+  { files: ["src/**/*.tsx"], rules: { "no-restricted-syntax": ["error", {
+    selector: "JSXOpeningElement[name.name='select']",
+    message: "Use TeacherCo's Select or SearchableSelect component for dropdowns.",
+  }] } },
+  globalIgnores([".next/**", "public/sw.js", "coverage/**", "test-results/**"]),
 ]);

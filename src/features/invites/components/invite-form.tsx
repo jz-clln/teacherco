@@ -99,7 +99,7 @@ export function InviteForm() {
       </Button>
 
       <p className="text-center">
-        <Link href="/request-access" className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-[#1A4D2E] hover:underline">
+        <Link href="/request-access" className="tc-button tc-quiet inline-flex min-h-11 items-center px-2 text-sm font-semibold text-[#1A4D2E]">
           I don&apos;t have a code
         </Link>
       </p>

@@ -9,9 +9,12 @@ const DRAWINGS='Some images, shapes or charts may not appear in the preview. The
 const EXTERNAL='This workbook contains external references. TeacherCo does not open external workbooks during preview.';
 type RawCell={address:string;row:number;column:number;value:string;kind:string;formula?:string;style:number};
 type SheetData={summary:SheetSummary;cells:Map<string,RawCell>;rows:Map<number,{height:number;hidden:boolean}>;columns:Map<number,{width:number;hidden:boolean}>;merges:Merge[];warnings:string[]};
-export type ParsedWorkbook={metadata:WorkbookMetadata;merges:Merge[][];worksheetNames:string[];sheet:(index:number,rowStart?:number,columnStart?:number)=>SheetPreview};
+export type ParsedWorkbook={metadata:WorkbookMetadata;merges:Merge[][];worksheetNames:string[];numericValue:(index:number,address:string)=>number|null;sheet:(index:number,rowStart?:number,columnStart?:number,expanded?:boolean,rowLimit?:number)=>SheetPreview};
 function textLimit(value:string){return value.length>500?value.slice(0,499)+'…':value;}
 function dimension(value:string|undefined,fallback:number,min:number,max:number){const n=Number(value);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):fallback;}
+// OpenXML width already includes cell padding; do not add it a second time.
+// The standard 11pt Calibri maximum digit width is 7px at 96 DPI.
+function columnPixels(value:string|undefined){const width=dimension(value,9.140625,0,255);return Math.floor(((256*width+Math.floor(128/7))/256)*7);}
 function formatCell(cell:RawCell,styles:StyleRecord[],strings:string[],date1904:boolean):CellPreview{
   const record=styles[cell.style]??styles[0];let value=cell.value,type:CellPreview['type']='text';
   if(cell.kind==='s'){const index=Number(value);if(!Number.isInteger(index)||index<0||index>=strings.length)throw new WorkbookError(CORRUPT);value=strings[index];}
@@ -23,8 +26,8 @@ function formatCell(cell:RawCell,styles:StyleRecord[],strings:string[],date1904:
   return {address:cell.address,row:cell.row,column:cell.column,displayValue:textLimit(cell.formula!==undefined?(value||'ƒ'):value),type:cell.formula!==undefined?'formula':type,
     ...(cell.formula!==undefined?{formula:textLimit(cell.formula),cachedValue:textLimit(value)}:{}),style:record.style};
 }
-export async function parseWorkbook(bytes:Buffer):Promise<ParsedWorkbook>{
-  const zip=await openPackage(bytes);
+export async function parseWorkbook(bytes:Buffer,maxBytes?:number):Promise<ParsedWorkbook>{
+  const zip=await openPackage(bytes,maxBytes);
   try{
     const contentTypes=await zip.text('[Content_Types].xml');let validWorkbook=false;
     xml(contentTypes,'Types',{open:(name,a)=>{if(name==='Override'&&a.ContentType==='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml')validWorkbook=true;
@@ -64,18 +67,18 @@ export async function parseWorkbook(bytes:Buffer):Promise<ParsedWorkbook>{
       if(!isWorksheet){warnings.push('This sheet type is not rendered. Download the original workbook to view it.');parsed.push({summary,cells,rows,columns,merges,warnings});continue;}
       worksheetCount++;
       worksheetNames.push(source.name);
-      let currentRow=0,nextColumn=1,cell:RawCell|undefined,inValue=false,inFormula=false,inText=false,defaultHeight=24,defaultWidth=80;
+      let currentRow=0,nextColumn=1,cell:RawCell|undefined,inValue=false,inFormula=false,inText=false,defaultHeight=20,defaultWidth=64;
       const extent=(row:number,column:number)=>{if(row>MAX_ROWS||column>MAX_COLUMNS)summary.truncated=true;summary.rowExtent=Math.max(summary.rowExtent,Math.min(MAX_ROWS,row));summary.columnExtent=Math.max(summary.columnExtent,Math.min(MAX_COLUMNS,column));};
       xml(await zip.text(path),'worksheet',{open:(name,a,stack)=>{
         if(name==='sheetProtection')warnings.push('Protected worksheet. This preview is read-only; the original protection is preserved.');
-        if(name==='sheetFormatPr'){defaultHeight=dimension(a.defaultRowHeight,18,12,180)*4/3;defaultWidth=dimension(a.defaultColWidth,10.7,3,40)*7+5;}
+        if(name==='sheetFormatPr'){defaultHeight=dimension(a.defaultRowHeight,15,0,409)*4/3;defaultWidth=columnPixels(a.defaultColWidth);}
         if(name==='pane'&&(a.state==='frozen'||a.state==='frozenSplit'))summary.hasFreezePane=true;
         if(['drawing','legacyDrawing','picture'].includes(name))summary.hasImages=true;
         if(name==='col'){
           const min=Number(a.min),max=Number(a.max);if(!Number.isInteger(min)||!Number.isInteger(max)||min<1||max<min||max>16384)throw new WorkbookError(CORRUPT);
-          for(let c=min;c<=Math.min(max,MAX_COLUMNS);c++)columns.set(c,{width:dimension(a.width,10.7,3,60)*7+5,hidden:a.hidden==='1'});
+          for(let c=min;c<=Math.min(max,MAX_COLUMNS);c++)columns.set(c,{width:columnPixels(a.width),hidden:a.hidden==='1'});
         }
-        if(name==='row'&&stack.includes('sheetData')){currentRow=a.r?Number(a.r):currentRow+1;cellAddress(currentRow,1);nextColumn=1;if(++rowCount>100000)throw new WorkbookError(COMPLEXITY_ERROR);if(currentRow<=MAX_ROWS)rows.set(currentRow,{height:dimension(a.ht,defaultHeight*3/4,12,180)*4/3,hidden:a.hidden==='1'});}
+        if(name==='row'&&stack.includes('sheetData')){currentRow=a.r?Number(a.r):currentRow+1;cellAddress(currentRow,1);nextColumn=1;if(++rowCount>100000)throw new WorkbookError(COMPLEXITY_ERROR);if(currentRow<=MAX_ROWS)rows.set(currentRow,{height:dimension(a.ht,defaultHeight*3/4,0,409)*4/3,hidden:a.hidden==='1'});}
         if(name==='c'&&stack.includes('sheetData')){
           if(++cellCount>100000)throw new WorkbookError(COMPLEXITY_ERROR);
           const coordinate=a.r?parseAddress(a.r):{row:currentRow,column:nextColumn};if(coordinate.row!==currentRow)throw new WorkbookError(CORRUPT);nextColumn=coordinate.column+1;
@@ -105,10 +108,17 @@ export async function parseWorkbook(bytes:Buffer):Promise<ParsedWorkbook>{
       parsed.push({summary,cells,rows,columns,merges,warnings});
     }
     if(!worksheetCount)throw new WorkbookError('Choose a workbook that contains at least one worksheet.');
-    return {metadata:{formatVersion:1,sheets:parsed.map(s=>s.summary)},merges:parsed.map(s=>s.merges),worksheetNames,sheet:(index,rowStart=1,columnStart=1)=>{
+    return {metadata:{formatVersion:1,sheets:parsed.map(s=>s.summary)},merges:parsed.map(s=>s.merges),worksheetNames,numericValue:(index,address)=>{
+      // Server-only extraction: display formatting must never round imported grades.
+      const cell=parsed[index]?.cells.get(address);if(!cell||cell.value===''||!['','n'].includes(cell.kind))return null;
+      const value=Number(cell.value);return Number.isFinite(value)?value:null;
+    },sheet:(index,rowStart=1,columnStart=1,expanded=false,rowLimit=WINDOW_ROWS)=>{
       const s=parsed[index];if(!s)throw new WorkbookError('This worksheet was not found.');
       if(!Number.isInteger(rowStart)||!Number.isInteger(columnStart)||rowStart<1||columnStart<1||rowStart>s.summary.rowExtent||columnStart>s.summary.columnExtent)throw new WorkbookError('Choose a cell inside the preview range.');
-      const rowEnd=Math.min(s.summary.rowExtent,rowStart+WINDOW_ROWS-1),columnEnd=Math.min(s.summary.columnExtent,columnStart+WINDOW_COLUMNS-1);
+      const full=expanded&&rowLimit===WINDOW_ROWS&&s.summary.rowExtent*s.summary.columnExtent<=10000;
+      if(expanded)columnStart=1;
+      if(full){rowStart=1;columnStart=1;}
+      const rowEnd=full?s.summary.rowExtent:Math.min(s.summary.rowExtent,rowStart+rowLimit-1),columnEnd=expanded?s.summary.columnExtent:Math.min(s.summary.columnExtent,columnStart+WINDOW_COLUMNS-1);
       const merges=s.merges.filter(m=>m.top<=rowEnd&&m.bottom>=rowStart&&m.left<=columnEnd&&m.right>=columnStart);
       const cells:CellPreview[]=[];
       for(let row=rowStart;row<=rowEnd;row++)for(let column=columnStart;column<=columnEnd;column++){
@@ -116,9 +126,31 @@ export async function parseWorkbook(bytes:Buffer):Promise<ParsedWorkbook>{
         if(merged&&(row!==Math.max(rowStart,merged.top)||column!==Math.max(columnStart,merged.left)))continue;
         const address=merged?.master??cellAddress(row,column),raw=s.cells.get(address);
         const preview=raw?formatCell(raw,styles,strings,date1904):{address,row:merged?.top??row,column:merged?.left??column,displayValue:'',type:'blank' as const};
-        cells.push({...preview,...(merged?{mergedRange:merged.address}:{})});
+        // A merged range can store its outline on the subordinate edge cells.
+        // Preserve each visible edge segment instead of using only its master.
+        const borderSegments:NonNullable<CellPreview['borderSegments']>=[];
+        if(merged){
+          for(const side of ['top','bottom','left','right'] as const){
+            const horizontal=side==='top'||side==='bottom';
+            const fixed=side==='top'?merged.top:side==='bottom'?merged.bottom:side==='left'?merged.left:merged.right;
+            if(horizontal?(fixed<rowStart||fixed>rowEnd):(fixed<columnStart||fixed>columnEnd))continue;
+            const start=Math.max(horizontal?merged.left:merged.top,horizontal?columnStart:rowStart);
+            const end=Math.min(horizontal?merged.right:merged.bottom,horizontal?columnEnd:rowEnd);
+            const size=(n:number)=>horizontal?(s.columns.get(n)?.width??64):(s.rows.get(n)?.height??20);
+            const total=Array.from({length:end-start+1},(_,i)=>size(start+i)).reduce((a,b)=>a+b,0);
+            let offset=0;
+            for(let n=start;n<=end;n++){
+              const edge=s.cells.get(cellAddress(horizontal?fixed:n,horizontal?n:fixed));
+              const border=(edge?styles[edge.style]?.style:preview.style)?.borders?.[side];
+              const length=size(n);
+              if(border&&total>0)borderSegments.push({side,start:offset/total,end:(offset+length)/total,...border});
+              offset+=length;
+            }
+          }
+        }
+        cells.push({...preview,...(merged?{mergedRange:merged.address,borderSegments}:{})});
       }
-      return {summary:s.summary,rowStart,columnStart,rows:Array.from({length:rowEnd-rowStart+1},(_,i)=>({number:rowStart+i,...s.rows.get(rowStart+i)??{height:24,hidden:false}})),columns:Array.from({length:columnEnd-columnStart+1},(_,i)=>({number:columnStart+i,letter:columnLetter(columnStart+i),...s.columns.get(columnStart+i)??{width:80,hidden:false}})),cells,merges,warnings:s.warnings};
+      return {summary:s.summary,rowStart,columnStart,rows:Array.from({length:rowEnd-rowStart+1},(_,i)=>({number:rowStart+i,...s.rows.get(rowStart+i)??{height:20,hidden:false}})),columns:Array.from({length:columnEnd-columnStart+1},(_,i)=>({number:columnStart+i,letter:columnLetter(columnStart+i),...s.columns.get(columnStart+i)??{width:64,hidden:false}})),cells,merges,warnings:s.warnings};
     }};
   }catch(error){throw error instanceof WorkbookError?error:new WorkbookError(CORRUPT);}
   finally{zip.close();}

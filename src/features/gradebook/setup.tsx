@@ -1,13 +1,15 @@
 'use client';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Select } from '@/components/ui/select';
+import { SUBJECTS } from '@/features/classes/details';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { sectionInputClass } from '@/features/sections/model';
 import type { GradebookData } from './data';
 import { presetPeriods, type Period, type Subject } from './model';
 import { saveGradebookSetup } from './actions';
-export function GradebookSetup({ book, onClose }: { book: GradebookData; onClose?: () => void }) {
+export function GradebookSetup({ book, onClose, onSaved, subjectOptions=book.subjectOptions??[] }: { book: GradebookData; onClose?: () => void; onSaved?: () => void; subjectOptions?:string[] }) {
   const [periods, setPeriods] = useState<Period[]>(book.periods);
   const [subjects, setSubjects] = useState<Subject[]>(book.subjects);
   const [preset, setPreset] = useState<'quarters' | 'terms' | 'semesters' | 'custom'>('terms');
@@ -25,7 +27,7 @@ export function GradebookSetup({ book, onClose }: { book: GradebookData; onClose
     start(async () => {
       try {
         const result = await saveGradebookSetup({ sectionId:book.section.id, periods:periods.map((p,i) => ({ ...p,position:i+1 })), subjects:subjects.map((s,i) => ({ ...s,position:i+1 })), expected:[...book.periods,...book.subjects].map(r => ({ id:r.id,updated_at:r.updated_at })), duplicatesConfirmed:duplicates });
-        if (!result.ok) setError(result.error); else { router.refresh(); onClose?.(); }
+        if (!result.ok) setError(result.error); else { router.refresh(); if(onSaved)onSaved();else onClose?.(); }
       } catch { setError('Connection interrupted. Refresh before retrying.'); }
       finally { lock.current = false; setConfirm(false); }
     });
@@ -46,7 +48,7 @@ export function GradebookSetup({ book, onClose }: { book: GradebookData; onClose
         </section>
         <section className="tc-group p-4 space-y-4"><h3 className="font-semibold">Section subjects</h3>
           {subjects.map((s,i) => <div key={s.id} className="border-t border-[#E3E5E1] pt-4 space-y-3">
-            <label className="block text-sm">Subject name<input required maxLength={120} className={`${sectionInputClass} mt-1 w-full`} value={s.name} onChange={e => setSubjects(subjects.map(r => r.id===s.id ? {...r,name:e.target.value} : r))} /></label>
+            <Select name={`subject-${s.id}`} label="Subject name" required allowCustom customPlaceholder="Type a custom subject" options={[...new Set([...SUBJECTS,...subjectOptions,...book.classes.map(c=>c.subject),...subjects.map(s=>s.name)].filter(Boolean))]} value={s.name} onChange={name=>setSubjects(subjects.map(r=>r.id===s.id?{...r,name}:r))}/>
             <div className="grid gap-3 sm:grid-cols-2">{(['code','category'] as const).map(field => <label key={field} className="block text-sm">{field==='code'?'Code':'Category'} (optional)<input maxLength={field==='code'?40:80} className={`${sectionInputClass} mt-1 w-full`} value={s[field]??''} onChange={e => setSubjects(subjects.map(r => r.id===s.id ? {...r,[field]:e.target.value||null} : r))} /></label>)}</div>
             <div className="flex flex-wrap gap-2"><Button variant="secondary" type="button" disabled={i===0} aria-label={`Move ${s.name || 'subject'} up`} onClick={() => setSubjects(move(subjects,i,-1))}>Up</Button><Button variant="secondary" type="button" disabled={i===subjects.length-1} aria-label={`Move ${s.name || 'subject'} down`} onClick={() => setSubjects(move(subjects,i,1))}>Down</Button><Button variant="secondary" type="button" onClick={() => setSubjects(subjects.map(r => r.id===s.id ? {...r,status:r.status==='active'?'inactive':'active'} : r))}>{s.status==='active'?'Make inactive':'Reactivate'}</Button></div>
           </div>)}

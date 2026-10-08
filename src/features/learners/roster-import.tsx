@@ -5,6 +5,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ClipboardPaste, UploadCloud } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -84,7 +85,6 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("Opening your workbook");
   const [busyFile, setBusyFile] = useState("");
-  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const [wantGrades, setWantGrades] = useState(false);
@@ -147,26 +147,6 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
     } finally {
       setBusy(false);
     }
-  }
-
-  function onDragOver(e: React.DragEvent) {
-    // Required, otherwise the browser refuses the drop and opens the file instead.
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    if (!dragging) setDragging(true);
-  }
-
-  function onDragLeave(e: React.DragEvent) {
-    // Ignore leave events fired when moving over a child element.
-    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-    setDragging(false);
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragging(false);
-    if (busy) return;
-    void onFile(e.dataTransfer.files[0]);
   }
 
   function onPaste() {
@@ -427,31 +407,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
         {busy ? (
           <ImportLoader message={stage} detail={busyFile} />
         ) : tab === "file" ? (
-          <label
-            onDragEnter={onDragOver}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-            className={cn(
-              "teacherco-card flex cursor-pointer flex-col items-center justify-center border-2 border-dashed p-10 text-center transition focus-within:border-[#4F6F52]",
-              dragging && "border-[#1A4D2E] bg-[#EAF0EA]",
-            )}
-          >
-            <UploadCloud size={32} className="text-[#1A4D2E]" />
-            <span className="mt-3 font-semibold">{dragging ? "Drop your file to read it" : "Drag and drop your class record here"}</span>
-            <span className="mt-1 text-sm text-[#606861]">
-              or click to choose a file. .xlsx files, any layout. You confirm what we found before anything is saved.
-            </span>
-            <input
-              type="file"
-              accept=".xlsx"
-              className="sr-only"
-              onChange={(e) => {
-                void onFile(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <FileUpload label="Class record" title="Drag and drop your class record here" description=".xlsx files, any layout. You confirm what we found before anything is saved." onFiles={files=>void onFile(files[0])}/>
         ) : (
           <Card>
             <label className="block text-sm font-medium">

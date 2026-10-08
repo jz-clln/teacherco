@@ -45,3 +45,35 @@ it('rejects path escapes and external workbook relationships',async()=>{await ex
 it('accepts relationship namespace prefixes without assuming r',async()=>{const b=await change('xl/workbook.xml',s=>s.replaceAll('xmlns:r=','xmlns:rel=').replaceAll('r:id=','rel:id='));expect((await parseWorkbook(b)).metadata.sheets).toHaveLength(3);});
 it('retains formula expressions as text and warns about external references',async()=>{const b=await change('xl/worksheets/sheet1.xml',s=>s.replace('SUM(1,2)',"'[Outside.xlsx]Data'!A1"));const s=(await parseWorkbook(b)).sheet(0);expect(s.summary.hasExternalReferences).toBe(true);expect(s.cells.find(c=>c.address==='B2')?.formula).toContain('Outside.xlsx');});
 it('coordinates and file gate reject invalid inputs',()=>{expect(columnLetter(27)).toBe('AA');expect(parseAddress('$XFD$1048576')).toEqual({row:1048576,column:16384});expect(()=>parseAddress('XFE1')).toThrow();expect(fileValidation('a.xlsm',10,'')).toContain('.xlsx');expect(fileValidation('a.xlsx',11*1024*1024,'')).toContain('10 MB');});
+it('keeps compact workbook geometry and fonts, and expands only bounded report card sheets',async()=>{
+  const workbook=new ExcelJS.Workbook(),sheet=workbook.addWorksheet('Report card');
+  sheet.getColumn(1).width=2;sheet.getColumn(2).width=9.140625;sheet.getRow(1).height=9;
+  sheet.getCell('A1').value='Heading';sheet.getCell('A1').font={name:'Bookman Old Style',size:10};sheet.getCell('AF70').value='Last';
+  const bytes=Buffer.from(await workbook.xlsx.writeBuffer()),hash=createHash('sha256').update(bytes).digest('hex'),parsed=await parseWorkbook(bytes);
+  const regular=parsed.sheet(0),expanded=parsed.sheet(0,1,1,true);
+  expect(regular.columns).toHaveLength(24);expect(regular.rows).toHaveLength(60);
+  expect(expanded.columns).toHaveLength(32);expect(expanded.rows).toHaveLength(70);
+  expect(expanded.columns[0].width).toBe(14);expect(expanded.columns[1].width).toBe(64);expect(expanded.rows[0].height).toBe(12);
+  expect(expanded.cells[0].style).toMatchObject({fontFamily:'Bookman Old Style',fontSize:40/3});
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
+  sheet.getCell('DX2000').value='Large';const large=await parseWorkbook(Buffer.from(await workbook.xlsx.writeBuffer()));expect(large.sheet(0,1,1,true).columns).toHaveLength(128);expect(large.sheet(0,1,1,true).cells.length).toBeLessThanOrEqual(7680);
+});
+it('keeps all worksheet columns beyond X while paging long sheets',async()=>{
+  const w=new ExcelJS.Workbook(),s=w.addWorksheet('Wide');s.getCell('AX300').value='Last';
+  const parsed=await parseWorkbook(Buffer.from(await w.xlsx.writeBuffer()));
+  const first=parsed.sheet(0,1,1,true),next=parsed.sheet(0,61,1,true),small=parsed.sheet(0,61,1,true,15);
+  expect(first.columns.at(-1)?.letter).toBe('AX');expect(first.rows).toHaveLength(60);
+  expect(next.rowStart).toBe(61);expect(next.columns).toHaveLength(50);
+  expect(small.rows).toHaveLength(15);expect(small.columns.at(-1)?.letter).toBe('AX');
+});
+it('preserves merged perimeter borders stored on subordinate cells without altering bytes',async()=>{
+  const w=new ExcelJS.Workbook(),s=w.addWorksheet('Lines');s.mergeCells('B2:D4');s.getCell('B2').value='Heading';
+  const z=await JSZip.loadAsync(Buffer.from(await w.xlsx.writeBuffer()));
+  let styles=await z.file('xl/styles.xml')!.async('string');
+  const borderCount=Number(/<borders count="(\d+)"/.exec(styles)![1]),xfCount=Number(/<cellXfs count="(\d+)"/.exec(styles)![1]);
+  styles=styles.replace(/<borders count="\d+"/,`<borders count="${borderCount+1}"`).replace('</borders>','<border><right style="medium"><color rgb="FF123456"/></right><bottom style="double"><color rgb="FF000000"/></bottom></border></borders>').replace(/<cellXfs count="\d+"/,`<cellXfs count="${xfCount+1}"`).replace('</cellXfs>',`<xf numFmtId="0" fontId="0" fillId="0" borderId="${borderCount}" xfId="0"/></cellXfs>`);
+  z.file('xl/styles.xml',styles);z.file('xl/worksheets/sheet1.xml',(await z.file('xl/worksheets/sheet1.xml')!.async('string')).replace(/<c r="D4"[^>]*\/>/,`<c r="D4" s="${xfCount}"/>`));
+  const bytes=await z.generateAsync({type:'nodebuffer'}),hash=createHash('sha256').update(bytes).digest('hex'),cell=(await parseWorkbook(bytes)).sheet(0).cells.find(c=>c.address==='B2');
+  expect(cell?.borderSegments).toEqual(expect.arrayContaining([expect.objectContaining({side:'right',color:'#123456',width:2}),expect.objectContaining({side:'bottom',style:'double',width:2})]));
+  expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
+});

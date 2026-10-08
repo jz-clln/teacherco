@@ -11,7 +11,7 @@ import type { ClassInsights } from "./insights";
 import type { ChangeSummary } from "./change-summary";
 import { sectionLabel } from '@/features/sections/model';
 
-export const overviewLink = "inline-flex min-h-11 items-center text-sm font-semibold text-[#1A4D2E] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-[#1A4D2E]";
+export const overviewLink = "inline-flex min-h-11 items-center text-sm font-semibold text-[#1A4D2E] tc-button tc-quiet focus-visible:outline-2 focus-visible:outline-[#1A4D2E]";
 export function OverviewHeader({ classId, details }: { classId: string; details: ClassDetails }) {
   return <header className="space-y-3">
     <div className="flex items-center justify-between gap-3"><Link href="/classes" className={overviewLink}><ArrowLeft size={16} className="mr-1" aria-hidden />All classes</Link><ClassMoreMenu classId={classId} /></div>

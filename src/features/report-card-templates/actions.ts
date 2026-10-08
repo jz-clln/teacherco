@@ -82,10 +82,12 @@ export async function deleteTemplate(input:unknown){return result(async context=
   revalidatePath(BASE);
 });}
 export async function loadTemplateSheet(input:unknown){return result(async context=>{
-  const parsed=z.object({id:z.uuid(),sheet:z.number().int().min(0).max(19),row:z.number().int().min(1).max(MAX_ROWS).default(1),column:z.number().int().min(1).max(MAX_COLUMNS).default(1)}).safeParse(input);
+  const parsed=z.object({id:z.uuid(),sheet:z.number().int().min(0).max(19),row:z.number().int().min(1).max(MAX_ROWS).default(1),column:z.number().int().min(1).max(MAX_COLUMNS).default(1),expanded:z.boolean().default(false)}).safeParse(input);
   if(!parsed.success)throw new TemplateError('Choose a worksheet and a cell inside the preview range.');
   const p=parsed.data,template=await ownedTemplate(context,p.id),bytes=await originalBytes(context,template);
-  const preview=(await parseWorkbook(bytes)).sheet(p.sheet,p.row,p.column);
+  const workbook=await parseWorkbook(bytes);
+  let preview=workbook.sheet(p.sheet,p.row,p.column,p.expanded);
+  for(let rows=30;p.expanded&&rows>=1&&Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024;rows=Math.floor(rows/2))preview=workbook.sheet(p.sheet,p.row,1,true,rows);
   if(Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024)throw new TemplateError('This sheet contains too much detail for one preview. Download the original workbook to inspect it.');
   return preview;
 });}

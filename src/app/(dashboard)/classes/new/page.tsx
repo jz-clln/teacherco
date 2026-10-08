@@ -1,5 +1,7 @@
 // src/app/(dashboard)/classes/new/page.tsx
 
+import { sectionAccess } from "@/features/sections/action-helpers";
+import { readSubjectOptions } from "@/features/classes/subject-options";
 import { CreateClassForm } from "@/features/classes/create-class-form";
 import { Select } from "@/components/ui/select";
 
@@ -7,22 +9,14 @@ export const metadata = { title: "New class" };
 
 const GRADES = ["Kindergarten", ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)];
 
-const SUBJECTS = [
-  "Mathematics",
-  "Science",
-  "English",
-  "Filipino",
-  "Araling Panlipunan",
-  "MAPEH",
-  "Edukasyon sa Pagpapakatao",
-  "EPP / TLE",
-  "Mother Tongue",
-];
+
 
 export default async function NewClassPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  const {supabase,user}=await sectionAccess();
+  const subjects=await readSubjectOptions(supabase,user.id);
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="min-w-0 w-full">
       <p className="text-sm font-medium text-[#4F6F52]">NEW CLASS</p>
       <h1 className="mt-1 text-3xl font-bold">Create a classroom workspace</h1>
       <p className="mt-2 text-[#606861]">You will import learners from an existing record later. No manual roster entry required.</p>
@@ -42,7 +36,7 @@ export default async function NewClassPage({ searchParams }: { searchParams: Pro
           <Select
             name="subject"
             label="Subject"
-            options={SUBJECTS}
+            options={subjects}
             placeholder="Select subject"
             required
             allowCustom

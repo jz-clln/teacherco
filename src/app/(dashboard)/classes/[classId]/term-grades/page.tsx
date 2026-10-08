@@ -17,7 +17,7 @@ export default async function TermGradesPage({ params }: { params: Promise<{ cla
 
   return (
     <div className="space-y-5">
-      <Link href={`/classes/${classroom.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52] hover:underline">
+      <Link href={`/classes/${classroom.id}`} className="tc-button tc-quiet inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]">
         <ArrowLeft size={16} /> Back to class
       </Link>
       <TermGradesTable classroom={classroom} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from '@/components/ui/select';
 import Image from "next/image";
 import { useActionState, useMemo, useState } from "react";
 import {
@@ -9,7 +10,6 @@ import {
   Building2,
   Check,
   GraduationCap,
-  Languages,
   UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -216,20 +216,8 @@ export function OnboardingForm({
                   </div>
                 </div>
 
-                <label className="block text-sm font-semibold text-[#313832]">
-                  Preferred language
-                  <div className="relative mt-1.5">
-                    <Languages className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B928C]" size={18} />
-                    <select
-                      name="preferredLanguage"
-                      defaultValue="en"
-                      className="w-full appearance-none rounded-xl border border-[#E3E5E1] bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-[#4F6F52] focus:ring-4 focus:ring-[#4F6F52]/10"
-                    >
-                      <option value="en">English</option>
-                      <option value="fil">Filipino</option>
-                    </select>
-                  </div>
-                </label>
+                <Select name="preferredLanguage" label="Preferred language" defaultValue="en"
+                  options={[{value:'en',label:'English'},{value:'fil',label:'Filipino'}]} />
               </div>
 
               {localError ? (

@@ -17,7 +17,7 @@ export default async function NewAssessmentPage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/check" className="text-sm font-medium text-[#4F6F52] hover:underline">← All assessments</Link>
+        <Link href="/check" className="tc-button tc-quiet text-sm font-medium text-[#4F6F52]">← All assessments</Link>
         <h1 className="mt-2 text-3xl font-bold">New assessment</h1>
         <p className="mt-2 max-w-xl text-[#606861]">Scores come from your answer key, not from AI.</p>
       </div>

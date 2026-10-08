@@ -33,8 +33,8 @@ export function xml(text:string,root:string,handlers:XmlHandlers){
   parser.write(text).close();if(roots!==1||stack.length)throw new WorkbookError(CORRUPT);
 }
 export type Package={names:string[];text:(name:string)=>Promise<string>;close:()=>void};
-export async function openPackage(bytes:Buffer):Promise<Package>{
-  if(!bytes.length||bytes.length>MAX_FILE_BYTES)throw new WorkbookError('Choose a workbook no larger than 10 MB.');
+export async function openPackage(bytes:Buffer,maxBytes=MAX_FILE_BYTES):Promise<Package>{
+  if(!bytes.length||bytes.length>maxBytes)throw new WorkbookError('This workbook exceeds the supported file size.');
   if(bytes.subarray(0,8).equals(Buffer.from('d0cf11e0a1b11ae1','hex')))throw new WorkbookError(PASSWORD_ERROR);
   if(bytes.length<4||bytes.readUInt16LE(0)!==0x4b50)throw new WorkbookError(CORRUPT);
   let zip:ZipFile;

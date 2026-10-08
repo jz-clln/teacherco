@@ -7,7 +7,7 @@ import { WhatChanged } from "@/features/classes/overview-view";
 vi.mock("next/link", () => ({ default: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a>, useLinkStatus: () => ({ pending: false }) }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/classes/class/assessments", useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@/features/auth/actions", () => ({ signOut: vi.fn() }));
-vi.mock("@/features/classes/details-actions", () => ({ updateClassDetails: vi.fn() }));
+vi.mock("@/features/classes/details-actions", () => ({ loadClassSubjectOptions: vi.fn().mockResolvedValue({ok:true,data:['Mathematics','Calculus']}), updateClassDetails: vi.fn() }));
 vi.mock("@/features/classes/overview-data", () => ({ ownedClass: vi.fn(async () => ({ classroom: { name: "Grade 1" } })) }));
 vi.mock("@/features/exams/queries", () => ({ getAssessmentsOverview: vi.fn(async () => []) }));
 vi.mock("@/features/exams/actions", () => ({ deleteAssessment: vi.fn() }));

@@ -74,7 +74,7 @@ export function RequestAccessForm({ name, email }: { name: string; email: string
       </Button>
 
       <p className="text-center">
-        <Link href="/invite" className="inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-semibold text-[#1A4D2E] hover:underline">
+        <Link href="/invite" className="tc-button tc-quiet inline-flex min-h-11 items-center gap-1.5 px-2 text-sm font-semibold text-[#1A4D2E]">
           <ArrowLeft size={16} aria-hidden />
           Back to invite code
         </Link>

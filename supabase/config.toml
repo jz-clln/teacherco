@@ -1,0 +1,2 @@
+[functions.report-card-cleanup]
+verify_jwt = false

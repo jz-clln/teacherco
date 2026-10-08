@@ -73,3 +73,27 @@ Run the four `tests/report-card-template-*.test.*` files with Vitest `--configLo
 Ordinary worksheet and workbook structure protection is accepted. Encryption rejection, ZIP/OpenXML bounds, macro rejection, safe text rendering and external-reference handling remain intact. Protection is never removed or changed. Generic notices use the existing preview warnings; no schema or migration change is needed. Tests use synthetic ExcelJS worksheet protection and a workbook structure-protection element, compare exact bytes and SHA-256, check that verifier/hash/salt attributes never enter preview or metadata, and exercise read-only cell selection, typing and paste. All 47 Batch 4A tests, typecheck, focused lint and production build pass. Batch 4B has not started.
 
 Suggested patch commit: `fix: support protected report card templates`.
+
+
+## Viewer navigation and geometry update ? October 8, 2026
+
+The viewer now honors compact saved row heights, OpenXML column widths and safely parsed font names. Cell controls no longer inherit the app's 44px minimum button dimensions. Unwrapped text can extend over adjacent empty cells; merged cells, borders, alignment and wrapping retain their worksheet coordinates.
+
+Zoom controls offer 25?200%, the shared custom dropdown, reset, Fit width and Ctrl/Cmd+wheel. Arrow keys navigate cells and skip merged ranges; Go to cell scrolls within an already loaded sheet. UI previews load the whole bounded sheet when it contains at most 10,000 cells and fits the existing 2 MiB response limit. Larger sheets retain the 60-row/24-column window. Other parser callers keep their existing bounded default.
+
+Original workbook bytes and protection remain untouched. The viewer remains read-only and does not evaluate formulas or fetch external references. Embedded images, charts and drawing objects remain omitted; font appearance depends on locally available fonts. Column conversion uses the standard Calibri digit width, so exact typography across all Excel installations is not guaranteed.
+
+Validation: 631 tests passed, one skipped; typecheck, lint and production build passed. Production browser checks covered zoom geometry, Fit width, Go to cell, keyboard movement, native/fallback full screen, protected source SHA-256, unchanged academic records and mapping at seven viewport widths. Temporary browser fixtures were removed. No app deployment was performed.
+
+
+## Adaptive columns, merged outlines and Poppins ? October 8, 2026
+
+Supersedes the earlier viewer typography and wide-sheet fallback: all UI previews keep the worksheet's detected columns (within the existing 128-column safety bound), including AX. Long sheets paginate rows instead of reverting to A?X. If a response exceeds 2 MiB, the server reduces the row count while retaining all columns; next/previous row navigation follows the actual returned window. Non-UI parser calls keep their previous default window.
+
+Merged-cell perimeter segments are read from each edge cell, including subordinate cells, and drawn at their original row/column proportions. Border colors, widths and supported dash/double styles are preserved; automatic border color defaults to black. Workbook bytes, security validation and read-only behavior remain unchanged.
+
+Poppins now applies throughout the application, including worksheet text, coordinates, codes and form controls. Regular and italic font variants are loaded through the existing Next font integration. This intentionally overrides source font families in the preview only; original workbook fonts are preserved in the stored/downloaded file. Different font metrics can change text wrapping compared with Excel.
+
+Validation: 633 automated tests passed, one skipped; typecheck, lint and production build passed. Added fixtures cover AX across 300 rows, reduced row windows and borders stored on merged subordinate cells with unchanged SHA-256.
+
+Production browser regression passed at seven viewport widths, including AX300 navigation, computed Poppins fonts, merged border elements, protected-source hash preservation and native/fallback full screen. Mobile zoom controls reserve space for the sheet; selecting 100% resets zoom on compact screens. Temporary accounts and workbook fixtures were cleaned up.

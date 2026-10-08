@@ -42,7 +42,7 @@ export default async function AssessmentPage({ params }: { params: Promise<{ ass
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <Link href="/check" className="text-sm font-medium text-[#4F6F52] hover:underline">← All assessments</Link>
+          <Link href="/check" className="tc-button tc-quiet text-sm font-medium text-[#4F6F52]">← All assessments</Link>
           <h1 className="mt-2 text-3xl font-bold">{assessment.title}</h1>
           <p className="mt-1 text-[#606861]">
             {assessment.className}

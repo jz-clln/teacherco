@@ -1,3 +1,4 @@
+import * as provider from '../src/lib/ai/provider';
 // tests/reports-evidence.test.ts
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -135,31 +136,28 @@ describe("narrative", () => {
   });
 });
 
-describe("narrative with OpenAI", () => {
+describe("narrative with an injected provider", () => {
   const evidence = buildClassReportEvidence(input);
 
-  function stubOpenAI(text: string) {
-    vi.stubEnv("OPENAI_API_KEY", "test-key");
-    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
-      new Response(JSON.stringify({ status: "completed", model: "gpt-6-luna", output: [{ type: "message", content: [{ type: "output_text", text }] }] }), { status: 200 }),
-    );
-    vi.stubGlobal("fetch", fetchMock);
-    return fetchMock;
+  function stubProvider(text: string) {
+    const generate = vi.fn<(input: provider.AITextRequest) => Promise<provider.AITextResult>>().mockResolvedValue({text,provider:'openai',model:'gpt-6-luna'});
+    vi.spyOn(provider,'getAIProvider').mockReturnValue({generateText:generate});
+    return generate;
   }
-
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("keeps AI text whose numbers match the data", async () => {
-    stubOpenAI("The class average is 68.3% and 2 of 3 learners are below the 75% benchmark.");
+    stubProvider("The class average is 68.3% and 2 of 3 learners are below the 75% benchmark.");
     const result = await writeNarrative(evidence, { aiEnabled: true, language: "en" });
     expect(result).toMatchObject({ source: "ai", provider: "openai", model: "gpt-6-luna" });
   });
 
   it("discards AI text that contains an invented number", async () => {
-    stubOpenAI("The class average is 71.2%.");
+    stubProvider("The class average is 71.2%.");
     const result = await writeNarrative(evidence, { aiEnabled: true, language: "en" });
     expect(result.source).toBe("facts");
     expect(result.fallbackReason).toBe("unverified_numbers");
@@ -169,24 +167,24 @@ describe("narrative with OpenAI", () => {
   it("falls back when the AI request fails", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key");
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    vi.spyOn(provider,"getAIProvider").mockReturnValue({generateText:vi.fn().mockRejectedValue(new Error("Synthetic provider failure"))});
     const result = await writeNarrative(evidence, { aiEnabled: true, language: "en" });
     expect(result.fallbackReason).toBe("failed");
   });
 
   it("never sends learner names to OpenAI, and puts the name back afterward", async () => {
-    const fetchMock = stubOpenAI("[Learner]'s average is 70% and the class average is 68.3%.");
+    const fetchMock = stubProvider("[Learner]'s average is 70% and the class average is 68.3%.");
     const learnerEvidence = buildLearnerReportEvidence(input, "A")!;
 
     const result = await writeNarrative(learnerEvidence, { aiEnabled: true, language: "en" });
 
-    const sent = String(fetchMock.mock.calls[0][1]?.body);
+    const sent = fetchMock.mock.calls[0][0].prompt;
     expect(sent).not.toContain("Ana Reyes");
     expect(sent).not.toContain("Ben Cruz");
     expect(result.text).toBe("Ana Reyes's average is 70% and the class average is 68.3%.");
 
     await writeNarrative(evidence, { aiEnabled: true, language: "en" });
-    const classSent = String(fetchMock.mock.calls[1][1]?.body);
+    const classSent = fetchMock.mock.calls[1][0].prompt;
     for (const name of ["Ana Reyes", "Ben Cruz", "Carla Dizon"]) expect(classSent).not.toContain(name);
   });
 });

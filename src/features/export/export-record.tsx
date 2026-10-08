@@ -2,8 +2,10 @@
 
 "use client";
 
+import { Select } from '@/components/ui/select';
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, UploadCloud } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getExportData, rememberExportedColumns } from "@/features/export/actions";
@@ -35,7 +37,6 @@ type Loaded = {
 export function ExportRecord({ classId }: { classId: string }) {
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("Opening your workbook");
-  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [manual, setManual] = useState<Record<string, ColumnRef | null>>({});
@@ -183,36 +184,7 @@ export function ExportRecord({ classId }: { classId: string }) {
         {busy ? (
           <ImportLoader message={stage} />
         ) : (
-          <label
-            onDragEnter={(e) => (e.preventDefault(), setDragging(true))}
-            onDragOver={(e) => (e.preventDefault(), (e.dataTransfer.dropEffect = "copy"))}
-            onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              void onFile(e.dataTransfer.files[0]);
-            }}
-            className={cn(
-              "teacherco-card flex cursor-pointer flex-col items-center justify-center border-2 border-dashed p-10 text-center transition focus-within:border-[#4F6F52]",
-              dragging && "border-[#1A4D2E] bg-[#EAF0EA]",
-            )}
-          >
-            <UploadCloud size={32} className="text-[#1A4D2E]" />
-            <span className="mt-3 font-semibold">{dragging ? "Drop your file" : "Choose your class record"}</span>
-            <span className="mt-1 max-w-md text-sm text-[#606861]">
-              Use the same Excel file you imported (or a newer copy of it). TeacherCo adds your scores to it and gives you a
-              new file. Your original is never changed.
-            </span>
-            <input
-              type="file"
-              accept=".xlsx"
-              className="sr-only"
-              onChange={(e) => {
-                void onFile(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <FileUpload label="Class record for export" title="Drag and drop your class record here" description="Use the Excel file you imported, or a newer copy. Your original is never changed." onFiles={files=>void onFile(files[0])}/>
         )}
         {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       </div>
@@ -280,7 +252,7 @@ export function ExportRecord({ classId }: { classId: string }) {
                   </p>
                   <button
                     type="button"
-                    className="text-sm font-medium text-[#1A4D2E] hover:underline"
+                    className="tc-button tc-quiet text-sm font-medium text-[#1A4D2E]"
                     onClick={() => setManual((m) => ({ ...m, [a.id]: on ? null : ref }))}
                   >
                     {on ? "Don't export" : "Export again"}
@@ -322,22 +294,10 @@ export function ExportRecord({ classId }: { classId: string }) {
                     WW6) in Excel, then choose the file again.
                   </p>
                 ) : (
-                  <select
-                    aria-label={`Column for ${u.title}`}
-                    value={manual[u.id] ? `${manual[u.id]!.sheet}|${manual[u.id]!.col}` : ""}
-                    onChange={(e) => {
-                      const [sheet, col] = e.target.value.split("|");
-                      setManual((m) => ({ ...m, [u.id]: e.target.value ? { sheet, col: Number(col) } : null }));
-                    }}
-                    className="w-full rounded-lg border border-[#E3E5E1] bg-white px-2 py-2 text-sm outline-none focus:border-[#4F6F52]"
-                  >
-                    <option value="">Don&apos;t export this one</option>
-                    {u.candidates.map((c) => (
-                      <option key={`${c.sheet}|${c.col}`} value={`${c.sheet}|${c.col}`}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Select name={`Column for ${u.title}`} label={`Column for ${u.title}`} value={String(manual[u.id] ? `${manual[u.id]!.sheet}|${manual[u.id]!.col}` : "")} onChange={value => {
+        const [sheet, col] = value.split("|");
+        setManual((m) => ({ ...m, [u.id]: value ? { sheet, col: Number(col) } : null }));
+    }} emptyLabel={"Don't export this one"} options={u.candidates.map((c) => ({ value: String(`${c.sheet}|${c.col}`), label: c.label }))}/>
                 )}
               </li>
             ))}
@@ -380,13 +340,13 @@ export function ExportRecord({ classId }: { classId: string }) {
               Numbers that will be replaced <span className="text-sm font-normal text-[#606861]">({changedAll.length})</span>
             </summary>
             <div className="flex flex-wrap gap-2 border-t border-[#E3E5E1] px-5 py-3 text-sm">
-              <button type="button" className="font-medium text-[#1A4D2E] hover:underline" onClick={() => setSkip(new Set())}>
+              <button type="button" className="tc-button tc-quiet font-medium text-[#1A4D2E]" onClick={() => setSkip(new Set())}>
                 Replace all
               </button>
               <span className="text-[#606861]">·</span>
               <button
                 type="button"
-                className="font-medium text-[#1A4D2E] hover:underline"
+                className="tc-button tc-quiet font-medium text-[#1A4D2E]"
                 onClick={() => setSkip(new Set(changedAll.map((w) => w.key)))}
               >
                 Keep my file&apos;s numbers

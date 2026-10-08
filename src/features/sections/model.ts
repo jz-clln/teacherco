@@ -11,12 +11,18 @@ export type DuplicateWarning = { id: string; name: string; existing: string[] };
 export type SectionResult = { ok: true; id?: string; message?: string } | { ok: false; error: string; duplicates?: DuplicateWarning[] };
 
 export const normalizeName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+/** Comparison key only: preserve teachers' stored/displayed school-year text. */
+export function schoolYearKey(value: string) {
+  const text = normalizeName(value);
+  const match = /^(?:(?:s\.?\s*y\.?|school year)\s*)?(\d{4})\s*[-‐‑‒–—―−／/]\s*(\d{4})$/.exec(text);
+  return match ? `${match[1]}-${match[2]}` : text;
+}
 export function sectionLabel(section: Pick<Section, 'name' | 'grade_level'>) {
   return normalizeName(section.name).startsWith(normalizeName(section.grade_level)) ? section.name : `${section.grade_level} - ${section.name}`;
 }
 export function contextConflict(a: { grade_level: string; school_year: string; school_id: string | null }, b: typeof a): string | null {
   if (normalizeName(a.grade_level) !== normalizeName(b.grade_level)) return 'Grade level does not match.';
-  if (normalizeName(a.school_year) !== normalizeName(b.school_year)) return 'School year does not match.';
+  if (schoolYearKey(a.school_year) !== schoolYearKey(b.school_year)) return 'School year does not match.';
   if (a.school_id?.trim() && b.school_id?.trim() && normalizeName(a.school_id) !== normalizeName(b.school_id)) return 'School ID does not match.';
   return null;
 }

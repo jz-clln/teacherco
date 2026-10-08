@@ -251,7 +251,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
         event.preventDefault();
         ask();
       }}
-      className={`${surface} transition focus-within:border-[#4F6F52] focus-within:ring-2 focus-within:ring-[#4F6F52]/20`}
+      className={`${surface} tc-input-surface transition`}
     >
       <label htmlFor="ask-question" className="sr-only">
         Your question
@@ -294,7 +294,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-6">
+    <div className="min-w-0 w-full space-y-6 pb-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold tracking-wide text-[#4F6F52]">TEACHERCO ASK</p>

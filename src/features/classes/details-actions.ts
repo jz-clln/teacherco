@@ -2,6 +2,8 @@
 
 "use server";
 
+import { sectionAccess } from "@/features/sections/action-helpers";
+import { readSubjectOptions } from "./subject-options";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -61,4 +63,9 @@ export async function updateClassDetails(input: z.input<typeof InputSchema>): Pr
   revalidatePath(`/classes/${d.classId}`);
   revalidatePath("/classes");
   return { ok: true };
+}
+
+export async function loadClassSubjectOptions(){
+  try{const {supabase,user}=await sectionAccess();return {ok:true as const,data:await readSubjectOptions(supabase,user.id)};}
+  catch{return {ok:false as const,error:'Could not load saved subjects. Close and reopen this form to retry. You can still choose a standard subject or enter a custom one.'};}
 }

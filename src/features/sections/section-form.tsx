@@ -25,7 +25,7 @@ export function SectionForm({ section }: { section?: Section }) {
       finally { lock.current = false; }
     });
   }
-  return <form onSubmit={save} className="tc-group max-w-2xl space-y-5 p-5">
+  return <form onSubmit={save} className="tc-group w-full min-w-0 space-y-5 p-5">
     <fieldset disabled={pending} className="grid min-w-0 gap-4 sm:grid-cols-2">
       {fields.map(([key, label, max, required]) => <label key={key} className={`min-w-0 text-sm font-medium ${key === 'name' ? 'sm:col-span-2' : ''}`}>{label}<input className={sectionInputClass} required={required} maxLength={max} value={form[key]} list={key === 'grade_level' ? 'section-grades' : undefined} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} /></label>)}
       <datalist id="section-grades">{GRADES.map(grade => <option key={grade} value={grade} />)}</datalist>

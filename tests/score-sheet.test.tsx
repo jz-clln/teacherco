@@ -61,7 +61,7 @@ describe("ScoreSheet", () => {
 
   it("types a score, presses Enter, lands on the next learner, and saves only that score", async () => {
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "18");
     enter("Achilles Cadeliña");
     expect(box("Aldrin Lanuzo")).toHaveFocus();
@@ -76,7 +76,7 @@ describe("ScoreSheet", () => {
 
   it("sends a quick run down the list as ONE save", async () => {
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "18");
     enter("Achilles Cadeliña");
     type("Aldrin Lanuzo", "12,5"); // a comma works too
@@ -107,7 +107,7 @@ describe("ScoreSheet", () => {
 
   it("flags a score above the highest possible score and does not send it, but still sends the others", async () => {
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "25");
     enter("Achilles Cadeliña");
     type("Aldrin Lanuzo", "10");
@@ -121,7 +121,7 @@ describe("ScoreSheet", () => {
 
   it("rejects text and negative numbers", async () => {
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "abc");
     enter("Achilles Cadeliña");
     type("Aldrin Lanuzo", "-3");
@@ -134,7 +134,7 @@ describe("ScoreSheet", () => {
   it("shows a failed save with a Retry that sends it again", async () => {
     save.mockResolvedValueOnce({ error: "TeacherCo could not save the scores. Nothing was changed. Please try again." });
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "18");
     enter("Achilles Cadeliña");
     await settle();
@@ -152,7 +152,7 @@ describe("ScoreSheet", () => {
   it("treats a network failure like a failed save", async () => {
     save.mockRejectedValueOnce(new Error("offline"));
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "7");
     enter("Achilles Cadeliña");
     await settle();
@@ -163,7 +163,7 @@ describe("ScoreSheet", () => {
     let finishFirst: (value: { success: string }) => void = () => {};
     save.mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve)));
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     type("Achilles Cadeliña", "10");
     enter("Achilles Cadeliña");
     await act(async () => void (await vi.advanceTimersByTimeAsync(600))); // first save is now in flight
@@ -214,7 +214,7 @@ describe("ScoreSheet", () => {
 
   it("shows a Prev / Next bar while a box is focused, so phones without a Next key still work", () => {
     setup();
-    box("Achilles Cadeliña").focus();
+    act(() => box("Achilles Cadeliña").focus());
     expect(screen.getByRole("toolbar", { name: "Score entry" })).toBeInTheDocument();
 
     type("Achilles Cadeliña", "14");

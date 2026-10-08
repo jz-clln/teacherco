@@ -39,7 +39,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
     return (
       <p className="text-sm leading-6 text-[#606861]">
         Create a class and import its record first, then you can prepare reports here.{" "}
-        <Link href="/classes/new" className="font-semibold text-[#1A4D2E] hover:underline">
+        <Link href="/classes/new" className="tc-button tc-quiet font-semibold text-[#1A4D2E]">
           Create a class
         </Link>
       </p>
@@ -105,7 +105,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
         ) : (
           <>
             AI is off, so you will get a facts-only summary written from your records.{" "}
-            <Link href="/settings#ai" className="font-semibold text-[#1A4D2E] hover:underline">
+            <Link href="/settings#ai" className="tc-button tc-quiet font-semibold text-[#1A4D2E]">
               Change in Settings
             </Link>
           </>

@@ -24,7 +24,7 @@ export default async function ScorePage({
   return (
     <div className="space-y-6">
       <div>
-        <Link href={`/check/${assessment.id}`} className="text-sm font-medium text-[#4F6F52] hover:underline">
+        <Link href={`/check/${assessment.id}`} className="tc-button tc-quiet text-sm font-medium text-[#4F6F52]">
           ← {assessment.title}
         </Link>
         <h1 className="mt-2 text-3xl font-bold">Check answer sheets</h1>

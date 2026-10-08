@@ -18,9 +18,9 @@ function Pagination({ name, page, total, params }: { name: keyof Params; page: n
     return `/admin/invites?${search}#${name}`;
   }
   return <nav aria-label={`${name} pages`} className="mt-4 flex items-center gap-4 text-sm text-[#4F6F52]">
-    {page > 1 ? <Link href={href(page - 1)} className="font-semibold hover:underline">Previous</Link> : null}
+    {page > 1 ? <Link href={href(page - 1)} className="tc-button tc-quiet font-semibold">Previous</Link> : null}
     <span>Page {page} · {total} records</span>
-    {page * PAGE_SIZE < total ? <Link href={href(page + 1)} className="font-semibold hover:underline">Next</Link> : null}
+    {page * PAGE_SIZE < total ? <Link href={href(page + 1)} className="tc-button tc-quiet font-semibold">Next</Link> : null}
   </nav>;
 }
 
@@ -38,7 +38,7 @@ export default async function AdminInvitesPage({ searchParams }: { searchParams:
   const cell = "border-b border-[#E3E5E1] px-3 py-3 text-left align-top";
   return <main className="min-h-screen bg-[#F5EFE6] px-4 py-8 text-[#1F2A22] sm:px-8">
     <div className="mx-auto max-w-7xl space-y-6">
-      <Link href="/today" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#4F6F52] hover:underline">← Back to TeacherCo</Link>
+      <Link href="/today" className="tc-button tc-quiet inline-flex min-h-11 items-center text-sm font-semibold text-[#4F6F52]">← Back to TeacherCo</Link>
       <header><p className="text-sm font-semibold text-[#4F6F52]">TEACHERCO ADMIN</p><h1 className="mt-1 text-3xl font-bold text-[#1A4D2E]">Invite codes</h1><p className="mt-2 text-sm text-[#606861]">Generate invitations and review requests. Deleting or disabling a code does not revoke access already activated.</p></header>
       <Card><GenerateCodeForm /></Card>
       <Card>

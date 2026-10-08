@@ -7,8 +7,9 @@ import { sectionLabel } from '@/features/sections/model';
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, X } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { updateClassDetails } from "@/features/classes/details-actions";
+import { updateClassDetails, loadClassSubjectOptions } from "@/features/classes/details-actions";
 import { GRADES, SUBJECTS, type ClassDetails } from "@/features/classes/details";
 
 const input = "mt-1.5 w-full rounded-xl border border-[#E3E5E1] bg-white px-3 py-3 outline-none focus:border-[#4F6F52]";
@@ -17,20 +18,30 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
+  const [saved,setSaved]=useState<{source:ClassDetails;value:ClassDetails}|null>(null);
+  const current=saved?.source===initial?saved.value:initial;
   const [error, setError] = useState<string | null>(null);
+  const [subjects,setSubjects]=useState<string[]>(SUBJECTS);
+  const [loadingSubjects,setLoadingSubjects]=useState(false);
   const [pending, start] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const set = <K extends keyof ClassDetails>(key: K, value: ClassDetails[K]) => setForm((f) => ({ ...f, [key]: value }));
 
+  useEffect(()=>{
+    if(!open)return;
+    let active=true;
+    loadClassSubjectOptions().then(result=>{if(!active)return;if(result.ok)setSubjects(result.data);else setError(result.error);setLoadingSubjects(false);}).catch(()=>{if(active){setError('Could not load saved subjects. Close and reopen this form to retry.');setLoadingSubjects(false);}});
+    return()=>{active=false;};
+  },[open]);
   useEffect(() => {
     if (!open) return;
     formRef.current?.querySelector<HTMLInputElement>("input")?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !pending) { setOpen(false); triggerRef.current?.focus(); }
+      if (e.key === "Escape" && !e.defaultPrevented && !pending) { setOpen(false); triggerRef.current?.focus(); }
       if (e.key === "Tab") {
-        const items = formRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');
+        const items = formRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not([type=hidden]):not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]');
         if (!items?.length) return;
         const first = items[0], last = items[items.length - 1];
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -42,8 +53,9 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
   }, [open, pending]);
 
   function openDialog() {
-    setForm(initial);
+    setForm(current);
     setError(null);
+    setLoadingSubjects(true);
     setOpen(true);
   }
 
@@ -61,6 +73,7 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
         setError(result.error);
         return;
       }
+      setSaved({source:initial,value:form});
       closeDialog();
       router.refresh();
     });
@@ -116,18 +129,12 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
                 School ID <span className="font-normal text-[#606861]">(optional)</span>
                 <input className={input} value={form.schoolId} onChange={(e) => set("schoolId", e.target.value)} />
               </label>
-              <label className="block text-sm font-medium">
-                Grade level
-                <input required list="tc-grades" className={input} value={form.gradeLevel} onChange={(e) => set("gradeLevel", e.target.value)} />
-              </label>
+              <Select name="gradeLevel" label="Grade level" required allowCustom disabled={pending} options={[...new Set([...GRADES,current.gradeLevel].filter(Boolean))]} value={form.gradeLevel} onChange={value=>set('gradeLevel',value)} customPlaceholder="Type a grade level"/>
               <label className="block text-sm font-medium">
                 Section label in record
                 <input className={input} value={form.section} onChange={(e) => set("section", e.target.value)} />
               </label>
-              <label className="block text-sm font-medium">
-                Subject
-                <input required list="tc-subjects" className={input} value={form.subject} onChange={(e) => set("subject", e.target.value)} />
-              </label>
+              <div><Select name="subject" label="Subject" required allowCustom disabled={pending||loadingSubjects} options={[...new Set([...subjects,current.subject].filter(Boolean))]} value={form.subject} onChange={value=>set('subject',value)} customPlaceholder="Type a custom subject"/>{loadingSubjects&&<p role="status" className="mt-1 text-xs text-[#606861]">Loading saved subjects...</p>}</div>
               <label className="block text-sm font-medium">
                 School year
                 <input required className={input} value={form.schoolYear} onChange={(e) => set("schoolYear", e.target.value)} />
@@ -149,17 +156,6 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
                 />
               </label>
             </div>
-
-            <datalist id="tc-grades">
-              {GRADES.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
-            <datalist id="tc-subjects">
-              {SUBJECTS.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
 
             {error ? <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 

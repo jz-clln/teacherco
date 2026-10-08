@@ -2,6 +2,7 @@
 
 "use client";
 
+import { Select } from '@/components/ui/select';
 import { useActionState } from "react";
 import { Lock } from "lucide-react";
 import {
@@ -25,22 +26,9 @@ export function LanguageForm({
 
   return (
     <form action={formAction} className="grid gap-5 sm:grid-cols-2">
-      <label className={labelClass}>
-        My language
-        <select name="preferredLanguage" defaultValue={preferredLanguage} className={inputClass}>
-          <option value="en">English</option>
-          <option value="fil">Filipino</option>
-        </select>
-      </label>
+      <Select name={"preferredLanguage"} label={"My language"} defaultValue={preferredLanguage} options={[{ value: "en", label: "English" }, { value: "fil", label: "Filipino" }]}/>
 
-      <label className={labelClass}>
-        Ask TeacherCo replies in
-        <select name="aiReplyLanguage" defaultValue={aiReplyLanguage} className={inputClass}>
-          <option value="auto">Whatever language I ask in</option>
-          <option value="en">Always English</option>
-          <option value="fil">Always Filipino</option>
-        </select>
-      </label>
+      <Select name={"aiReplyLanguage"} label={"Ask TeacherCo replies in"} defaultValue={aiReplyLanguage} options={[{ value: "auto", label: "Whatever language I ask in" }, { value: "en", label: "Always English" }, { value: "fil", label: "Always Filipino" }]}/>
 
       <div className="sm:col-span-2">
         <p className="text-xs leading-5 text-[#8B928C]">

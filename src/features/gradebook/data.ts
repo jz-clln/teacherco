@@ -1,4 +1,5 @@
 import 'server-only';
+import {readSubjectOptions} from '@/features/classes/subject-options';
 import { ownedSection, readMembers, readClasses, type SectionDb } from '@/features/sections/data';
 import type { Period, Subject, GradeEntry } from './model';
 export async function readGradebook(db: SectionDb, teacherId: string, sectionId: string) {
@@ -16,6 +17,7 @@ export async function readGradebook(db: SectionDb, teacherId: string, sectionId:
 }
 export async function sectionGradebook(sectionId: string) {
   const { section, supabase, user } = await ownedSection(sectionId);
-  return { section, ...await readGradebook(supabase,user.id,sectionId) };
+  const [book,subjectOptions]=await Promise.all([readGradebook(supabase,user.id,sectionId),readSubjectOptions(supabase,user.id)]);
+  return {section,...book,...({subjectOptions} as {subjectOptions?:string[]})};
 }
 export type GradebookData = Awaited<ReturnType<typeof sectionGradebook>>;

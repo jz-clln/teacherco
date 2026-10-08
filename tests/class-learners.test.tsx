@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 vi.mock("@/features/classes/overview-data", () => ({ ownedClass: async () => ({ classroom: { name: "Grade 1 Giraffe" } }), classRoster: async () => [] }));
 vi.mock("@/features/learners/actions", () => ({ addLearner: vi.fn(), deleteLearner: vi.fn() }));
-vi.mock("@/features/classes/details-actions", () => ({ updateClassDetails: vi.fn() }));
+vi.mock("@/features/classes/details-actions", () => ({ loadClassSubjectOptions: vi.fn().mockResolvedValue({ok:true,data:['Mathematics','Calculus']}), updateClassDetails: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/classes/class/learners", useRouter: () => ({ refresh: vi.fn() }) }));
 import ClassLearnersPage from "@/app/(dashboard)/classes/[classId]/learners/page";
 afterEach(cleanup);

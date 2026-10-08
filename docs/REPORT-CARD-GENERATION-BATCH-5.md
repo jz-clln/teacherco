@@ -122,3 +122,12 @@ The live download smoke identified and fixed a proxy-origin mismatch: request-or
 Suggested commit: `feat: generate report cards from mapped templates`
 
 Changes are not committed or pushed. The remote database migration is applied; the application must be deployed to expose the new workflow on the hosted site.
+
+
+## Saved subjects and inline Section setup ? October 8, 2026
+
+Compatibility uses Section Grade Book subject UUIDs; a class subject name alone is not a Section subject or grade source. The Compatibility panel now explains an empty subject list and offers Add or manage Section subjects without leaving report-card setup. This opens the existing Grade Book editor and saves through its existing authenticated, stale-checked RPC. Saving reloads compatibility, preserves current binding choices and requires confirmation again. Grades are not copied by adding a subject.
+
+The shared custom dropdown supports saved names and Other for a custom subject. Options combine the standard subjects with the current teacher's persisted class and Section subject names, with normalization, deduplication and pagination. The same saved options appear on New Class and standalone Grade Book setup. No new table or migration is required.
+
+Validation: 636 tests passed, one skipped; typecheck, lint and production build passed. Production browser coverage added saved Calculus selection, a newly saved Astronomy subject, refreshed Section compatibility options and reuse on New Class. Existing grades stayed unchanged. Report-card XLSX/ZIP generation, owner isolation, stale review checks and seven responsive widths also passed; temporary fixtures were removed. No application deployment was performed.

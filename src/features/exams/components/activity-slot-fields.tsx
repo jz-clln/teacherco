@@ -18,7 +18,7 @@ export function ActivitySlotFields({ choices, value, onChange, classId }: {
         value: s.title, label: `${s.title.replace(/^Term \d+ · /, "")}${s.assessmentId ? " (already assigned)" : ""}`,
       }))} />
     {selected?.assessmentId ? <p role="status" className="text-sm text-[#606861] sm:col-span-2">
-      Already assigned to {selected.assessmentTitle}. <Link className="font-semibold text-[#1A4D2E] underline"
+      Already assigned to {selected.assessmentTitle}. <Link className="tc-button tc-quiet font-semibold text-[#1A4D2E]"
         href={selected.source === "checked" ? `/check/${selected.assessmentId}/score` : selected.source === "manual" ? `/classes/${classId}/scores?a=${selected.assessmentId}` : `/classes/${classId}/records`}>Open existing activity</Link>
     </p> : selected ? <p className="text-sm text-[#606861] sm:col-span-2">Scores will export to {selected.title}.</p> : null}
   </>;

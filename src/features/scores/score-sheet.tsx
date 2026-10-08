@@ -314,7 +314,7 @@ export function ScoreSheet({
                 {nSaving > 0 && nFailed === 0 ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : null}
                 {statusText}
                 {nFailed > 0 ? (
-                  <button type="button" onClick={retry} className="font-semibold text-[#1A4D2E] underline">
+                  <button type="button" onClick={retry} className="tc-button tc-quiet font-semibold text-[#1A4D2E]">
                     Retry
                   </button>
                 ) : null}

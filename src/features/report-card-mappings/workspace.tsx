@@ -1,78 +1,102 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import Link from 'next/link';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {ArrowLeft,MoreHorizontal,Maximize,Minimize} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {ConfirmDialog} from '@/components/ui/confirm-dialog';
 import {TemplateViewer} from '@/features/report-card-templates/viewer';
 import {cellAddress,parseMerge,type CellSelection,type Template} from '@/features/report-card-templates/model';
 import {reviewMapping,saveMapping,resetMapping} from './actions';
-import {assignments,clearAssignment,emptyDefinition,FIELD_KEYS,FIELD_LABELS,PERIOD_KEYS,OUTPUT_KEYS,locationSchema,type Location,type MappingDefinition,type MappingRecord} from './model';
+import {assignments,emptyDefinition,FIELD_KEYS,PERIOD_KEYS,OUTPUT_KEYS,locationSchema,type Location,type MappingDefinition,type MappingRecord} from './model';
+import {AssignmentControls,MappingFields} from './controls';
+import {MappingPanel,useCompactMapping} from './panel';
 
-const inputClass='mt-1 min-h-11 w-full min-w-0 rounded-lg border border-[#E3E5E1] bg-white px-3 py-2 text-sm';
-const steps=['Learner / school','Grade table','Optional fields','Review'];
 type Confirmation={kind:'reset'|'reload'}|{kind:'subject'|'period';key:string};
-export function MappingWorkspace({template,initial}:{template:Template;initial:MappingRecord|null}){
-  const [definition,setDefinition]=useState<MappingDefinition>(initial?.mapping_definition??emptyDefinition(template.file_sha256));
-  const [record,setRecord]=useState(initial),[baseline,setBaseline]=useState(JSON.stringify(definition)),[step,setStep]=useState(0);
-  const [selected,setSelected]=useState<Location|null>(null),[rangeMode,setRangeMode]=useState(false),[anchor,setAnchor]=useState<Location|null>(null);
-  const [target,setTarget]=useState('field:learner_name'),[subjectName,setSubjectName]=useState('');
+export function MappingWorkspace({template,initial,compatibility,draft}:{template:Template;initial:MappingRecord|null;compatibility?:ReactNode;draft?:MappingDefinition}){
+  const [definition,setDefinition]=useState<MappingDefinition>(draft??initial?.mapping_definition??emptyDefinition(template.file_sha256));
+  const [record,setRecord]=useState(initial),[baseline,setBaseline]=useState(JSON.stringify(initial?.mapping_definition??emptyDefinition(template.file_sha256)));
+  const [selected,setSelected]=useState<Location|null>(null),[rangeMode,setRangeMode]=useState(false),[anchor,setAnchor]=useState<Location|null>(null),[target,setTarget]=useState('field:learner_name');
   const [review,setReview]=useState<{definition:MappingDefinition;warnings:string[]}|null>(null),[error,setError]=useState(''),[message,setMessage]=useState(''),[pending,setPending]=useState(false),[confirm,setConfirm]=useState<Confirmation|null>(null);
-  const allowNavigation=useRef(false),lock=useRef(false),dirty=JSON.stringify(definition)!==baseline,archived=template.status==='archived',mapped=assignments(definition);
+  const [panelOpen,setPanelOpen]=useState(false),[panelView,setPanelView]=useState<'map'|'mapped'|'review'>('map');
+  const [fullscreen,setFullscreen]=useState(false),workspace=useRef<HTMLDivElement>(null),fullscreenButton=useRef<HTMLButtonElement>(null),fullscreenLock=useRef(false);
+  useEffect(()=>{const changed=()=>{setFullscreen(document.fullscreenElement===workspace.current);fullscreenButton.current?.focus();};document.addEventListener('fullscreenchange',changed);return()=>document.removeEventListener('fullscreenchange',changed);},[]);
+  useEffect(()=>{if(!fullscreen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&!event.defaultPrevented&&!document.fullscreenElement&&!document.querySelector('dialog[open]')){setFullscreen(false);fullscreenButton.current?.focus();}};document.addEventListener('keydown',escape);return()=>{document.body.style.overflow=previous;document.removeEventListener('keydown',escape);};},[fullscreen]);
+  async function toggleFullscreen(){
+    if(fullscreenLock.current)return;fullscreenLock.current=true;
+    try{if(fullscreen){if(document.fullscreenElement===workspace.current)await document.exitFullscreen();setFullscreen(false);}else{setFullscreen(true);try{await workspace.current?.requestFullscreen?.();}catch{/* Keep the expanded in-app view when browser fullscreen is unavailable. */}}}
+    catch{setError('Press Esc to exit full screen.');}finally{fullscreenLock.current=false;}
+  }
+  const compact=useCompactMapping(),more=useRef<HTMLDetailsElement>(null),allowNavigation=useRef(false),lock=useRef(false);
+  const dirty=JSON.stringify(definition)!==baseline,archived=template.status==='archived',mapped=assignments(definition);
   useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{if(allowNavigation.current)return;event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
   function edit(next:MappingDefinition){setDefinition(next);setReview(null);setError('');setMessage('');}
+  function openPanel(view:typeof panelView){setPanelView(view);setPanelOpen(true);}
+  function closeMore(){more.current?.removeAttribute('open');}
   const identity=()=>({templateId:template.id,expectedId:record?.id??null,revision:record?.revision??0});
-  async function run(work:()=>Promise<void>){if(lock.current)return;lock.current=true;setPending(true);setError('');setMessage('');try{await work();}catch{setError('This action could not finish. Check your connection and retry.');}finally{lock.current=false;setPending(false);}}
+  async function run(work:()=>Promise<void>){if(lock.current)return;lock.current=true;setPending(true);setError('');setMessage('');closeMore();try{await work();}catch{setError('Could not finish. Check your connection and retry.');}finally{lock.current=false;setPending(false);}}
   function select(selection:CellSelection){
     const location={sheet:selection.sheetName,address:selection.mergedRange??selection.address};
-    if(rangeMode&&anchor&&anchor.sheet===location.sheet){const a=parseMerge(anchor.address),b=parseMerge(location.address);setSelected({sheet:location.sheet,address:`${cellAddress(Math.min(a.top,b.top),Math.min(a.left,b.left))}:${cellAddress(Math.max(a.bottom,b.bottom),Math.max(a.right,b.right))}`});setAnchor(null);}
-    else {setSelected(location);setAnchor(rangeMode?location:null);}
+    if(rangeMode&&anchor&&anchor.sheet===location.sheet){const a=parseMerge(anchor.address),b=parseMerge(location.address);setSelected({sheet:location.sheet,address:`${cellAddress(Math.min(a.top,b.top),Math.min(a.left,b.left))}:${cellAddress(Math.max(a.bottom,b.bottom),Math.max(a.right,b.right))}`});setAnchor(null);openPanel('map');}
+    else{setSelected(location);setAnchor(rangeMode?location:null);if(!rangeMode)openPanel('map');}
   }
   function assign(){
-    if(!selected||!locationSchema.safeParse(selected).success){setError('Select a cell or enter a valid uppercase A1 range first.');return;}
+    if(!selected||!locationSchema.safeParse(selected).success){setError('Select a cell or enter a valid A1 range.');return;}
     try{parseMerge(selected.address);}catch{setError('Choose a valid cell or rectangular range.');return;}
     const next=structuredClone(definition),[kind,key,output]=target.split(':');
     if(kind==='field'&&FIELD_KEYS.includes(key as typeof FIELD_KEYS[number]))next.fields[key as typeof FIELD_KEYS[number]]={...selected};
-    else {const subject=next.subjects.find(s=>s.key===key);if(!subject){setError('Add and select a subject row first.');return;}if(output==='label')subject.labelLocation={...selected};else if(OUTPUT_KEYS.includes(output as typeof OUTPUT_KEYS[number]))subject.outputs[output as typeof OUTPUT_KEYS[number]]={...selected};else return;}
-    edit(next);setMessage('Location assigned locally. Review and save to keep it.');
+    else{const subject=next.subjects.find(s=>s.key===key);if(!subject){setError('Add a subject first.');return;}if(output==='label')subject.labelLocation={...selected};else if(OUTPUT_KEYS.includes(output as typeof OUTPUT_KEYS[number]))subject.outputs[output as typeof OUTPUT_KEYS[number]]={...selected};else return;}
+    edit(next);setPanelOpen(false);
   }
-  async function reviewNow(){await run(async()=>{const result=await reviewMapping({...identity(),definition});if(!result.ok){setError(result.error);return;}setDefinition(result.data.definition);setReview(result.data);setStep(3);});}
-  async function save(status:'draft'|'reviewed'){if(!review)return;await run(async()=>{const result=await saveMapping({...identity(),definition:review.definition,status});if(!result.ok){setError(result.error);return;}setRecord(result.data);setDefinition(result.data.mapping_definition);setBaseline(JSON.stringify(result.data.mapping_definition));setMessage(status==='draft'?'Draft saved. Reopen this template to continue later.':'Mapping saved. The source workbook is unchanged.');});}
+  async function reviewNow(){await run(async()=>{const result=await reviewMapping({...identity(),definition});if(!result.ok){setError(result.error);return;}setDefinition(result.data.definition);setReview(result.data);openPanel('review');});}
+  async function save(status:'draft'|'reviewed'){
+    await run(async()=>{
+      // Same validation and revision checks; Save no longer requires a wizard step.
+      const checked=review??await reviewMapping({...identity(),definition}).then(result=>{if(!result.ok){setError(result.error);return null;}return result.data;});
+      if(!checked)return;setDefinition(checked.definition);setReview(checked);
+      const result=await saveMapping({...identity(),definition:checked.definition,status});if(!result.ok){setError(result.error);return;}
+      try{sessionStorage.removeItem(`mapping-proposal:${template.id}`);}catch{}setRecord(result.data);setDefinition(result.data.mapping_definition);setBaseline(JSON.stringify(result.data.mapping_definition));setMessage(status==='draft'?'Draft saved.':'Mapping saved.');
+    });
+  }
   async function confirmAction(){if(!confirm)return;
     if(confirm.kind==='reload'){allowNavigation.current=true;window.location.reload();return;}
-    if(confirm.kind==='reset'){await run(async()=>{const result=await resetMapping({...identity(),confirmed:true});if(!result.ok){setError(result.error);return;}const empty=emptyDefinition(template.file_sha256);setDefinition(empty);setBaseline(JSON.stringify(empty));setRecord(null);setReview(null);setStep(0);setMessage('Mapping reset. The source workbook is unchanged.');});}
+    if(confirm.kind==='reset'){await run(async()=>{const result=await resetMapping({...identity(),confirmed:true});if(!result.ok){setError(result.error);return;}const empty=emptyDefinition(template.file_sha256);setDefinition(empty);setBaseline(JSON.stringify(empty));setRecord(null);try{sessionStorage.removeItem(`mapping-proposal:${template.id}`);}catch{}setReview(null);setMessage('Mapping reset.');});}
     else if('key' in confirm){const {key,kind}=confirm,next=structuredClone(definition);if(kind==='subject')next.subjects=next.subjects.filter(s=>s.key!==key);else{next.periods=next.periods.filter(p=>p.key!==key);for(const s of next.subjects)delete s.outputs[key as typeof PERIOD_KEYS[number]];}edit(next);}
     setConfirm(null);
   }
-  const optional=step===2,fields=FIELD_KEYS.filter(k=>optional?['final_average','general_remarks'].includes(k):!['final_average','general_remarks'].includes(k));
-  return <div className="min-w-0 space-y-5">
-    <div className="flex flex-wrap items-center gap-3 text-sm"><span role="status">{dirty?'Unsaved changes':record?`${record.status==='draft'?'Draft':'Reviewed mapping'} · Revision ${record.revision}`:'No saved mapping'}</span><Button variant="secondary" disabled={pending} onClick={()=>setConfirm({kind:'reload'})}>Reopen saved mapping</Button>{record&&<Button variant="ghost" disabled={pending||archived} onClick={()=>setConfirm({kind:'reset'})}>Reset mapping</Button>}</div>
-    {archived&&<p className="tc-group p-4 text-sm">This template is archived. Reactivate it from the workbook page to edit its mapping.</p>}
-    {error&&<p role="alert" className="break-words rounded-lg border border-red-200 bg-white p-4 text-sm text-red-800">{error}</p>}{message&&<p role="status" className="text-sm text-[#1A4D2E]">{message}</p>}
-    <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="min-w-0 space-y-2"><TemplateViewer id={template.id} metadata={template.workbook_metadata} onSelection={select} markers={[...mapped.map(m=>({...m.location,label:m.label})),...(selected?[{...selected,label:'Selected location'}]:[])]}/><p className="text-xs text-[#606861]">Outlined locations are mapped or selected. Hover a mapped cell to see its meaning. Workbook colors are preserved.</p></div>
-      <section aria-label="Mapping controls" className="min-w-0 space-y-4">
-        <nav aria-label="Mapping steps" className="flex flex-wrap gap-1">{steps.map((label,index)=><Button key={label} variant={step===index?'primary':'ghost'} disabled={pending} onClick={()=>{if(index===3){void reviewNow();return;}setStep(index);}}>{index+1}. {label}</Button>)}</nav>
-        <fieldset disabled={pending||archived} className="min-w-0 space-y-4">
-          {step===1&&<div className="tc-group space-y-4 p-4"><h2 className="font-semibold">Output periods</h2><p className="text-xs text-[#606861]">Add only the periods printed on this template. Slot identities stay stable when labels change.</p>
-            {definition.periods.map(p=><div key={p.key} className="flex min-w-0 items-end gap-2"><label className="min-w-0 flex-1 text-sm">{p.key}<input aria-label={`${p.key} label`} className={inputClass} maxLength={120} value={p.label} onChange={e=>edit({...definition,periods:definition.periods.map(x=>x.key===p.key?{...x,label:e.target.value}:x)})}/></label><Button variant="ghost" aria-label={`Remove ${p.key}`} onClick={()=>setConfirm({kind:'period',key:p.key})}>Remove</Button></div>)}
-            <Button variant="secondary" disabled={definition.periods.length>=8} onClick={()=>{const key=PERIOD_KEYS.find(k=>!definition.periods.some(p=>p.key===k));if(key)edit({...definition,periods:[...definition.periods,{key,label:`Period ${key.slice(-1)}`}]});}}>Add period</Button>
-            <h2 className="border-t border-[#E3E5E1] pt-4 font-semibold">Subject rows</h2><p className="text-xs text-[#606861]">Use the labels your report card needs. These rows are reusable across Sections.</p>
-            {definition.subjects.map(s=><div key={s.key} className="space-y-2 rounded-lg border border-[#E3E5E1] p-3"><label className="block text-sm">Subject label<input aria-label={`Subject label ${s.key}`} className={inputClass} maxLength={120} value={s.label} onChange={e=>edit({...definition,subjects:definition.subjects.map(x=>x.key===s.key?{...x,label:e.target.value}:x)})}/></label><div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={()=>setTarget(`subject:${s.key}:label`)}>Map this row</Button><Button variant="ghost" aria-label={`Remove subject ${s.label}`} onClick={()=>setConfirm({kind:'subject',key:s.key})}>Remove</Button></div></div>)}
-            <label className="block text-sm">New subject label<input className={inputClass} maxLength={120} value={subjectName} onChange={e=>setSubjectName(e.target.value)}/></label><Button variant="secondary" disabled={!subjectName.trim()||definition.subjects.length>=60} onClick={()=>{const key=crypto.randomUUID();edit({...definition,subjects:[...definition.subjects,{key,label:subjectName.trim(),outputs:{}}]});setSubjectName('');setTarget(`subject:${key}:label`);}}>Add subject row</Button>
-          </div>}
-          {step!==3&&<div className="tc-group space-y-3 p-4"><h2 className="font-semibold">Assign field</h2><p className="text-xs leading-5 text-[#606861]">Select a location in the workbook, then choose its meaning. Enter locations and labels only; never enter actual learner or LRN values here.</p>
-            <label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={rangeMode} onChange={e=>{setRangeMode(e.target.checked);setAnchor(null);}}/>Select range with two clicks</label>{anchor&&<p className="text-xs">Range starts at {anchor.sheet}!{anchor.address}. Select the opposite corner on the same sheet.</p>}
-            <label className="block text-sm">Selected worksheet<select aria-label="Selected worksheet" className={inputClass} value={selected?.sheet??''} onChange={e=>{setSelected({sheet:e.target.value,address:selected?.address??'A1'});setAnchor(null);}}><option value="" disabled>Select from viewer</option>{template.workbook_metadata.sheets.map(s=><option key={s.index} value={s.name}>{s.name}{s.state!=='visible'?` (${s.state})`:''}</option>)}</select></label>
-            <label className="block text-sm">Cell or range<input className={inputClass} placeholder="C8 or C8:F8" maxLength={24} value={selected?.address??''} onChange={e=>{setSelected({sheet:selected?.sheet??'',address:e.target.value.toUpperCase()});setAnchor(null);}}/></label>
-            <label className="block text-sm">Meaning<select aria-label="Meaning" className={inputClass} value={target} onChange={e=>setTarget(e.target.value)}><optgroup label="Learner and school">{FIELD_KEYS.map(k=><option key={k} value={`field:${k}`}>{FIELD_LABELS[k]}</option>)}</optgroup>{definition.subjects.map(s=><optgroup key={s.key} label={s.label||'Unnamed subject'}><option value={`subject:${s.key}:label`}>{s.label} · Subject label</option>{[...definition.periods.map(p=>({key:p.key,label:p.label})),{key:'final_grade',label:'Final Grade'},{key:'remarks',label:'Remarks'}].map(p=><option key={p.key} value={`subject:${s.key}:${p.key}`}>{s.label} · {p.label}</option>)}</optgroup>)}</select></label>
-            <Button disabled={!selected} onClick={assign}>Assign location</Button><p className="text-xs text-[#606861]">A range reserves one output area anchored at its top-left cell. No workbook values are written.</p>
-          </div>}
-          {(step===0||step===2)&&<div className="tc-group space-y-3 p-4"><h2 className="font-semibold">{optional?'Optional fields':'Learner / school fields'}</h2>{fields.map(key=><div key={key} className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{FIELD_LABELS[key]}</span><Button variant="ghost" onClick={()=>setTarget(`field:${key}`)}>{definition.fields[key]?`${definition.fields[key]!.sheet}!${definition.fields[key]!.address}`:'Choose location'}</Button></div>)}<p className="text-xs text-[#606861]">Every field is optional. Map only what this template contains.</p></div>}
-          <div className="tc-group space-y-3 p-4"><h2 className="font-semibold">{step===3?'Review mapping':'Assigned locations'} ({mapped.length})</h2>{!mapped.length&&<p className="text-sm text-[#606861]">No locations assigned yet.</p>}{mapped.map(m=><div key={m.id} className="border-b border-[#E3E5E1] pb-2 text-sm last:border-0"><p className="break-words font-medium">{m.label}</p><p className="break-all text-[#606861]">{m.location.sheet}!{m.location.address}</p><Button variant="ghost" aria-label={`Clear ${m.label}`} onClick={()=>edit(clearAssignment(definition,m.id))}>Clear</Button></div>)}</div>
-          {step===3&&review&&<div className="tc-group space-y-3 p-4"><h2 className="font-semibold">Periods and subjects</h2><p className="break-words text-sm">{definition.periods.map(p=>p.label).join(' · ')||'No periods defined'}</p><p className="break-words text-sm">{definition.subjects.map(s=>s.label).join(' · ')||'No subjects defined'}</p>{review.warnings.length>0&&<div className="space-y-2 text-sm text-[#606861]"><h3 className="font-medium">Optional omissions</h3>{review.warnings.map(w=><p key={w}>{w}</p>)}</div>}<p className="text-xs text-[#606861]">Validation checks locations and consistency. Section compatibility and report-card generation come later.</p><div className="flex flex-wrap gap-2"><Button onClick={()=>void save('reviewed')}>Save mapping</Button><Button variant="secondary" onClick={()=>void save('draft')}>Save draft</Button></div></div>}
-          {(step!==3||!review)&&<Button onClick={()=>void reviewNow()}>Review mapping</Button>}
-        </fieldset>{pending&&<p role="status" className="text-sm text-[#4F6F52]">Checking mapping…</p>}
+  return <div ref={workspace} className="flex min-h-0 flex-1 flex-col gap-3" data-mapping-workspace data-mapping-fullscreen={fullscreen?'true':undefined}>
+    <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white p-3">
+      <Link href={`/report-cards/templates/${template.id}`} className="tc-button tc-quiet px-2" aria-label="Back to workbook"><ArrowLeft size={18}/></Link>
+      <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0"><h1 className="truncate !text-lg" title={template.name}>{template.name}</h1><p role="status" className="text-xs text-[#606861]">{mapped.length} mapped · {dirty?'Unsaved changes':record?`${record.status==='draft'?'Draft':'Reviewed'} · Revision ${record.revision}`:'Not saved'}</p></div>
+      <Button className="ml-auto" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
+      <button type="button" ref={fullscreenButton} className="tc-button tc-secondary" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} aria-hidden/>:<Maximize size={17} aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
+      <details ref={more} className="relative" onKeyDown={e=>{if(e.key==='Escape')closeMore();}}><summary aria-label="More mapping actions" className="tc-button tc-quiet list-none px-2"><MoreHorizontal size={20}/></summary>
+        <div className="tc-floating absolute right-0 top-full z-40 mt-2 max-h-[65dvh] w-64 overflow-auto bg-white p-2">
+          <Button className="w-full justify-start" variant="ghost" disabled={pending||archived} onClick={()=>void reviewNow()}>Review</Button>
+          <Button className="w-full justify-start" variant="ghost" disabled={pending||archived} onClick={()=>void save('draft')}>Save draft</Button>
+          <Button className="w-full justify-start" variant="ghost" disabled={pending} onClick={()=>{closeMore();setConfirm({kind:'reload'});}}>Reopen saved mapping</Button>
+          {record&&<Button className="w-full justify-start text-red-800" variant="ghost" disabled={pending||archived} onClick={()=>{closeMore();setConfirm({kind:'reset'});}}>Reset mapping</Button>}
+          {compatibility&&<details className="px-2"><summary className="flex cursor-pointer items-center text-sm">Template details</summary>{compatibility}</details>}
+        </div>
+      </details>
+    </header>
+    {archived&&<p className="shrink-0 text-sm">Archived template · Read-only</p>}
+    {error&&!(compact&&panelOpen)&&<p role="alert" className="max-h-24 shrink-0 overflow-auto rounded-lg bg-white p-3 text-sm text-red-800">{error}</p>}
+    {message&&<p role="status" className="shrink-0 text-sm text-[#1A4D2E]">{message}</p>}
+    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section aria-label="Workbook" className="flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border border-[#E3E5E1] bg-white p-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs"><span>{anchor?'Select range end':selected?`${selected.sheet}!${selected.address}`:'Select a cell'}</span><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={rangeMode} onChange={e=>{setRangeMode(e.target.checked);setAnchor(null);}}/>Select range with two clicks</label></div>
+        <TemplateViewer workspace id={template.id} metadata={template.workbook_metadata} onSelection={select} markers={[...mapped.map(m=>({...m.location,label:m.label})),...(selected?[{...selected,label:'Selected location'}]:[])]}/>
+        <div className="flex shrink-0 gap-2 lg:hidden"><Button variant="secondary" className="flex-1" onClick={()=>openPanel('map')}>Map</Button><Button variant="ghost" className="flex-1" onClick={()=>openPanel('mapped')}>View mappings</Button></div>
       </section>
+      <MappingPanel compact={compact} open={panelOpen} onClose={()=>setPanelOpen(false)}>
+        {compact&&error&&<p role="alert" className="max-h-24 shrink-0 overflow-auto p-3 text-sm text-red-800">{error}</p>}
+        {(!compact||panelView==='map')&&<AssignmentControls template={template} definition={definition} selected={selected} onLocation={location=>{setSelected(location);setAnchor(null);}} target={target} onTarget={setTarget} onAssign={assign} disabled={pending||archived}/>}
+        {compact&&panelView==='map'?<Button variant="ghost" onClick={()=>setPanelView('mapped')}>View mappings</Button>:<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3" tabIndex={0} aria-label="Mapped fields" role="region">
+          {review&&panelView==='review'&&<section className="mb-4 space-y-2 rounded-lg bg-[#F4F7F4] p-3 text-sm"><h2 className="!text-base">Review</h2><p>{mapped.length} mapped · {definition.periods.length} periods · {definition.subjects.length} subjects</p>{review.warnings.length?<details><summary className="cursor-pointer py-2">{review.warnings.length} optional omissions</summary><ul className="space-y-2">{review.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>:<p>Ready to save</p>}</section>}
+          <MappingFields definition={definition} disabled={pending||archived} onEdit={edit} onPick={(id,location)=>{setTarget(id);if(location)setSelected(location);openPanel('map');}} onRemove={(kind,key)=>setConfirm({kind,key})}/>
+        </div>}
+      </MappingPanel>
     </div>
-    <ConfirmDialog open={confirm!==null} title={confirm?.kind==='reload'?'Reopen saved mapping?':confirm?.kind==='reset'?'Reset entire mapping?':'Remove this mapping item?'} description={confirm?.kind==='reload'?'Unsaved changes will be discarded.':confirm?.kind==='reset'?'This deletes the saved mapping and discards local changes. The original workbook is preserved.':'This clears this item and its assigned output locations from your local draft. Save explicitly to keep the change.'} confirmLabel={confirm?.kind==='reload'?'Reopen':confirm?.kind==='reset'?'Reset mapping':'Remove item'} destructive={confirm?.kind!=='reload'} pending={pending} onCancel={()=>setConfirm(null)} onConfirm={()=>void confirmAction()}/>
+    <ConfirmDialog open={confirm!==null} title={confirm?.kind==='reload'?'Reopen saved mapping?':confirm?.kind==='reset'?'Reset entire mapping?':'Remove this mapping item?'} description={confirm?.kind==='reload'?'Discard unsaved changes?':confirm?.kind==='reset'?'Delete this mapping? The original workbook stays unchanged.':'Remove this item and its mapped locations? Save to keep the change.'} confirmLabel={confirm?.kind==='reload'?'Reopen':confirm?.kind==='reset'?'Reset mapping':'Remove item'} destructive={confirm?.kind!=='reload'} pending={pending} onCancel={()=>setConfirm(null)} onConfirm={()=>void confirmAction()}/>
   </div>;
 }

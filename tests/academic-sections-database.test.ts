@@ -49,6 +49,18 @@ async function snapshot(cid: string) {
 }
 
 describe('complete migration chain and academic Sections', () => {
+  it('links equivalent school-year formatting without rewriting either record or weakening context guards', async () => {
+    const teacher=await owner(),sid=await section(teacher),cid=await classroom(teacher);
+    for(const year of ['2026–2027','2026 — 2027',' 2026\u00a0-\u00a02027 ','SY 2026–2027','S.Y. 2026-2027','School Year 2026/2027']) {
+      await db.query('update classes set section_id=null,school_year=$1 where id=$2',[year,cid]);
+      await role(teacher,async()=>{await db.query('update classes set section_id=$1 where id=$2',[sid,cid]);});
+      expect((await db.query<{school_year:string}>('select school_year from classes where id=$1',[cid])).rows[0].school_year).toBe(year);
+    }
+    await expect(db.query("update classes set school_year='2025-2026' where id=$1",[cid])).rejects.toThrow();
+    await expect(db.query("update sections set school_year='2027-2028' where id=$1",[sid])).rejects.toThrow();
+    await expect(db.query("update classes set grade_level='Grade 7' where id=$1",[cid])).rejects.toThrow();
+    await expect(db.query("update classes set school_id='456' where id=$1",[cid])).rejects.toThrow();
+  });
   it('validates the rollback-only remote smoke script locally', async () => {
     await db.exec(readFileSync('tests/sql/academic-sections-smoke.sql', 'utf8'));
   });

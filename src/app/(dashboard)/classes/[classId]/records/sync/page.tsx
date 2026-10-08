@@ -20,7 +20,7 @@ export default async function RecordSyncPage({ params, searchParams }: { params:
     if (requested.ok) focusedVersion = requested.data;
     else versionError = requested.error;
   }
-  return <div className="mx-auto max-w-4xl space-y-6">
+  return <div className="min-w-0 w-full space-y-6">
     <Link href={`/classes/${classId}/records`} className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]"><ArrowLeft size={16} />Back to class records</Link>
     <div><p className="text-sm font-medium text-[#4F6F52]">{classroom.name} · Class record sync</p><h1 className="mt-1 text-3xl font-bold">Keep your class record up to date</h1><p className="mt-2 text-[#606861]">Keep working in Excel. Upload your updated record, review what changed, then save it to TeacherCo.</p></div>
     {versionError && <p role="status" className="text-sm text-[#606861]">{versionError}</p>}

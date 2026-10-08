@@ -6,12 +6,13 @@ import {parseWorkbook} from '@/features/report-card-templates/workbook';
 import {parseMerge} from '@/features/report-card-templates/model';
 import {assignments,validateDefinition,type MappingDefinition} from '@/features/report-card-mappings/model';
 import type {OutputValue} from './model';
+import {packageManifest,sha256,validateOutput} from './output-validation';
 
 type Node={name:string;local:string;attrs:Record<string,string>;start:number;openEnd:number;closeStart:number;end:number;self:boolean;children:Node[]};
 function tree(source:string){
   const options={xmlns:true,position:true,strictEntities:true};const p=parser(true,options),stack:Node[]=[];let root:Node|undefined;
   p.onopentag=t=>{const n:Node={name:t.name,local:('local' in t?t.local:t.name),attrs:Object.fromEntries(Object.entries(t.attributes).map(([k,v])=>[k,typeof v==='string'?v:v.value])),start:p.startTagPosition-1,openEnd:p.position,closeStart:p.position,end:p.position,self:t.isSelfClosing,children:[]};if(stack.length)stack.at(-1)!.children.push(n);else root=n;stack.push(n);};
-  p.onclosetag=()=>{const n=stack.pop()!;n.end=p.position;n.closeStart=n.self?n.openEnd:source.lastIndexOf('</',p.position);};
+  p.onclosetag=()=>{const n=stack.pop()!;n.end=p.position;n.closeStart=n.self?n.openEnd:source.lastIndexOf('</',p.position-1);};
   p.write(source).close();if(!root)throw new Error('Worksheet XML is unavailable.');return root;
 }
 const prefix=(n:Node)=>n.name.includes(':')?n.name.split(':')[0]+':':'';
@@ -47,20 +48,29 @@ function patchSheet(source:string,root:Node,values:OutputValue[]){
   if(data.self){const contents=[...insertions.values()].flat().join('');return edits(source,[{start:data.start,end:data.end,text:source.slice(data.start,data.openEnd).replace(/\s*\/>$/,'>')+contents+`</${data.name}>`}]);}
   for(const [at,parts]of insertions)changes.push({start:at,end:at,text:parts.join('')});return edits(source,changes);
 }
+function checkCoordinates(root:Node){
+  const data=root.children.find(n=>n.local==='sheetData');if(!data)throw new Error('This worksheet has no supported cell data area.');let previousRow=0;
+  for(const row of data.children.filter(n=>n.local==='row')){const index=Number(row.attrs.r);if(!Number.isInteger(index)||index<=previousRow)throw new Error('Generation requires explicit, ordered worksheet row coordinates.');previousRow=index;let previousColumn=0;
+    for(const c of row.children.filter(n=>n.local==='c')){if(!/^[A-Z]+[1-9]\d*$/.test(c.attrs.r??''))throw new Error('Generation requires explicit worksheet cell coordinates.');const cell=parseMerge(c.attrs.r);if(cell.top!==index||cell.left<=previousColumn)throw new Error('Generation requires ordered worksheet cell coordinates.');previousColumn=cell.left;}
+  }
+}
 
 /** Validates the original package; only targeted worksheet cell spans are replaced. */
-export async function prepareWriter(bytes:Buffer,input:MappingDefinition,hash:string){
-  const structure=await parseWorkbook(bytes),definition=validateDefinition(input,hash,structure),targets=assignments(definition);
-  if(!targets.length)throw new Error('Map at least one output before generation.');
+export async function prepareWriter(bytes:Buffer,input:MappingDefinition,hash:string,allowUnmapped=false){
+  const started=performance.now(),structure=await parseWorkbook(bytes),parsedAt=performance.now(),definition=validateDefinition(input,hash,structure),targets=assignments(definition),mappedAt=performance.now();
+  if(sha256(bytes)!==hash)throw new Error('The template source changed. Reopen the template before generating.');
+  if(!targets.length&&!allowUnmapped)throw new Error('Map at least one output before generation.');
   const pkg=await openPackage(bytes),sheets=new Map<string,{path:string;source:string;root:Node;utf16:boolean;bom:boolean}>(),formulaTargets:string[]=[];
+  const sourceZip=await JSZip.loadAsync(bytes),manifest=await packageManifest(sourceZip);
   try{
     if(pkg.names.some(n=>n.startsWith('_xmlsignatures/')))throw new Error('Digitally signed templates cannot be generated safely. Use an unsigned template copy.');
     const office=relationships(await pkg.text('_rels/.rels')).find(r=>r.type.endsWith('/officeDocument'))!;
     const workbook=partPath('',office.target),rels=relationships(await pkg.text(relsPath(workbook))),paths=new Map<string,string>();
     xml(await pkg.text(workbook),'workbook',{open:(name,a)=>{if(name==='sheet'){const r=rels.find(r=>r.id===a['r:id']);if(r&&!r.external)paths.set(a.name,partPath(workbook,r.target));}}});
-    const zip=await JSZip.loadAsync(bytes);
-    for(const name of new Set(targets.map(t=>t.location.sheet))){
+    const zip=sourceZip;
+    for(const name of new Set(allowUnmapped?structure.worksheetNames:targets.map(t=>t.location.sheet))){
       const path=paths.get(name);if(!path)throw new Error('Mapped worksheet is unavailable.');const source=await pkg.text(path),root=tree(source),raw=await zip.file(path)!.async('nodebuffer');
+      checkCoordinates(root);
       sheets.set(name,{path,source,root,utf16:raw[0]===255&&raw[1]===254,bom:raw[0]===239&&raw[1]===187&&raw[2]===191});
       const mapped=targets.filter(t=>t.location.sheet===name).map(t=>parseMerge(t.location.address).master);
       const data=root.children.find(n=>n.local==='sheetData');
@@ -73,11 +83,15 @@ export async function prepareWriter(bytes:Buffer,input:MappingDefinition,hash:st
       }
     }
   }finally{pkg.close();}
-  return {definition,formulaTargets,write:async(values:OutputValue[],replaceFormulas=false)=>{
+  const metrics={sourceParseMs:parsedAt-started,mappingValidationMs:mappedAt-parsedAt,prepareMs:performance.now()-started,writeMs:0,outputValidationMs:0};
+  const paths=new Map([...sheets].map(([name,s])=>[name,s.path]));
+  return {definition,formulaTargets,metrics,write:async(values:OutputValue[],replaceFormulas=false)=>{
+    const started=performance.now();
     if(formulaTargets.length&&!replaceFormulas)throw new Error('Confirm replacement of mapped Excel formulas before generating.');
     if(values.length!==targets.length||targets.some(t=>!values.some(v=>v.id===t.id&&v.location.sheet===t.location.sheet&&v.location.address===t.location.address)))throw new Error('Output values do not match the reviewed mapping.');
-    const zip=await JSZip.loadAsync(bytes);
-    for(const [name,s]of sheets){const output=patchSheet(s.source,s.root,values.filter(v=>v.location.sheet===name));zip.file(s.path,s.utf16?Buffer.concat([Buffer.from([255,254]),Buffer.from(output,'utf16le')]):Buffer.concat([s.bom?Buffer.from([239,187,191]):Buffer.alloc(0),Buffer.from(output,'utf8')]));}
-    return zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:6}});
+    const zip=new JSZip() as JSZip & {comment:string|null};zip.comment=(sourceZip as JSZip & {comment?:string}).comment??null;zip.files=Object.assign(Object.create(null),sourceZip.files);
+    for(const [name,s]of sheets){const output=patchSheet(s.source,s.root,values.filter(v=>v.location.sheet===name));zip.file(s.path,s.utf16?Buffer.concat([Buffer.from([255,254]),Buffer.from(output,'utf16le')]):Buffer.concat([s.bom?Buffer.from([239,187,191]):Buffer.alloc(0),Buffer.from(output,'utf8')]),{createFolders:false});}
+    const output=await zip.generateAsync({type:'nodebuffer',compression:'DEFLATE',compressionOptions:{level:6}}),writtenAt=performance.now();
+    await validateOutput(output,bytes,hash,manifest,paths,values);metrics.writeMs+=writtenAt-started;metrics.outputValidationMs+=performance.now()-writtenAt;return output;
   }};
 }

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, FileUp, History, Loader2, Search, ShieldCheck, UploadCloud } from "lucide-react";
+import { CheckCircle2, FileUp, History, Loader2, Search, ShieldCheck } from "lucide-react";
+import { FileUpload } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -236,7 +237,6 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [dragging, setDragging] = useState(false);
   const [versions, setVersions] = useState(initialVersions);
   const [moreVersions, setMoreVersions] = useState(initialVersions.length === 50);
   const [versionError, setVersionError] = useState(historyError ?? "");
@@ -256,22 +256,14 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
     if (detail instanceof HTMLDetailsElement) { detail.open = true; detail.scrollIntoView?.({ block: "start" }); }
   }, [initialOpenVersion]);
 
-  // A file dropped just outside the box would make the browser open or download it and lose this page.
-  useEffect(() => {
-    const stop = (e: DragEvent) => { if (e.dataTransfer?.types.includes("Files")) e.preventDefault(); };
-    window.addEventListener("dragover", stop);
-    window.addEventListener("drop", stop);
-    return () => { window.removeEventListener("dragover", stop); window.removeEventListener("drop", stop); };
-  }, []);
-
-  function pickFiles(files?: FileList | null) {
+  function pickFiles(files?: FileList | File[] | null) {
     const list = files ? Array.from(files) : [];
     if (!list.length) return;
     if (list.length > 1) { setError("Drop one workbook at a time."); return; }
     if (!list[0].name.toLowerCase().endsWith(".xlsx")) { setError("Please choose an .xlsx workbook."); return; }
     void compare(list[0]);
   }
-  const hasFiles = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
+
 
   async function loadOlderVersions() {
     if (lock.current || !versions.length) return;
@@ -347,26 +339,7 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
   return <div className="space-y-6" aria-busy={Boolean(busy)}>
     <Card className="space-y-4 p-5 sm:p-6">
       <div className="flex items-start gap-3"><FileUp className="mt-1 shrink-0 text-[#4F6F52]" /><div><h2 className="text-lg font-semibold">Upload the updated Excel record</h2><p className="mt-1 text-sm text-[#606861]">Compare against {className}. Check the learner list and all changes before saving. Your workbook stays on this device; only recognized record data is sent.</p></div></div>
-      <label
-        onDragEnter={e => { if (disabled || !hasFiles(e)) return; e.preventDefault(); setDragging(true); }}
-        onDragOver={e => { if (disabled || !hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
-        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false); }}
-        onDrop={e => { e.preventDefault(); setDragging(false); if (!disabled) pickFiles(e.dataTransfer.files); }}
-        className={cn(
-          "flex flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition",
-          disabled ? "cursor-not-allowed border-[#E3E5E1] bg-[#F7F9F6] opacity-50"
-            : dragging ? "cursor-copy border-[#1A4D2E] bg-[#EAF0EA]"
-            : "cursor-pointer border-[#C9D3C9] bg-[#F7F9F6] hover:bg-[#EAF0EA]",
-        )}
-      >
-        <UploadCloud size={32} className="mb-1 text-[#4F6F52]" aria-hidden />
-        <span className="text-base font-semibold text-[#1A4D2E]">
-          <span className="sm:hidden">Choose your Excel file</span>
-          <span className="hidden sm:inline">{dragging ? "Drop it here" : "Drop your Excel file here"}</span>
-        </span>
-        <span className="text-sm text-[#606861]"><span className="hidden sm:inline">or click to choose a file · </span>.xlsx only</span>
-        <input type="file" aria-label="Updated class record" accept=".xlsx" disabled={disabled} className="sr-only" onChange={e => { const files = e.currentTarget.files; pickFiles(files); e.currentTarget.value = ""; }} />
-      </label>
+      <FileUpload label="Updated class record" title="Drag and drop your updated class record here" description=".xlsx files. Review changes before saving." disabled={disabled} onFiles={pickFiles}/>
       <p className="flex items-start gap-2 text-sm text-[#606861]"><ShieldCheck size={18} className="shrink-0" />Blank cells and absent learners are kept, never automatically deleted. Typed and checked activities stay protected.</p>
     </Card>
     {busy && <p role="status" className="flex items-center gap-2 rounded-xl bg-[#EAF0EA] p-4 text-sm text-[#1A4D2E]"><Loader2 size={18} className="animate-spin" />{busy}</p>}

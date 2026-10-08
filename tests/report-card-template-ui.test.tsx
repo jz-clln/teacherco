@@ -22,3 +22,14 @@ it('renders a parsed protected workbook as selectable read-only cells',async()=>
   expect(parsed.sheet(0).cells[0].displayValue).toBe('Protected template label');
   expect(bytes.equals(original)).toBe(true);
 });
+it('scales cell geometry without changing coordinates, preserves fonts and stops overflow at occupied cells',()=>{
+  const p:SheetPreview={...preview,rowStart:1,columnStart:1,rows:[{number:1,height:12,hidden:false}],columns:[1,2,3].map((number)=>({number,letter:String.fromCharCode(64+number),width:50,hidden:false})),merges:[],cells:[{address:'A1',row:1,column:1,type:'text',displayValue:'Long heading',style:{fontFamily:'Bookman Old Style',fontSize:16}},{address:'B1',row:1,column:2,type:'blank',displayValue:''},{address:'C1',row:1,column:3,type:'text',displayValue:'Occupied'}]};
+  const onSelect=vi.fn(),{container,rerender}=render(<WorkbookGrid preview={p} zoom={50} onSelect={onSelect}/>);
+  const a=screen.getByRole('button',{name:'A1: Long heading'});expect(a.style.minHeight).toBe('0px');expect(a.parentElement?.style.fontFamily).toContain('Poppins');expect(a.parentElement?.style.fontSize).toBe('8px');expect(a.querySelector('span')?.style.width).toBe('50px');expect(container.querySelector('tbody tr')).toHaveStyle({height:'6px'});
+  fireEvent.keyDown(a,{key:'ArrowRight'});expect(screen.getByRole('button',{name:'B1: Blank'})).toHaveFocus();expect(onSelect.mock.calls.at(-1)?.[0].address).toBe('B1');
+  rerender(<WorkbookGrid preview={p} zoom={200} onSelect={onSelect}/>);expect(container.querySelector('tbody tr')).toHaveStyle({height:'24px'});expect(a.parentElement?.style.fontSize).toBe('32px');expect(a).toHaveAttribute('data-cell','A1');
+});
+it('arrow navigation skips the whole merged range',()=>{
+  const navigate=vi.fn();render(<WorkbookGrid preview={{...preview,summary:{...preview.summary,columnExtent:8}}} onSelect={()=>{}} onNavigate={navigate}/>);
+  fireEvent.keyDown(screen.getByRole('button'),{key:'ArrowRight'});expect(navigate).toHaveBeenCalledWith(8,7);
+});

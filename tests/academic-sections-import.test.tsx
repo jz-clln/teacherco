@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ details: vi.fn(), learners: vi.fn(), grades: vi.fn(), push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }));
-vi.mock('@/features/classes/details-actions', () => ({ updateClassDetails: mocks.details }));
+vi.mock('@/features/classes/details-actions', () => ({ loadClassSubjectOptions: vi.fn().mockResolvedValue({ok:true,data:['Mathematics','Calculus']}), updateClassDetails: mocks.details }));
 vi.mock('@/features/learners/import-actions', () => ({ findSimilarLearners: async () => ({ ok: true, matches: {} }), importLearners: mocks.learners }));
 vi.mock('@/features/learners/grade-actions', () => ({ importGrades: mocks.grades }));
 vi.mock('@/lib/excel/parser', () => {

@@ -52,7 +52,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ r
 
   return (
     <div className="space-y-6">
-      <Link href="/reports" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52] hover:underline">
+      <Link href="/reports" className="tc-button tc-quiet inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]">
         <ArrowLeft size={16} /> All reports
       </Link>
 

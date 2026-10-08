@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 // Minimal typing for the browser Web Speech API (not in lib.dom for all targets).
 interface SpeechResultLike { isFinal: boolean; 0: { transcript: string } }
@@ -18,10 +18,12 @@ interface RecognitionLike {
 type RecognitionCtor = new () => RecognitionLike;
 
 export type DictationLang = "en-PH" | "fil-PH";
+const subscribeSupport=()=>()=>{};
+const browserSupport=()=>{const w=window as unknown as {SpeechRecognition?:RecognitionCtor;webkitSpeechRecognition?:RecognitionCtor};return Boolean(w.SpeechRecognition??w.webkitSpeechRecognition);};
 
 /** Voice input for the answer key. Chrome and Edge only. Sends the audio to the browser vendor. */
 export function useDictation(lang: DictationLang, onFinalText: (text: string) => void) {
-  const [supported, setSupported] = useState(false);
+  const supported = useSyncExternalStore(subscribeSupport,browserSupport,()=>false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +35,6 @@ export function useDictation(lang: DictationLang, onFinalText: (text: string) =>
   }, [onFinalText]);
 
   useEffect(() => {
-    const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
-    setSupported(Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition));
     return () => recRef.current?.stop();
   }, []);
 

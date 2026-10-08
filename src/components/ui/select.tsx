@@ -81,7 +81,7 @@ export function Select({
 
   // Keep the highlighted option in view.
   useEffect(() => {
-    if (open) document.getElementById(`${id}-${active}`)?.scrollIntoView({ block: "nearest" });
+    if (open) document.getElementById(`${id}-${active}`)?.scrollIntoView?.({ block: "nearest" });
   }, [open, active, id]);
 
   function openList() {
@@ -92,6 +92,7 @@ export function Select({
   }
 
   function choose(item: Item) {
+    if (disabled) return;
     if (item.value === OTHER) {
       setCustom(true);
       setValue("");
@@ -124,7 +125,7 @@ export function Select({
       case "Enter":
       case " ":
         e.preventDefault();
-        if (open) choose(items[active]);
+        if (open && items[active]) choose(items[active]);
         else openList();
         break;
       case "Escape":
@@ -172,6 +173,7 @@ export function Select({
             }}
             placeholder={customPlaceholder}
             required={required}
+            disabled={disabled}
             autoFocus
             autoComplete="off"
             aria-labelledby={`${id}-label`}
@@ -196,7 +198,8 @@ export function Select({
             type="button"
             role="combobox"
             aria-haspopup="listbox"
-            aria-expanded={open}
+            aria-expanded={open && !disabled}
+            aria-required={required || undefined}
             aria-controls={`${id}-list`}
             aria-labelledby={`${id}-label`}
             aria-activedescendant={open ? `${id}-${active}` : undefined}
@@ -223,12 +226,13 @@ export function Select({
             value={value}
             onChange={() => {}}
             required={required}
+            disabled={disabled}
             tabIndex={-1}
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
           />
 
-          {open ? (
+          {open && !disabled ? (
             <ul
               id={`${id}-list`}
               role="listbox"
@@ -240,6 +244,7 @@ export function Select({
                   key={item.value || "__empty__"}
                   id={`${id}-${i}`}
                   role="option"
+                  data-value={item.value}
                   aria-selected={item.value === value}
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => e.preventDefault()}

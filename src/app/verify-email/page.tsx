@@ -10,6 +10,6 @@ export default async function VerifyEmailPage() {
   if (context?.user.email_confirmed_at) redirect(accessDestination(true, context.profile));
   return <AccessCard title="Check your email" description="Open the TeacherCo confirmation email and verify your address. Then sign in to enter your invite code.">
     <p className="text-sm text-[#606861]">Check your spam folder if the message has not arrived.</p>
-    <Link href="/login" className="mt-5 inline-block font-semibold text-[#1A4D2E] hover:underline">Return to sign in</Link>
+    <Link href="/login" className="tc-button tc-quiet mt-5 inline-block font-semibold text-[#1A4D2E]">Return to sign in</Link>
   </AccessCard>;
 }

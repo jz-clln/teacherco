@@ -7,7 +7,12 @@ import type {Template} from '@/features/report-card-templates/model';
 
 export const MAX_BULK_LEARNERS=50;
 export const MAX_DOWNLOAD_BYTES=3*1024*1024;
-export const MAX_ARCHIVE_INPUT_BYTES=12*1024*1024;
+export const MAX_SOURCE_BYTES=10*1024*1024;
+export const MAX_WORKBOOK_BYTES=12*1024*1024;
+export const MAX_ARCHIVE_INPUT_BYTES=48*1024*1024;
+export const MAX_OUTPUT_BYTES=50*1024*1024;
+export const ephemeralLrnSchema=z.record(z.uuid(),z.string().regex(/^\d{12}$/)).refine(v=>Object.keys(v).length<=50);
+export type EphemeralLrn=z.infer<typeof ephemeralLrnSchema>;
 export const bindingsSchema=z.object({periodBindings:z.record(z.string().regex(/^period_[1-8]$/),z.uuid()),subjectBindings:z.record(z.uuid(),z.uuid())}).strict();
 export type Bindings=z.infer<typeof bindingsSchema>;
 export type GenerationProfile={id:string;teacher_id:string;section_id:string;template_id:string;mapping_id:string;mapping_revision:number;template_sha256:string;bindings:Bindings;revision:number;created_at:string;updated_at:string};
@@ -29,10 +34,10 @@ export function verifyProfile(snapshot:GenerationSnapshot){
   if(p.section_id!==snapshot.section.id||p.template_id!==t.id||p.mapping_id!==m.id||p.mapping_revision!==m.revision||p.template_sha256!==t.file_sha256)throw new Error('Template mapping or source changed. Configure compatibility and review again.');
   validateBindings(p.bindings,m.mapping_definition,snapshot.periods,snapshot.subjects);return p;
 }
-export function valuesForLearner(snapshot:GenerationSnapshot,definition:MappingDefinition,learner:GenerationLearner):OutputValue[]{
+export function valuesForLearner(snapshot:GenerationSnapshot,definition:MappingDefinition,learner:GenerationLearner,lrns:EphemeralLrn={}):OutputValue[]{
   const profile=verifyProfile(snapshot),section=snapshot.section;
   if(!snapshot.learners.some(l=>l.id===learner.id))throw new Error('This learner is not active in the Section.');
-  const scalars:Record<string,string|null>={learner_name:learner.display_name,grade_level:section.grade_level,section_name:section.name,school_year:section.school_year,school_name:section.school_name,school_id:section.school_id,adviser_name:section.is_adviser?snapshot.adviserName:null,lrn:null,final_average:null,general_remarks:null};
+  const scalars:Record<string,string|null>={learner_name:learner.display_name,grade_level:section.grade_level,section_name:section.name,school_year:section.school_year,school_name:section.school_name,school_id:section.school_id,adviser_name:section.is_adviser?snapshot.adviserName:null,lrn:definition.fields.lrn?lrns[learner.id]??null:null,final_average:null,general_remarks:null};
   const grades=new Map(snapshot.entries.filter(e=>e.learner_id===learner.id).map(e=>[`${e.section_subject_id}:${e.period_id}`,e.grade]));
   return assignments(definition).map(a=>{
     const [kind,key,output]=a.id.split(':');let value:string|number|null=null;
@@ -44,3 +49,15 @@ export function valuesForLearner(snapshot:GenerationSnapshot,definition:MappingD
   });
 }
 export function safeFilename(value:string){return Array.from(value.normalize('NFC').replace(/[^\p{L}\p{N}\-_. ]/gu,'-').replace(/[ ._-]+/g,'-').replace(/^-+|-+$/g,'')).slice(0,80).join('')||'Report-Card';}
+export function outputStatus(v:OutputValue):'Available'|'Missing'|'Optional'|'Unsupported'{
+  if(v.value!==null)return 'Available';
+  if(v.id==='field:lrn')return 'Missing';
+  if(/:(final_average|general_remarks|final_grade|remarks)$/.test(v.id))return 'Unsupported';
+  if(/^field:(school_name|school_id|adviser_name)$/.test(v.id))return 'Optional';
+  return 'Missing';
+}
+export function learnerBatches(total:number,sourceSize:number){
+  // Reserve headroom for the written values; source compression may vary.
+  const size=Math.max(1,Math.min(MAX_BULK_LEARNERS,Math.floor(MAX_ARCHIVE_INPUT_BYTES/(sourceSize+128*1024))));
+  return Array.from({length:Math.ceil(total/size)},(_,i)=>({start:i*size,count:Math.min(size,total-i*size),label:`Learners ${i*size+1}–${Math.min(total,(i+1)*size)}`}));
+}

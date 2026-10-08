@@ -1,3 +1,4 @@
+import {chooseOption} from './helpers/custom-select-browser.mjs';
 // Opt-in browser/remote smoke. All writes belong to one temporary auth account.
 import { strict as assert } from 'node:assert';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -23,8 +24,8 @@ try {
   await checked(admin.from('profiles').update({ access_status: 'active', onboarding_completed: true }).eq('id', userId), 'profile');
   const math = randomUUID(), science = randomUUID(), incompatible = randomUUID(), anaA = randomUUID(), anaB = randomUUID(), ben = randomUUID(), assessment = randomUUID();
   await checked(admin.from('classes').insert([
-    { id: math, teacher_id: userId, name: 'Mathematics class with a longer descriptive classroom name', subject: 'Mathematics', grade_level: 'Grade 8', school_year: '2026-2027', school_id: '123' },
-    { id: science, teacher_id: userId, name: 'Science class', subject: 'Science', grade_level: 'Grade 8', school_year: '2026-2027', school_id: '123' },
+    { id: math, teacher_id: userId, name: 'Mathematics class with a longer descriptive classroom name', subject: 'Mathematics', grade_level: 'Grade 8', school_year: '2026–2027', school_id: '123' },
+    { id: science, teacher_id: userId, name: 'Science class', subject: 'Science', grade_level: 'Grade 8', school_year: 'SY 2026–2027', school_id: '123' },
     { id: incompatible, teacher_id: userId, name: 'Different grade', subject: 'English', grade_level: 'Grade 9', school_year: '2026-2027', school_id: '123' },
   ]), 'classes');
   await checked(admin.from('learners').insert([{ id: anaA, teacher_id: userId, first_name: 'Ana', last_name: 'Cruz', display_name: 'Ana Cruz' }, { id: anaB, teacher_id: userId, first_name: 'Ana', last_name: 'Cruz', display_name: 'Ana Cruz' }, { id: ben, teacher_id: userId, first_name: 'Ben', last_name: 'De los Santos with a long family name', display_name: 'Ben De los Santos with a long family name' }]), 'learners');
@@ -101,7 +102,7 @@ try {
   await linkClass('Science');
   await visit(sectionPath + '/learners/add');
   await page.getByRole('button', { name: 'Add from linked class', exact: true }).click();
-  await page.getByLabel('Choose linked class', { exact: true }).selectOption(science);
+  await chooseOption(page.getByLabel('Choose linked class', { exact: true }),science);
   await page.getByRole('button', { name: 'Load learners', exact: true }).click();
   await page.getByRole('listitem').filter({ hasText: 'Ana Cruz' }).getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Add selected (1)', exact: true }).click(); await confirm('Add learners');
@@ -119,7 +120,7 @@ try {
   await page.getByLabel('Show inactive learners', { exact: true }).check();
   await zoe.getByRole('button', { name: 'Reactivate', exact: true }).click(); await confirm('Reactivate');
   await expect(zoe.getByRole('button', { name: 'Remove', exact: true })).toBeVisible();
-  await page.getByLabel('Linked class', { exact: true }).selectOption(math);
+  await chooseOption(page.getByLabel('Linked class', { exact: true }),math);
   await page.getByRole('button', { name: 'Compare learners', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'In both · 1', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Only in Section · 2', exact: true })).toBeVisible();

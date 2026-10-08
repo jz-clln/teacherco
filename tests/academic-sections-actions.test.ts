@@ -1,3 +1,4 @@
+vi.mock('server-only',()=>({}));
 import { beforeEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({ queries: [] as { table: string; operation: string; args: unknown[] }[], results: [] as unknown[], user: 'teacher' }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));

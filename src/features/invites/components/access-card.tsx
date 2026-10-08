@@ -27,7 +27,7 @@ export function AccessCard({ title, description, children }: { title: string; de
           <div className="mt-6">{children}</div>
 
           <form action={signOut} className="mt-6 border-t border-[#E3E5E1] pt-3 text-center">
-            <button className="inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-[#4F6F52] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]">
+            <button className="tc-button tc-quiet inline-flex min-h-11 items-center justify-center rounded-lg px-3 text-sm font-semibold text-[#4F6F52] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E]">
               Sign out / use another account
             </button>
           </form>

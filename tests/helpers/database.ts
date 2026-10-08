@@ -1,7 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 
-export async function migrate(db: PGlite, from = 1, through = 20) {
+export async function migrate(db: PGlite, from = 1, through = 22) {
   for (const file of readdirSync("supabase/migrations").sort()) {
     const n = Number(file.slice(0, 4));
     if (n < from || n > through) continue;
@@ -10,7 +10,7 @@ export async function migrate(db: PGlite, from = 1, through = 20) {
   }
 }
 
-export async function database(through = 20) {
+export async function database(through = 22) {
   const db = new PGlite();
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
     create schema auth; create schema storage;

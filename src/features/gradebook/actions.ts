@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { sectionAccess, requireSection, SectionError } from '@/features/sections/action-helpers';
 import { getClassTermGrades } from '@/features/grading/queries';
 import { readGradebook } from './data';
+import { readSubjectOptions } from '@/features/classes/subject-options';
 import { buildPreview, setupSchema, manualSchema, importSchema, type Result, type ImportSelection, type ImportPreview } from './model';
 async function action<T>(work: (context: Awaited<ReturnType<typeof sectionAccess>>) => Promise<T>): Promise<Result<T>> {
   try { return { ok: true, data: await work(await sectionAccess()) }; }
@@ -17,6 +18,15 @@ function check(error: { message: string; code?: string } | null) {
   const safe = ['changed.', 'Active owned Section', 'Explicitly confirm', 'Reactivate', 'Choose an active', 'Choose a linked', 'Invalid Grade Book'];
   throw new SectionError(safe.some(s => error.message.includes(s)) ? error.message : 'Could not save the Grade Book. Check the values and refresh before retrying.');
 }
+export async function loadGradebookSetup(input:unknown){
+  return action(async({supabase,user})=>{
+    const {sectionId}=z.object({sectionId:z.uuid()}).parse(input);
+    const section=await requireSection(supabase,user.id,sectionId);
+    if(section.status!=='active')throw new SectionError('Reactivate the Section before changing its subjects.');
+    const [book,subjectOptions]=await Promise.all([readGradebook(supabase,user.id,sectionId),readSubjectOptions(supabase,user.id)]);
+    return {book:{section,...book},subjectOptions};
+  });
+}
 export async function saveGradebookSetup(input: unknown) {
   return action(async ({ supabase, user }) => {
     const parsed = setupSchema.safeParse(input);
@@ -26,7 +36,7 @@ export async function saveGradebookSetup(input: unknown) {
     const names = p.subjects.map(s => s.name.toLocaleLowerCase().replace(/\s+/g,' '));
     if (new Set(names).size !== names.length && !p.duplicatesConfirmed) throw new SectionError('Duplicate subject names: confirm that these are separate subjects before saving.');
     const { error } = await supabase.rpc('save_section_gradebook_setup', { p_section:p.sectionId, p_periods:p.periods, p_subjects:p.subjects, p_expected:p.expected });
-    check(error); revalidatePath(`/sections/${p.sectionId}/grades`);
+    check(error); revalidatePath(`/sections/${p.sectionId}/grades`); revalidatePath(`/sections/${p.sectionId}/report-cards`); revalidatePath('/classes/new');
   });
 }
 export async function saveManualGrades(input: unknown) {

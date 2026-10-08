@@ -73,10 +73,10 @@ export default async function AttendancePage({
   const taken = learners.some((l) => initial[l.id] !== undefined);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="min-w-0 w-full space-y-5">
       <Link
         href={`/classes/${classId}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52] hover:underline"
+        className="tc-button tc-quiet inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]"
       >
         <ArrowLeft size={16} /> Back to class
       </Link>
@@ -93,7 +93,7 @@ export default async function AttendancePage({
         <Card>
           <h2 className="font-semibold">No students in this class yet</h2>
           <p className="mt-2 text-sm text-[#606861]">Add students or import your record, then come back to take attendance.</p>
-          <Link href={`/classes/${classId}`} className="mt-3 inline-block text-sm font-semibold text-[#1A4D2E] hover:underline">
+          <Link href={`/classes/${classId}`} className="tc-button tc-quiet mt-3 inline-block text-sm font-semibold text-[#1A4D2E]">
             Go to the class page
           </Link>
         </Card>

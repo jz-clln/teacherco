@@ -5,7 +5,7 @@ import { summarizeUpdate, type LatestUpdate } from "@/features/classes/change-su
 import type { ClassStats } from "@/features/classes/stats";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/classes/class", useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock("@/features/classes/details-actions", () => ({ updateClassDetails: vi.fn() }));
+vi.mock("@/features/classes/details-actions", () => ({ loadClassSubjectOptions: vi.fn().mockResolvedValue({ok:true,data:['Mathematics','Calculus']}), updateClassDetails: vi.fn() }));
 const details = { name: "Grade 1 Giraffe", subject: "Mathematics", gradeLevel: "Grade 1", schoolYear: "2026–2027", schoolName: "School", schoolId: "", adviser: "Teacher", section: "Giraffe", benchmark: 75 };
 const stats: ClassStats = { average: 84.2, attendance: 92, below: 4, scored: 36, assessments: 3, learnerPercents: {}, lowest: null };
 const fixture = (): LatestUpdate => ({ id: "version-1", version_number: 1, filename: "record.xlsx", created_at: "2026-10-01T00:00:00Z", changes: [], before_learners: [{ id: "a", first_name: "Ana", last_name: "Cruz", status: "active" }], after_learners: [{ id: "a", first_name: "Ana", last_name: "Cruz", status: "active" }], before_scores: [{ learner_id: "a", assessment_id: "w", score: 80, max_score: 100 }], after_scores: [{ learner_id: "a", assessment_id: "w", score: 85, max_score: 100 }] });

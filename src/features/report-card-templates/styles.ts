@@ -24,12 +24,12 @@ export function readStyles(text?:string,theme=themeDefault):StyleRecord[]{
   xml(text,'styleSheet',{open:(name,a,path)=>{
     if(name==='numFmt'){if(custom.size>1024||a.formatCode?.length>512)throw new WorkbookError(COMPLEXITY_ERROR);custom.set(Number(a.numFmtId),a.formatCode??'General');}
     if(path.includes('fonts')){
-      if(name==='font')font={};else if(name==='b')font.bold=a.val!=='0';else if(name==='i')font.italic=a.val!=='0';else if(name==='u')font.underline=a.val!=='none';else if(name==='sz')font.fontSize=bounded(a.val,11,6,36)*4/3;else if(name==='color')font.color=color(a,theme);
+      if(name==='font')font={};else if(name==='b')font.bold=a.val!=='0';else if(name==='i')font.italic=a.val!=='0';else if(name==='u')font.underline=a.val!=='none';else if(name==='name'&&/^[\p{L}\p{N} ._-]{1,80}$/u.test(a.val??''))font.fontFamily=a.val;else if(name==='sz')font.fontSize=bounded(a.val,11,1,409)*4/3;else if(name==='color')font.color=color(a,theme);
     }
     if(path.includes('fills')){if(name==='fill')fill=undefined;if(name==='fgColor')fill=color(a,theme);}
     if(path.includes('borders')){
-      if(name==='border')border={};if(['top','right','bottom','left'].includes(name)){side=name as typeof side;if(a.style&&side)border[side]={style:a.style==='double'?'double':a.style.includes('dash')?'dashed':a.style.includes('dot')?'dotted':'solid',width:a.style==='thick'?3:a.style==='medium'||a.style==='double'?2:1,color:'#808080'};}
-      if(name==='color'&&side&&border[side])border[side]!.color=color(a,theme)??'#808080';
+      if(name==='border')border={};if(['top','right','bottom','left'].includes(name)){side=name as typeof side;if(a.style&&side)border[side]={style:a.style==='double'?'double':/dash/i.test(a.style)?'dashed':/dot/i.test(a.style)?'dotted':'solid',width:a.style==='thick'?3:a.style.startsWith('medium')||a.style==='double'?2:1,color:'#000000'};}
+      if(name==='color'&&side&&border[side])border[side]!.color=color(a,theme)??'#000000';
     }
     if(path.includes('cellXfs')){
       if(name==='xf'){const formatId=Number(a.numFmtId)||0;active={style:{...fonts[Number(a.fontId)||0],background:fills[Number(a.fillId)||0],borders:borders[Number(a.borderId)||0]},formatId,format:custom.get(formatId)??formats[formatId]??'General'};}

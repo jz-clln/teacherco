@@ -37,12 +37,12 @@ it("locks repeated clicks, shows saving feedback and keeps the request ID on ret
   await review(); fireEvent.click(screen.getByRole("checkbox"));
   const button = screen.getByRole("button", { name: "Apply 1 changes" });
   fireEvent.click(button); fireEvent.click(button);
-  expect(mocks.apply).toHaveBeenCalledTimes(1); expect(screen.getByRole("status")).toHaveTextContent(/Saving changes/);
+  expect(mocks.apply).toHaveBeenCalledTimes(1); expect(screen.getByText(/Saving changes/)).toHaveAttribute("role", "status");
   await act(async () => resolve({ ok: false, error: "Connection interrupted. Retry." }));
   expect(screen.getByRole("alert")).toHaveTextContent("Connection interrupted");
   mocks.apply.mockResolvedValueOnce({ ok: true, data: { version: 2 } });
   fireEvent.click(screen.getByRole("button", { name: "Apply 1 changes" }));
-  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Version 2"));
+  await waitFor(() => expect(screen.getByText(/Record synced. Version 2/)).toHaveAttribute("role", "status"));
   expect(mocks.apply.mock.calls[1][3]).toBe(mocks.apply.mock.calls[0][3]); expect(mocks.refresh).toHaveBeenCalledOnce();
 });
 it("reports unchanged files without an apply button", async () => {

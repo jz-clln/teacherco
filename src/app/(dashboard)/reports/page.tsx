@@ -145,7 +145,7 @@ export default async function ReportsPage({
               Filter
             </Button>
             {filtered ? (
-              <Link href="/reports" className="px-2 text-sm font-medium text-[#4F6F52] hover:underline">
+              <Link href="/reports" className="tc-button tc-quiet px-2 text-sm font-medium text-[#4F6F52]">
                 Clear
               </Link>
             ) : null}

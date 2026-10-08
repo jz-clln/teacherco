@@ -28,6 +28,11 @@ it('permits harmless context formatting and unknown school IDs', () => {
   expect(contextConflict({ ...section, school_id: '456' }, section)).toContain('School ID');
   expect(contextConflict({ ...section, school_year: '2027-2028' }, section)).toContain('School year');
 });
+it.each(['2026–2027','2026 — 2027',' 2026\u00a0-\u00a02027 ','SY 2026–2027','S.Y. 2026-2027','School Year 2026/2027'])('accepts equivalent school-year formatting: %s', school_year => {
+  const section={grade_level:'Grade 1',school_year:'2026-2027',school_id:null};
+  expect(contextConflict({...section,school_year},section)).toBeNull();
+  expect(contextConflict({...section,school_year:'2025-2026'},section)).toBe('School year does not match.');
+});
 it('formats Section names without repeating an existing grade prefix', () => {
   expect(sectionLabel({ name: 'Rizal', grade_level: 'Grade 8' })).toBe('Grade 8 - Rizal');
   expect(sectionLabel({ name: 'Grade 8 - Rizal', grade_level: 'Grade 8' })).toBe('Grade 8 - Rizal');

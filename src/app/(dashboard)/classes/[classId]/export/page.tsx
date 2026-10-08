@@ -16,10 +16,10 @@ export default async function ExportRecordPage({ params }: { params: Promise<{ c
   if (!classroom) notFound();
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <Link
         href={`/classes/${classId}`}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52] hover:underline"
+        className="tc-button tc-quiet inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]"
       >
         <ArrowLeft size={16} /> Back to class
       </Link>

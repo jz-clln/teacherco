@@ -80,8 +80,8 @@
   box-shadow: none;
 }
 
-/* Dashboard typography: Poppins for identity and hierarchy, system UI for reading. */
-.tc-app { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; line-height: 1.375; }
+/* Consistent Poppins typography across the application. */
+.tc-app { font-family: var(--font-brand), Poppins, sans-serif; font-size: 16px; line-height: 1.375; }
 .tc-app :is(h1, h2, h3), .tc-brand, .tc-value { font-family: var(--font-brand), Poppins, sans-serif; }
 .tc-app h1 { font-size: 1.75rem; line-height: 1.2; font-weight: 700; overflow-wrap: anywhere; }
 .tc-app h2 { font-size: 1.25rem; line-height: 1.3; font-weight: 600; }
@@ -91,11 +91,31 @@
 .tc-app .text-\[11px\], .tc-app .text-\[10px\] { font-size: .75rem; line-height: 1.333; }
 .tc-meta { font-size: .8125rem; line-height: 1.385; color: var(--text-secondary); }
 .tc-app :is(button, a, summary, input, select, textarea):focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+/* Focus follows the existing field edge instead of adding a second frame. */
+.tc-app :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, [role="combobox"]):focus-visible {
+  border-color: var(--brand); outline-offset: -2px; box-shadow: none;
+}
+/* A composer and its footer are one input surface; buttons retain keyboard focus. */
+.tc-app .tc-input-surface:has(> :is(input, textarea):focus-visible) {
+  border-color: var(--brand); outline: 2px solid var(--brand); outline-offset: -2px; box-shadow: none;
+}
+.tc-app .tc-input-surface > :is(input, textarea):focus-visible { outline: none; box-shadow: none; }
+/* Application navigation is a control; document/external links keep their own style. */
+.tc-app a[href^="/"]:not([href^="/legal/"]), .tc-app a[href^="/"]:not([href^="/legal/"]):hover { text-decoration: none; }
 .tc-app :is(button, summary, [role="combobox"]) { min-height: 44px; }
 .tc-app button { min-width: 44px; }
 .tc-app .grid > * { min-width: 0; }
 .tc-app .tc-item-title { font-size: 1.0625rem; line-height: 1.375; }
 .tc-app main > div { animation: tc-enter var(--motion-page) ease-out; }
+/* Preserve the mounted mapper and its edits while expanding beyond the app shell. */
+.tc-app:has([data-mapping-fullscreen="true"]) main > div { animation: none; }
+[data-mapping-fullscreen="true"] {
+  position: fixed; inset: 0; z-index: 60; width: 100%; height: 100dvh;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--background, #F5EFE6); overflow: hidden;
+}
+.tc-app:has([data-mapping-fullscreen="true"]) > aside,
+.tc-app:has([data-mapping-fullscreen="true"]) > div > :is(header, nav) { display: none; }
 .tc-app details[open] > :not(summary) { animation: tc-enter var(--motion-disclosure) ease-out; }
 .tc-app label { overflow-wrap: anywhere; }
 .tc-app label:has(input.sr-only:focus-visible) { outline: 2px solid var(--brand); outline-offset: 3px; }
@@ -166,3 +186,6 @@ a.tc-row:hover, button.tc-row:hover { background: var(--surface-secondary); }
   0%, 92%, 100% { transform: scaleY(1); }
   94%, 98% { transform: scaleY(0.1); }
 }
+
+/* Include utility-styled coordinates, codes, and native form controls. */
+body :is(.font-mono, .font-sans, .font-serif, code, pre, input, textarea, select, button) { font-family: var(--font-brand), Poppins, sans-serif; }
