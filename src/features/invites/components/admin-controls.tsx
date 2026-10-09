@@ -1,6 +1,7 @@
 //src\features\invites\components\admin-controls.tsx
 
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import { useState, useTransition } from "react";
 import { Ban, Check, CircleAlert, CircleCheck, Copy, RotateCcw, Trash2, X } from "lucide-react";
@@ -55,14 +56,14 @@ export function GenerateCodeForm() {
         <Button className="w-full sm:w-auto" disabled={pending}>
           {pending ? (
             <>
-              <span className="mr-2 size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden />
+              <Spinner className="mr-2"/>
               Generating…
             </>
           ) : "Generate invite code"}
         </Button>
       </div>
       <p className="mt-2 text-xs leading-5 text-[#606861]">Email restrictions match the verified account email exactly, including letter case. Codes are single-use and never expire.</p>
-      <Feedback state={state} />
+      {pending&&<p role="status" className="flex items-center gap-2 text-sm"><Spinner/>Working...</p>}<Feedback state={state} />
     </form>
   );
 }
@@ -106,7 +107,7 @@ export function CodeControls({ id, code, active }: { id: string; code: string; a
           <Trash2 size={15} aria-hidden /> Delete
         </Button>
       </div>
-      <Feedback state={state} />
+      {pending&&<p role="status" className="flex items-center gap-2 text-sm"><Spinner/>Working...</p>}<Feedback state={state} />
       <ConfirmDialog open={confirming} title="Delete invite code?" description="The code will be permanently removed. Its redemption history will remain, and an activated account will keep access." confirmLabel="Delete code" destructive onConfirm={() => run("delete")} onCancel={() => setConfirming(false)} />
     </div>
   );
@@ -134,7 +135,7 @@ export function RequestControls({ id }: { id: string }) {
           </Button>
         ))}
       </div>
-      <Feedback state={state} />
+      {pending&&<p role="status" className="flex items-center gap-2 text-sm"><Spinner/>Working...</p>}<Feedback state={state} />
     </div>
   );
 }

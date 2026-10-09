@@ -37,7 +37,7 @@ export function NewActivityForm({ classId, choices }: { classId: string; choices
       <DatePicker name="date" label="Date" hint="(optional)" value={date} onChange={setDate} />
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
-        <Button type="submit" disabled={pending || !selected || !!selected.assessmentId}>
+        <Button loading={Boolean(pending)} type="submit" disabled={pending || !selected || !!selected.assessmentId}>
           {pending ? "Creating…" : "Create activity"}
         </Button>
         <StatusMessage state={state} />

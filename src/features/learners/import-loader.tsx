@@ -45,7 +45,7 @@ export function ImportLoader({
         .tc-blink { animation: tc-blink 3s infinite }
         .tc-dot { animation: tc-dot 1.2s ease-in-out infinite }
         @media (prefers-reduced-motion: reduce) {
-          .tc-hop, .tc-shadow, .tc-blink, .tc-dot { animation: none }
+          .tc-hop, .tc-shadow, .tc-blink, .tc-dot, .tc-cell { animation: none }
         }
       `}</style>
 

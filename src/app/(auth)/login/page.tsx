@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "@/features/auth/actions";
-import { Button } from "@/components/ui/button";
+import {PendingSubmit} from "@/components/ui/pending-submit";
 import { LegalLinks } from "@/features/legal/legal-links";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <form action={signIn} className="space-y-4">
           <label className="block text-sm font-medium">Email<input name="email" type="email" required className="mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]" /></label>
           <label className="block text-sm font-medium">Password<input name="password" type="password" required minLength={8} className="mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]" /></label>
-          <Button type="submit" className="w-full">Sign in</Button>
+          <PendingSubmit pendingLabel="Signing in..." className="w-full">Sign in</PendingSubmit>
         </form>
         <p className="mt-5 text-center text-sm text-[#606861]">New to TeacherCo? <Link href="/signup" className="font-semibold text-[#1A4D2E]">Create an account</Link></p>
         <footer><LegalLinks footer /></footer>

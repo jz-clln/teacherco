@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/loading-state';
 import Link from "next/link";
 import { ArrowLeft, Download, RefreshCw, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -56,5 +57,5 @@ export function NeedsAttention({ classId, insights }: { classId: string; insight
     {!insights ? <p role="status" className="text-sm text-[#606861]">Attention checks could not be loaded. Refresh to try again.</p> : !insights.attention.length ? <p className="text-sm text-[#606861]">No concerns found in the available scores and recent attendance.</p> : <><ul className="tc-rows">{insights.attention.slice(0, 3).map(item => <li key={item.learnerId} className="py-4"><p className="break-words font-medium">{item.name}</p><p className="mt-1 text-sm text-[#606861]">{item.reasons[0]}{item.reasons.length > 1 ? ` · ${item.reasons.length - 1} more concern` : ""}</p></li>)}</ul><Link className={overviewLink} href={`/classes/${classId}/attention`}>View all {insights.attention.length} →</Link></>}
   </div></GroupedSection>;
 }
-export function SectionLoading({ label }: { label: string }) { return <Card className="min-h-36"><h2 className="text-lg font-semibold">{label}</h2><p role="status" className="mt-3 text-sm text-[#606861]">Loading {label.toLowerCase()}…</p><div className="mt-3 h-3 w-2/3 animate-pulse rounded bg-[#EAF0EA] motion-reduce:animate-none" /></Card>; }
+export function SectionLoading({label}:{label:string}){return <Card className="min-h-36"><h2 className="text-lg font-semibold">{label}</h2><LoadingState label={`Loading ${label.toLowerCase()}...`}/></Card>;}
 export function ClassLinks({ classId }: { classId: string }) { return <ClassTabs classId={classId} />; }

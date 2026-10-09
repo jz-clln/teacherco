@@ -80,7 +80,7 @@ export function OfflineControls() {
               Clear the classroom data cached on this device? Your records in your account are not affected.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" onClick={clearCache} disabled={busy}>
+              <Button loading={Boolean(busy)} type="button" onClick={clearCache} disabled={busy}>
                 {busy ? "Clearing…" : "Yes, clear cache"}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>

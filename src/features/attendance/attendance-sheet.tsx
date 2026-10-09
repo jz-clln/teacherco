@@ -1,6 +1,7 @@
 // src/features/attendance/attendance-sheet.tsx
 
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -260,7 +261,7 @@ export function AttendanceSheet({
             disabled={pending || (taken && !dirty)}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#1A4D2E] px-5 text-sm font-semibold text-white transition hover:bg-[#123820] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "Saving…" : taken ? (dirty ? "Update attendance" : "Saved") : "Save attendance"}
+            {pending && <Spinner/>}{pending ? "Saving…" : taken ? (dirty ? "Update attendance" : "Saved") : "Save attendance"}
           </button>
         </div>
       </div>

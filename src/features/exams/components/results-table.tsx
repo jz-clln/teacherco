@@ -1,6 +1,7 @@
 // src/features/exams/components/results-table.tsx
 
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -29,6 +30,7 @@ export function ResultsTable({ assessmentId, rows, benchmark }: { assessmentId: 
 
   return (
     <div>
+      {pending&&<p role="status" className="mb-2 flex items-center gap-2"><Spinner/>Removing score...</p>}
       {error ? <p role="alert" className="mb-2 text-sm text-[#9B2C2C]">{error}</p> : null}
       <div className="overflow-x-auto">
         <table className="w-full min-w-md text-left text-sm">

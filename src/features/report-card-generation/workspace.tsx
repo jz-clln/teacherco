@@ -1,4 +1,5 @@
 'use client';
+import {Spinner} from '@/components/ui/loading-state';
 import {GradebookSetup} from '@/features/gradebook/setup';
 import {loadGradebookSetup} from '@/features/gradebook/actions';
 import { Select } from '@/components/ui/select';
@@ -41,7 +42,7 @@ export function GenerationWorkspace({sectionId,templates,initial}:{sectionId:str
   return <div className="space-y-5 pb-8">
     <div><h2 className="text-xl font-semibold text-[#1A4D2E]">Report Cards</h2><p className="mt-1 text-sm text-[#6B7280]">Choose a template and review grades.</p></div>
     {error&&<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-    <p role="status" aria-live="polite" className="text-sm text-[#4F6F52]">{busy||notice}</p>
+    <p role="status" aria-live="polite" className="text-sm text-[#4F6F52]">{busy&&<Spinner className="mr-2"/>}{busy||notice}</p>
     <details className={panel} open={!review}><summary className="cursor-pointer font-semibold">1. Template{review?` · ${templates.find(t=>t.id===templateId)?.name??''}`:''}</summary><Select name={"Active template with a reviewed mapping"} label={"Active template with a reviewed mapping"} value={String(templateId)} disabled={!!busy} onChange={value => { setTemplate(value); setConfig(null); setSetup(null); invalidate(); }} emptyLabel={"Choose template"} options={templates.map(t => ({ value: String(t.id), label: t.name }))}/>
       {!templates.length&&<p className="text-sm">No reviewed templates yet. <Link className="tc-button tc-quiet " href="/report-cards/templates">Manage templates</Link>.</p>}
       <Button variant="secondary" disabled={!templateId||!!busy} onClick={()=>configure()}>{config?'Reload compatibility':'Configure compatibility'}</Button></details>

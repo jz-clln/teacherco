@@ -1,6 +1,7 @@
 // src/features/exams/components/check-workspace.tsx
 
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -466,7 +467,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                         <img src={preview} alt="Answer sheet being read" className="h-24 w-20 rounded-lg object-cover" />
                       ) : null}
                       <div>
-                        <p className="font-medium">Reading the sheet…</p>
+                        <p className="font-medium"><Spinner className="mr-2"/>Reading the sheet…</p>
                       </div>
                     </div>
                   ) : order.length === 0 ? (
@@ -632,7 +633,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                     </span>
                   </p>
                   <button type="button" onClick={confirm} disabled={undecided.length > 0 || saving} className={btnPrimary}>
-                    {saving
+                    {saving&&<Spinner/>}{saving
                       ? "Saving…"
                       : undecided.length > 0
                         ? `Review ${undecided.length} more`

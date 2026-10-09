@@ -67,7 +67,7 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
     <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white p-3">
       <Link href={`/report-cards/templates/${template.id}`} className="tc-button tc-quiet px-2" aria-label="Back to workbook"><ArrowLeft size={18}/></Link>
       <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0"><h1 className="truncate !text-lg" title={template.name}>{template.name}</h1><p role="status" className="text-xs text-[#606861]">{mapped.length} mapped · {dirty?'Unsaved changes':record?`${record.status==='draft'?'Draft':'Reviewed'} · Revision ${record.revision}`:'Not saved'}</p></div>
-      <Button className="ml-auto" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
+      <Button loading={Boolean(pending)} className="ml-auto" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
       <button type="button" ref={fullscreenButton} className="tc-button tc-secondary" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} aria-hidden/>:<Maximize size={17} aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
       <details ref={more} className="relative" onKeyDown={e=>{if(e.key==='Escape')closeMore();}}><summary aria-label="More mapping actions" className="tc-button tc-quiet list-none px-2"><MoreHorizontal size={20}/></summary>
         <div className="tc-floating absolute right-0 top-full z-40 mt-2 max-h-[65dvh] w-64 overflow-auto bg-white p-2">

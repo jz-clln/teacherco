@@ -2,9 +2,10 @@
 
 "use client";
 
+import { Spinner } from "@/components/ui/loading-state";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, ChevronUp, CircleAlert, LoaderCircle, Play, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, CircleAlert, Play, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -311,7 +312,7 @@ export function ScoreSheet({
                 Show only learners without a score
               </button>
               <p role="status" className={`ml-auto flex items-center gap-2 text-sm font-medium ${statusTone}`}>
-                {nSaving > 0 && nFailed === 0 ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : null}
+                {nSaving > 0 && nFailed === 0 ? <Spinner/> : null}
                 {statusText}
                 {nFailed > 0 ? (
                   <button type="button" onClick={retry} className="tc-button tc-quiet font-semibold text-[#1A4D2E]">
@@ -343,7 +344,7 @@ export function ScoreSheet({
                     {/* Status icon: left of the name on a phone (saves room for the name), right of the box on larger screens. */}
                     <span className="order-first flex size-5 shrink-0 items-center justify-center sm:order-last" aria-hidden="true">
                       {state === "saving" || state === "dirty" ? (
-                        <LoaderCircle size={16} className="animate-spin text-[#8B928C]" />
+                        <Spinner/>
                       ) : state === "error" || error ? (
                         <CircleAlert size={16} className="text-red-600" />
                       ) : hasSaved ? (

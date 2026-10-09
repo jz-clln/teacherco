@@ -1,3 +1,4 @@
+import {schoolYearKey} from "./model";
 import type { createClient } from "@/lib/supabase/server";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -16,11 +17,11 @@ export async function validateLinkedSection(db: Db, teacherId: string, classId: 
   if (sectionError || !section) return "Could not verify the linked Section. Refresh and try again.";
   const mismatch = normalized(context.gradeLevel) !== normalized(section.grade_level)
     ? `grade ${context.gradeLevel}`
-    : normalized(context.schoolYear) !== normalized(section.school_year)
+    : schoolYearKey(context.schoolYear) !== schoolYearKey(section.school_year)
       ? `school year ${context.schoolYear}`
       : normalized(context.schoolId) && normalized(section.school_id) && normalized(context.schoolId) !== normalized(section.school_id)
         ? `school ID ${context.schoolId}` : null;
   return mismatch
-    ? `This record's ${mismatch} conflicts with the linked ${section.name} Section (grade ${section.grade_level}, ${section.school_year}). Update the Section or choose the correct record before importing.`
+    ? `The class ${mismatch} conflicts with the linked ${section.name} Section (grade ${section.grade_level}, ${section.school_year}). Check the class details against the linked Section before saving.`
     : null;
 }

@@ -1,6 +1,7 @@
 // src/features/classes/edit-class-details.tsx
 
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 import Link from 'next/link';
 import { sectionLabel } from '@/features/sections/model';
 
@@ -134,7 +135,7 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
                 Section label in record
                 <input className={input} value={form.section} onChange={(e) => set("section", e.target.value)} />
               </label>
-              <div><Select name="subject" label="Subject" required allowCustom disabled={pending||loadingSubjects} options={[...new Set([...subjects,current.subject].filter(Boolean))]} value={form.subject} onChange={value=>set('subject',value)} customPlaceholder="Type a custom subject"/>{loadingSubjects&&<p role="status" className="mt-1 text-xs text-[#606861]">Loading saved subjects...</p>}</div>
+              <div><Select name="subject" label="Subject" required allowCustom disabled={pending||loadingSubjects} options={[...new Set([...subjects,current.subject].filter(Boolean))]} value={form.subject} onChange={value=>set('subject',value)} customPlaceholder="Type a custom subject"/>{loadingSubjects&&<p role="status" className="mt-1 text-xs text-[#606861]"><Spinner className="mr-2"/>Loading saved subjects...</p>}</div>
               <label className="block text-sm font-medium">
                 School year
                 <input required className={input} value={form.schoolYear} onChange={(e) => set("schoolYear", e.target.value)} />
@@ -163,7 +164,7 @@ export function EditClassDetails({ classId, initial, triggerClassName, triggerLa
               <Button type="button" variant="ghost" onClick={closeDialog} disabled={pending}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending}>
+              <Button loading={Boolean(pending)} type="submit" disabled={pending}>
                 {pending ? "Saving…" : "Save changes"}
               </Button>
             </div>

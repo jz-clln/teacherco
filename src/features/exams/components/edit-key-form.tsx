@@ -1,4 +1,5 @@
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -113,7 +114,7 @@ export function EditKeyForm(p: Props) {
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={!complete || pending} className={btnPrimary}>
-          {pending ? "Saving…" : firstKey ? "Save and start checking" : "Save answer key"}
+          {pending && <Spinner/>}{pending ? "Saving…" : firstKey ? "Save and start checking" : "Save answer key"}
         </button>
         {message ? (
           <p role={message.kind === "error" ? "alert" : "status"} className={`text-sm ${message.kind === "error" ? "text-[#9B2C2C]" : "text-[#1A4D2E]"}`}>

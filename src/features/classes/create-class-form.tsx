@@ -1,8 +1,8 @@
 "use client";
 
+import { Spinner } from "@/components/ui/loading-state";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClass } from "./actions";
 
@@ -45,7 +45,7 @@ export function CreateClassForm({ children }: { children: ReactNode }) {
         {children}
       </fieldset>
       <Button type="submit" disabled={pending} className="gap-2">
-        {pending ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : null}
+        {pending ? <Spinner/> : null}
         {pending ? "Creating class…" : "Create class"}
       </Button>
       {pending ? <p role="status" className="text-sm text-[#606861]">Saving your class. Please wait…</p> : null}

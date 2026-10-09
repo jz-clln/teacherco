@@ -312,7 +312,7 @@ export function OnboardingForm({
                 <Button type="button" variant="ghost" onClick={() => setStep(1)} className="gap-2">
                   <ArrowLeft size={17} /> Back
                 </Button>
-                <Button type="submit" disabled={pending} className="gap-2 px-5">
+                <Button loading={Boolean(pending)} type="submit" disabled={pending} className="gap-2 px-5">
                   {pending ? "Setting up…" : skipClass ? "Finish setup" : "Create class & continue"}
                   {!pending ? <ArrowRight size={17} /> : null}
                 </Button>

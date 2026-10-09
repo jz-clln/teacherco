@@ -1,4 +1,5 @@
 'use client';
+import {Spinner} from '@/components/ui/loading-state';
 import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -37,7 +38,7 @@ export function TemplateUploadForm(){
     </fieldset>
     {error&&<p role="alert" className="text-sm text-red-800">{error}</p>}
     {existing&&<Link className="tc-button tc-secondary" href={`/report-cards/templates/${existing.id}`}>View existing template</Link>}
-    {pending&&<p role="status" className="text-sm text-[#4F6F52]">{phase||'Opening template…'}</p>}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={pending}>{pending?'Uploading template…':'Upload template'}</Button><Button type="button" variant="secondary" disabled={pending} onClick={async()=>{if(await clearAttempt())router.push('/report-cards/templates');}}>Cancel</Button></div>
+    {pending&&<p role="status" className="text-sm text-[#4F6F52]"><Spinner className="mr-2"/>{phase||'Opening template…'}</p>}
+    <div className="flex flex-wrap gap-3"><Button loading={Boolean(pending)} type="submit" disabled={pending}>{pending?'Uploading template…':'Upload template'}</Button><Button type="button" variant="secondary" disabled={pending} onClick={async()=>{if(await clearAttempt())router.push('/report-cards/templates');}}>Cancel</Button></div>
   </form>;
 }

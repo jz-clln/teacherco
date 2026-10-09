@@ -80,3 +80,15 @@ it('delete-all stops before learners when Section cleanup fails', async () => {
   expect(await deleteAllData(form({ confirmation: 'DELETE' }))).toHaveProperty('error');
   expect(mutations().map(q => q.table)).toEqual(['report_card_templates', 'classes', 'sections']);
 });
+
+it.each(['2026-2027','2026\u20132027','SY 2026\u20132027','S.Y. 2026 / 2027','School Year 2026\u20142027','SY\u00a02026\u20112027'])('saves linked class edits with equivalent school-year formatting: %s',async schoolYear=>{
+  mock.results=[{data:{section_id:'section'}},{data:section},{data:[{id:details.classId}]}];
+  expect(await updateClassDetails({...details,schoolYear})).toEqual({ok:true});
+  expect(mutations()).toEqual([expect.objectContaining({table:'classes',operation:'update',args:[expect.objectContaining({school_year:schoolYear})]})]);
+});
+it('also normalizes the linked Section year and still rejects a genuinely different year',async()=>{
+  mock.results=[{data:{section_id:'section'}},{data:{...section,school_year:'SY 2026\u20132027'}},{data:[{id:details.classId}]}];
+  expect(await updateClassDetails(details)).toEqual({ok:true});
+  mock.queries=[];mock.results=[{data:{section_id:'section'}},{data:{...section,school_year:'SY 2027\u20132028'}}];
+  expect(await updateClassDetails(details)).toMatchObject({ok:false,error:expect.stringContaining('before saving')});expect(mutations()).toHaveLength(0);
+});

@@ -785,7 +785,7 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={runImport} disabled={!canImport}>
+        <Button loading={Boolean(pending)} onClick={runImport} disabled={!canImport}>
           {pending
             ? "Importing…"
             : `Import ${picked.length} ${picked.length === 1 ? "learner" : "learners"}${chosenGrades.length > 0 ? " and grades" : ""}${chosenInfo.length > 0 ? " and class details" : ""}`}

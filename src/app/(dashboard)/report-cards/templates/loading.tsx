@@ -1,1 +1,2 @@
-export default function Loading(){return <p role="status" className="p-6 text-sm text-[#606861]">Loading templates…</p>;}
+import {LoadingState} from "@/components/ui/loading-state";
+export default function Loading(){return <LoadingState page label="Loading templates..."/>;}

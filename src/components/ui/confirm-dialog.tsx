@@ -62,7 +62,7 @@ export function ConfirmDialog({
             <Button type="button" variant="secondary" autoFocus onClick={onCancel} disabled={pending}>
               {cancelLabel}
             </Button>
-            <Button
+            <Button loading={Boolean(pending)}
               type="button"
               className={destructive ? "bg-[#9B2C2C] text-white hover:bg-[#7F2323]" : undefined}
               onClick={onConfirm}

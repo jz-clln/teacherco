@@ -32,6 +32,6 @@ export function SectionForm({ section }: { section?: Section }) {
       <label className="flex min-h-11 items-center gap-3 text-sm sm:col-span-2"><input type="checkbox" checked={form.is_adviser} onChange={e => setForm(f => ({ ...f, is_adviser: e.target.checked }))} className="size-5 accent-[#1A4D2E]" />I am the adviser of this Section</label>
     </fieldset>
     {error && <p role="alert" className="text-sm text-[#9B2C2C]">{error}</p>}
-    <div className="flex flex-wrap gap-2"><Button disabled={pending}>{pending ? 'Saving Section…' : section ? 'Save changes' : 'Create Section'}</Button><Link className="tc-button tc-quiet" href={section ? `/sections/${section.id}` : '/sections'}>Cancel</Link></div>
+    <div className="flex flex-wrap gap-2"><Button loading={Boolean(pending)} disabled={pending}>{pending ? 'Saving Section…' : section ? 'Save changes' : 'Create Section'}</Button><Link className="tc-button tc-quiet" href={section ? `/sections/${section.id}` : '/sections'}>Cancel</Link></div>
   </form>;
 }

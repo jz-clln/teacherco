@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { signUp } from "@/features/auth/actions";
-import { Button } from "@/components/ui/button";
+import {PendingSubmit} from "@/components/ui/pending-submit";
 import { LegalLinks } from "@/features/legal/legal-links";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -17,7 +17,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <label className="block text-sm font-medium">Full name<input name="fullName" required className="mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]" /></label>
           <label className="block text-sm font-medium">Email<input name="email" type="email" required className="mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]" /></label>
           <label className="block text-sm font-medium">Password<input name="password" type="password" required minLength={8} className="mt-1.5 w-full rounded-xl border border-[#E3E5E1] px-3 py-3 outline-none focus:border-[#4F6F52]" /></label>
-          <Button type="submit" className="w-full">Create account</Button>
+          <PendingSubmit pendingLabel="Creating account..." className="w-full">Create account</PendingSubmit>
           <p className="text-center text-xs leading-5 text-[#606861]">
             By creating an account, you agree to the{" "}
             <Link href="/legal/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#1A4D2E] underline underline-offset-2">Terms &amp; Conditions<span className="sr-only"> (opens in a new tab)</span></Link>{" "}

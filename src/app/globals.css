@@ -189,3 +189,16 @@ a.tc-row:hover, button.tc-row:hover { background: var(--surface-secondary); }
 
 /* Include utility-styled coordinates, codes, and native form controls. */
 body :is(.font-mono, .font-sans, .font-serif, code, pre, input, textarea, select, button) { font-family: var(--font-brand), Poppins, sans-serif; }
+/* Shared loading feedback: transform animation runs without JS timers. */
+.tc-loading-spinner { display:inline-block; width:24px; height:24px; flex-shrink:0; vertical-align:middle; animation:tc-loading-logo 1.4s ease-in-out infinite; }
+.tc-loading-spinner > img { display:block; width:100%; height:100%; object-fit:contain; }
+.tc-loading-spinner-large { width:64px; height:64px; }
+.tc-loading-state { display:flex; align-items:center; justify-content:center; gap:12px; padding:24px; color:var(--brand,#1A4D2E); }
+.tc-loading-page { min-height:min(55dvh,420px); flex:1; flex-direction:column; text-align:center; font-weight:500; }
+.tc-loading-track { display:block; position:relative; width:140px; height:4px; overflow:hidden; border-radius:999px; background:#E3E5E1; }
+.tc-loading-track > span { display:block; width:50%; height:100%; border-radius:inherit; background:var(--brand,#1A4D2E); animation:tc-loading-travel 1.2s ease-in-out infinite; }
+@keyframes tc-loading-logo { 0%,100% { transform:translateY(0) scale(.94); } 50% { transform:translateY(-2px) scale(1); } }
+@keyframes tc-loading-travel { from { transform:translateX(-100%); } to { transform:translateX(200%); } }
+@media (prefers-reduced-motion:reduce) { .tc-loading-spinner,.tc-loading-track > span { animation:none; } }
+
+.tc-navigation-loading { position:fixed; inset:0 0 auto; z-index:100; width:100%; height:3px; border-radius:0; pointer-events:none; }

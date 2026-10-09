@@ -19,7 +19,7 @@ const nav = [
 function NavigationIcon({ icon: Icon, size, label }: { icon: LucideIcon; size: number; label: string }) {
   const { pending } = useLinkStatus();
   return pending
-    ? <span role="status" aria-label={`Opening ${label}`}><LoaderCircle size={size} strokeWidth={1.8} className="animate-spin motion-reduce:animate-none" aria-hidden /></span>
+    ? <span role="status" aria-label={`Opening ${label}`}><LoaderCircle size={size} strokeWidth={1.8} className="animate-spin motion-reduce:animate-none" aria-hidden /><span className="tc-loading-track tc-navigation-loading" aria-hidden="true"><span/></span></span>
     : <Icon size={size} strokeWidth={1.8} aria-hidden />;
 }
 

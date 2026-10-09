@@ -1,8 +1,9 @@
 "use client";
 
+import { Spinner } from "@/components/ui/loading-state";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Download, LoaderCircle } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import { IOSInstallDialog } from "./ios-install-dialog";
 
@@ -19,7 +20,7 @@ export function InstallTeacherCoButton({ destination }: { destination: string | 
       <button type="button" className="landing-button landing-button-secondary" disabled={busy} onClick={() => {
         if (ios) setInstructions(true); else if (available) void install();
       }}>
-        {busy ? <LoaderCircle size={17} aria-hidden="true" className="animate-spin motion-reduce:animate-none" /> : <Download size={17} aria-hidden="true" />}
+        {busy ? <Spinner/> : <Download size={17} aria-hidden="true" />}
         {busy ? "Opening installer…" : "Install TeacherCo"}
       </button>
     )}

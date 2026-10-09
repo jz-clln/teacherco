@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/loading-state';
 import { Suspense } from "react";
 import Link from "next/link";
 import { GroupedSection } from "@/components/ui/grouped-section";
@@ -37,7 +38,7 @@ export default async function ClassOverviewPage({ params, searchParams }: {
     <ClassLinks classId={classId} />
     {notices.imported !== undefined && <p role="status" className="rounded-xl bg-[#EAF0EA] p-3 text-sm text-[#1A4D2E]">Record imported. {Number(notices.imported) || 0} learners added{Number(notices.grades) > 0 ? ` and ${Number(notices.grades)} scores saved` : ""}.{notices.details === "1" ? " Class details updated." : ""}</p>}
     {(notices.added || notices.removed || notices.error) && <p role="status" className="text-sm text-[#606861]">{notices.error ? "Review your learner update." : "Learner list updated."} <Link href={`/classes/${classId}/learners`} className={overviewLink}>Open learners →</Link></p>}
-    <Suspense fallback={<div aria-label="Loading class metrics" className="tc-group tc-metrics">{[1, 2, 3, 4].map(n => <div key={n} className="h-28 animate-pulse bg-white motion-reduce:animate-none" />)}</div>}><Metrics current={current} benchmark={Number(classroom.benchmark)} /></Suspense>
+    <Suspense fallback={<LoadingState label="Loading class metrics..."/>}><Metrics current={current} benchmark={Number(classroom.benchmark)} /></Suspense>
     <div className="grid items-start gap-4 lg:grid-cols-2">
       <Suspense fallback={<SectionLoading label="What changed" />}><Changes classId={classId} current={current} /></Suspense>
       <Suspense fallback={<SectionLoading label="Needs attention" />}><Attention classId={classId} current={current} /></Suspense>

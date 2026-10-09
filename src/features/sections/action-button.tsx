@@ -22,7 +22,7 @@ export function SectionActionButton({ label, title, description, action, destina
       finally { lock.current = false; }
     });
   }
-  return <div><Button variant="ghost" type="button" disabled={pending} onClick={() => setOpen(true)}>{pending ? 'Saving…' : label}</Button>
+  return <div><Button loading={Boolean(pending)} variant="ghost" type="button" disabled={pending} onClick={() => setOpen(true)}>{pending ? 'Saving…' : label}</Button>
     {error && <p role="alert" className="mt-2 text-sm text-[#9B2C2C]">{error}</p>}
     <ConfirmDialog open={open} pending={pending} title={title} description={description} confirmLabel={label} destructive={destructive} onConfirm={submit} onCancel={() => setOpen(false)} />
   </div>;

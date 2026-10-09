@@ -1,1 +1,2 @@
-export default function LoadingSections() { return <div className="tc-group p-5" role="status">Loading Sections…</div>; }
+import {LoadingState} from "@/components/ui/loading-state";
+export default function Loading(){return <LoadingState page label="Loading Sections..."/>;}

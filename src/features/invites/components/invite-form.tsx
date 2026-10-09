@@ -2,6 +2,7 @@
 
 "use client";
 
+import { Spinner } from "@/components/ui/loading-state";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -92,7 +93,7 @@ export function InviteForm() {
       <Button className="w-full" disabled={pending || success}>
         {pending ? (
           <>
-            <span className="mr-2 size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden />
+            <Spinner className="mr-2"/>
             Checking…
           </>
         ) : success ? "Continuing…" : "Continue"}

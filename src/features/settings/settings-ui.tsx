@@ -65,7 +65,7 @@ export function StatusMessage({ state }: { state: SettingsState }) {
 export function FormFooter({ state, pending, label = "Save changes" }: { state: SettingsState; pending: boolean; label?: string }) {
   return (
     <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-      <Button type="submit" disabled={pending}>
+      <Button loading={Boolean(pending)} type="submit" disabled={pending}>
         {pending ? "Saving…" : label}
       </Button>
       <StatusMessage state={state} />

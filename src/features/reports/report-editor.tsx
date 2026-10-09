@@ -65,7 +65,7 @@ export function ReportEditor({
       />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
-        <Button type="submit" disabled={pending}>
+        <Button loading={Boolean(pending)} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save changes"}
         </Button>
         <Button type="button" variant="secondary" onClick={copyText} className="gap-2">

@@ -1,5 +1,6 @@
 'use client';
 import {ArrowUp,ArrowDown,ArrowLeft,ArrowRight,Minus,Plus} from 'lucide-react';
+import {LoadingState} from '@/components/ui/loading-state';
 import { Select } from '@/components/ui/select';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,7 @@ export function TemplateViewer({id,metadata,onSelection,markers=[],workspace=fal
     <div className="flex shrink-0 flex-wrap items-end gap-3"><Select className="min-w-0 flex-1" name={"Worksheet"} label={"Worksheet"} value={String(sheet)} onChange={value => { setTarget(''); setSheet(Number(value)); move(1, 1); }} options={metadata.sheets.map(s => ({ value: String(s.index), label: `${s.name}${s.state !== 'visible' ? ` (${s.state === 'veryHidden' ? 'very hidden' : 'hidden'})` : ''}` }))}/>
     <form className="flex items-end gap-2" onSubmit={e=>{e.preventDefault();try{const p=parseAddress(address),s=metadata.sheets[sheet];if(p.row>s.rowExtent||p.column>s.columnExtent)throw new Error('Choose a cell inside the preview range.');setError('');go(p.row,p.column);}catch(err){setError((err as Error).message);}}}><label className="text-sm font-medium">Go to cell<input aria-label="Go to cell" className="mt-1 block min-h-11 w-24 rounded-lg border border-[#E3E5E1] bg-white px-3" value={address} onChange={e=>setAddress(e.target.value)} maxLength={12}/></label><Button variant="secondary" type="submit" disabled={loading}>Go</Button></form></div>
     {error&&<div role="alert" className="space-y-2 rounded-lg border border-[#E3E5E1] p-4"><p>{error}</p><Button variant="secondary" onClick={()=>move(row,column)}>Retry</Button></div>}
-    {loading?<p role="status" className="py-12 text-center text-sm text-[#606861]">Loading worksheet…</p>:preview&&!error&&<>
+    {loading?<LoadingState page label="Loading worksheet..."/>:preview&&!error&&<>
       {!workspace&&<details className="relative shrink-0 text-xs text-[#606861]"><summary className="flex cursor-pointer items-center">Workbook notes{preview.warnings.some(w=>w.startsWith('Protected worksheet'))?' · Protected worksheet':' '}</summary><div className="tc-floating absolute left-0 top-full z-20 max-h-48 w-full overflow-auto bg-white p-3">{preview.warnings.map(w=><p key={w}>{w}</p>)}{preview.summary.hasFreezePane&&<p>Excel freeze panes are preserved in the original file. The preview keeps its coordinate headers visible.</p>}</div></details>}
       <div className="flex shrink-0 flex-wrap items-center gap-1" aria-label="Worksheet zoom">
         <Button variant="secondary" aria-label="Zoom out" disabled={zoom<=25} onClick={()=>setZoom(n=>Math.max(25,n-10))}><Minus size={16}/></Button>

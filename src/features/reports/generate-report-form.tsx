@@ -113,7 +113,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
       </p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <Button type="submit" disabled={pending}>
+        <Button loading={Boolean(pending)} type="submit" disabled={pending}>
           {pending ? "Preparing your report…" : "Generate report"}
         </Button>
         {pending ? <p className="text-sm text-[#606861]">Calculating from your records. This can take a few seconds.</p> : null}

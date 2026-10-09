@@ -1,4 +1,5 @@
 'use client';
+import {Spinner} from '@/components/ui/loading-state';
 import { Select } from '@/components/ui/select';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -66,7 +67,7 @@ export function LearnerAdder({ sectionId, sectionName, members, classes, initial
       <form onSubmit={load} className="tc-group space-y-3 p-5"><fieldset disabled={pending || !!review} className="min-w-0 space-y-3">
         {mode === 'existing' ? <label className="block text-sm font-medium">Search learners<input maxLength={120} type="search" className={sectionInputClass} value={search} onChange={e => setSearch(e.target.value)} /></label> : <Select name={"Choose linked class"} label={"Choose linked class"} value={String(classId)} required={true} onChange={value => { setClassId(value); setCandidates(null); setSelected([]); }} emptyLabel={"Choose a class"} options={classes.map(c => ({ value: String(c.id), label: `${c.subject} \u00B7 ${c.name}` }))}/>}
         {mode === 'class' && !classes.length && <p className="text-sm text-[#606861]">No linked classes yet. Add an existing learner or create one for this Section.</p>}
-        <Button variant="secondary" disabled={mode === 'class' && !classId}>{pending ? 'Loading learners…' : mode === 'class' ? 'Load learners' : 'Search'}</Button>
+        <Button loading={Boolean(pending)} variant="secondary" disabled={mode === 'class' && !classId}>{pending ? 'Loading learners…' : mode === 'class' ? 'Load learners' : 'Search'}</Button>
       </fieldset></form>
       {candidates && <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm">{available.length} available learner{available.length === 1 ? '' : 's'}</p><Button variant="ghost" disabled={pending || !!review || !available.length} onClick={() => setSelected(allAvailableSelected ? [] : available.slice(0, 500).map(l => l.id))}>{allAvailableSelected ? 'Clear selection' : available.length > 500 ? 'Select first 500' : 'Select all'}</Button></div>
         {selected.length > 500 && <p role="alert" className="text-sm text-[#9B2C2C]">Choose up to 500 learners at a time.</p>}
@@ -75,7 +76,7 @@ export function LearnerAdder({ sectionId, sectionName, members, classes, initial
         <Button disabled={pending || !!review || !selected.length || selected.length > 500} onClick={reviewSelection}>Add selected{selected.length ? ` (${selected.length})` : ''}</Button>
       </div>}
     </>}
-    {pending && <p role="status" className="text-sm">Working…</p>}
+    {pending && <p role="status" className="text-sm"><Spinner className="mr-2"/>Working…</p>}
     {error && <p role="alert" className="text-sm text-[#9B2C2C]">{error}</p>}
     {message && <p role="status" className="text-sm text-[#1A4D2E]">{message}</p>}
     {!!duplicates.length && <div ref={warningRef} tabIndex={-1} role="region" aria-label="Possible duplicate review" className="tc-group space-y-3 p-5"><h2>Possible duplicate</h2><p className="text-sm">These names appear under different learner records. Review them before adding separate records.</p><ul className="space-y-3">{duplicates.map(d => <li key={d.id} className="text-sm"><p>Selected learner: <strong>{d.name}</strong></p><p>Existing Section or selected learner: {d.existing.join(', ')}</p></li>)}</ul><div className="flex flex-wrap gap-2"><Button disabled={pending} onClick={() => save(true)}>Keep separate</Button><Button variant="secondary" disabled={pending} onClick={() => { setReview(null); setDuplicates([]); setError(''); }}>Cancel</Button></div></div>}

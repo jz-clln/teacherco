@@ -1,8 +1,9 @@
 "use client";
+import {Spinner} from '@/components/ui/loading-state';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, FileUp, History, Loader2, Search, ShieldCheck } from "lucide-react";
+import { CheckCircle2, FileUp, History, Search, ShieldCheck } from "lucide-react";
 import { FileUpload } from "@/components/ui/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -342,7 +343,7 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
       <FileUpload label="Updated class record" title="Drag and drop your updated class record here" description=".xlsx files. Review changes before saving." disabled={disabled} onFiles={pickFiles}/>
       <p className="flex items-start gap-2 text-sm text-[#606861]"><ShieldCheck size={18} className="shrink-0" />Blank cells and absent learners are kept, never automatically deleted. Typed and checked activities stay protected.</p>
     </Card>
-    {busy && <p role="status" className="flex items-center gap-2 rounded-xl bg-[#EAF0EA] p-4 text-sm text-[#1A4D2E]"><Loader2 size={18} className="animate-spin" />{busy}</p>}
+    {busy && <p role="status" className="flex items-center gap-2 rounded-xl bg-[#EAF0EA] p-4 text-sm text-[#1A4D2E]"><Spinner/>{busy}</p>}
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {success && <p role="status" className="flex items-center gap-2 rounded-xl bg-[#EAF0EA] p-4 text-sm text-[#1A4D2E]"><CheckCircle2 size={18} />{success}</p>}
     {input && <div className="space-y-3">
@@ -353,7 +354,7 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
         <ChangeReview changes={preview.changes} />
         {preview.count === 0 ? <p className="rounded-xl bg-[#EAF0EA] p-4 text-sm">No new or corrected data to apply. Saved records are unchanged.</p> : <Card className="space-y-4 p-5">
           <label className="flex items-start gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={Boolean(busy)} onChange={e => setConfirmed(e.target.checked)} className="mt-1 size-4 accent-[#1A4D2E]" /><span>I checked that this workbook belongs to <strong>{className}</strong> and reviewed the learners and changes above.</span></label>
-          <Button onClick={() => void apply()} disabled={!confirmed || Boolean(busy)}>{busy ? "Please wait…" : `Apply ${preview.count} changes`}</Button>
+          <Button loading={Boolean(busy)} onClick={() => void apply()} disabled={!confirmed || Boolean(busy)}>{busy ? "Please wait…" : `Apply ${preview.count} changes`}</Button>
           <p className="text-xs text-[#606861]">The saved version includes records before and after this sync. Missing entries remain unchanged.</p>
         </Card>}
       </>}
@@ -363,7 +364,7 @@ export function RecordSync({ classId, className, initialVersions, historyError, 
       <p className="text-sm text-[#606861]">Previous records are kept for every successful sync. View the changes or download a data snapshot, including the records before syncing.</p>
       {versionError && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{versionError}</p>}
       {!versions.length && !versionError && <p className="rounded-xl border border-[#E3E5E1] p-4 text-sm text-[#606861]">Your first sync will save the existing class record as its previous version.</p>}
-      {shownVersions.map(v => <details id={`version-${v.id}`} key={v.id} onToggle={e => { if (e.currentTarget.open) void loadChanges(v.id); }} className="scroll-mt-20 rounded-xl border border-[#E3E5E1] bg-white p-4"><summary className="cursor-pointer wrap-break-word text-sm font-semibold">Version {v.version_number} · {v.filename}<span className="mt-1 block text-xs font-normal text-[#606861]">{new Date(v.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} · {v.change_count} changes and notices</span></summary><div className="mt-4 space-y-3">{versionChanges[v.id] ? <ChangeReview changes={versionChanges[v.id]} /> : <p role="status" className="text-sm">Loading changes…</p>}<Button variant="secondary" disabled={Boolean(busy)} onClick={() => void download(v)}>Download version data</Button></div></details>)}
+      {shownVersions.map(v => <details id={`version-${v.id}`} key={v.id} onToggle={e => { if (e.currentTarget.open) void loadChanges(v.id); }} className="scroll-mt-20 rounded-xl border border-[#E3E5E1] bg-white p-4"><summary className="cursor-pointer wrap-break-word text-sm font-semibold">Version {v.version_number} · {v.filename}<span className="mt-1 block text-xs font-normal text-[#606861]">{new Date(v.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} · {v.change_count} changes and notices</span></summary><div className="mt-4 space-y-3">{versionChanges[v.id] ? <ChangeReview changes={versionChanges[v.id]} /> : <p role="status" className="text-sm"><Spinner className="mr-2"/>Loading changes…</p>}<Button variant="secondary" disabled={Boolean(busy)} onClick={() => void download(v)}>Download version data</Button></div></details>)}
       {moreVersions && <Button variant="secondary" disabled={Boolean(busy)} onClick={() => void loadOlderVersions()}>Load older versions</Button>}
     </section>
   </div>;

@@ -13,7 +13,7 @@ const input = "mt-1.5 w-full rounded-xl border border-[#E3E5E1] bg-white px-3 py
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button loading={Boolean(pending)} type="submit" disabled={pending}>
       {pending ? "Adding…" : "Add learner"}
     </Button>
   );
