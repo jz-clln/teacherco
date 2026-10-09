@@ -1,0 +1,37 @@
+import {cleanup,fireEvent,render,screen,within} from '@testing-library/react';
+import {afterEach,beforeEach,expect,it,vi} from 'vitest';
+import {chooseOption} from './helpers/custom-select';
+import {GradebookSetup} from '@/features/gradebook/setup';
+import type {GradebookData} from '@/features/gradebook/data';
+vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()})}));
+vi.mock('@/features/gradebook/actions',()=>({saveGradebookSetup:vi.fn()}));
+beforeEach(()=>{HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};});
+afterEach(cleanup);
+const book={section:{id:'section'},periods:[{id:'term',key:'period_1',label:'Term 1',position:1,status:'active'}],subjects:[],classes:[],entries:[],learners:[]} as unknown as GradebookData;
+it('cancels an empty subject without adding a row and can remove an added draft',()=>{
+  render(<GradebookSetup book={book} subjectOptions={['Calculus']}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Add subject manually'}));
+  let popup=within(screen.getByRole('dialog',{name:'Add subject'}));
+  expect(popup.getByRole('button',{name:'Add subject'})).toBeDisabled();
+  fireEvent.click(popup.getByRole('button',{name:'Cancel'}));
+  expect(screen.queryByRole('dialog',{name:'Add subject'})).toBeNull();
+  expect(screen.queryByRole('button',{name:/^Edit Calculus/})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Add subject manually'}));
+  popup=within(screen.getByRole('dialog',{name:'Add subject'}));
+  chooseOption(popup.getByRole('combobox',{name:'Subject name'}),'Calculus');
+  fireEvent.click(popup.getByRole('button',{name:'Add subject'}));
+  expect(screen.getByRole('button',{name:'Edit Calculus'})).toBeVisible();
+  fireEvent.click(screen.getByRole('button',{name:'Remove Calculus'}));
+  expect(screen.queryByRole('button',{name:'Edit Calculus'})).toBeNull();
+});
+it('discards cancelled edits and retains saved subjects instead of deleting their grades',()=>{
+  render(<GradebookSetup book={{...book,subjects:[{id:'saved',name:'Calculus',code:null,category:null,position:1,status:'active'}]}} subjectOptions={['Calculus','Science']}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Edit Calculus'}));
+  const popup=within(screen.getByRole('dialog',{name:'Edit subject'}));
+  chooseOption(popup.getByRole('combobox',{name:'Subject name'}),'Science');
+  fireEvent.click(popup.getByRole('button',{name:'Cancel'}));
+  expect(screen.getByRole('button',{name:'Edit Calculus'})).toBeVisible();
+  expect(screen.queryByRole('button',{name:'Remove Calculus'})).toBeNull();
+  fireEvent.click(within(screen.getByRole('button',{name:'Edit Calculus'}).closest('li')!).getByRole('button',{name:'Make inactive'}));
+  expect(screen.getByRole('button',{name:'Reactivate'})).toBeVisible();
+});

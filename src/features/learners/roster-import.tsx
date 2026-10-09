@@ -14,6 +14,7 @@ import type { ClassDetails } from "@/features/classes/details";
 import { ImportLoader } from "@/features/learners/import-loader";
 import { importGrades } from "@/features/learners/grade-actions";
 import { findSimilarLearners, importLearners, type LearnerMatch } from "@/features/learners/import-actions";
+import { unansweredLearnerLinks } from './bulk-links';
 import { inferTermAndComponent } from "@/lib/grading/deped";
 import type { GradeSheet } from "@/lib/excel/grades";
 import { hasClassInfo, type ClassInfo } from "@/lib/excel/class-info";
@@ -211,6 +212,8 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
   const picked = rows.filter((r) => r.include);
   const incomplete = picked.filter((r) => !r.firstName.trim() || !r.lastName.trim());
   const undecided = matches ? Object.keys(matches).filter((i) => !decisions[i]).length : 0;
+  const bulkLinks = matches ? unansweredLearnerLinks(matches, decisions) : {};
+  const bulkLinkCount = Object.keys(bulkLinks).length;
   const canImport = picked.length > 0 && incomplete.length === 0 && undecided === 0 && !pending;
 
   // Grades are matched to learners by name, so show how many names match the list being imported.
@@ -729,6 +732,11 @@ export function RosterImport({ classId, currentClass }: { classId: string; curre
             These names match learners you already have in another class. Link them to keep one record across classes, or keep
             them separate. Nothing is linked unless you choose it.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Button type="button" disabled={pending || bulkLinkCount === 0} onClick={() => setDecisions(current => ({ ...current, ...unansweredLearnerLinks(matches, current) }))}>Link all</Button>
+            <p className="text-sm text-[#606861]">{bulkLinkCount} remaining {bulkLinkCount === 1 ? 'name has' : 'names have'} one unique match. Your existing choices stay unchanged; names with multiple matches need individual review.</p>
+          </div>
+          <p className="mt-2 text-xs text-[#606861]">You can change any choice below. Links are saved only when you click Import.</p>
           <ul className="mt-3 divide-y divide-[#E3E5E1] rounded-xl border border-[#E3E5E1]">
             {Object.entries(matches).map(([index, candidates]) => {
               const row = picked[Number(index)];
