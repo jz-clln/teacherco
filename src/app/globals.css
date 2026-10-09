@@ -202,3 +202,17 @@ body :is(.font-mono, .font-sans, .font-serif, code, pre, input, textarea, select
 @media (prefers-reduced-motion:reduce) { .tc-loading-spinner,.tc-loading-track > span { animation:none; } }
 
 .tc-navigation-loading { position:fixed; inset:0 0 auto; z-index:100; width:100%; height:3px; border-radius:0; pointer-events:none; }
+
+/* Mapping form borders follow the same categories as the panel headings. */
+[data-mapping-category="classroom"] { --mapping-border: #93c5fd; --mapping-focus: #1d4ed8; }
+[data-mapping-category="period"] { --mapping-border: #fbbf24; --mapping-focus: #92400e; }
+[data-mapping-category="subject"] { --mapping-border: #c4b5fd; --mapping-focus: #6d28d9; }
+.tc-app [data-mapping-category] :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"]) {
+  border-color: var(--mapping-border);
+}
+.tc-app [data-mapping-category] :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select, [role="combobox"]):focus-visible {
+  border-color: var(--mapping-focus);
+  outline: 2px solid var(--mapping-focus);
+  outline-offset: -2px;
+  box-shadow: none;
+}

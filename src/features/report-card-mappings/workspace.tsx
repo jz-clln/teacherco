@@ -9,10 +9,15 @@ import {cellAddress,parseMerge,type CellSelection,type Template} from '@/feature
 import {reviewMapping,saveMapping,resetMapping} from './actions';
 import {assignments,emptyDefinition,FIELD_KEYS,PERIOD_KEYS,OUTPUT_KEYS,locationSchema,type Location,type MappingDefinition,type MappingRecord} from './model';
 import {AssignmentControls,MappingFields} from './controls';
-import {MappingPanel,useCompactMapping} from './panel';
+import {MappingPanel} from './panel';
+import {GradeTableControls} from './grade-table-controls';
 
 type Confirmation={kind:'reset'|'reload'}|{kind:'subject'|'period';key:string};
 export function MappingWorkspace({template,initial,compatibility,draft}:{template:Template;initial:MappingRecord|null;compatibility?:ReactNode;draft?:MappingDefinition}){
+  const [picking,setPicking]=useState<{id:string;label:string}|null>(null);
+  function cancelPicking(){setPicking(null);setAnchor(null);}
+  useEffect(()=>{if(!picking)return;const cancel=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setPicking(null);setAnchor(null);}};document.addEventListener('keydown',cancel,true);return()=>document.removeEventListener('keydown',cancel,true);},[picking]);
+  const [controlsTarget,setControlsTarget]=useState<HTMLDivElement|null>(null);
   const [definition,setDefinition]=useState<MappingDefinition>(draft??initial?.mapping_definition??emptyDefinition(template.file_sha256));
   const [record,setRecord]=useState(initial),[baseline,setBaseline]=useState(JSON.stringify(initial?.mapping_definition??emptyDefinition(template.file_sha256)));
   const [selected,setSelected]=useState<Location|null>(null),[rangeMode,setRangeMode]=useState(false),[anchor,setAnchor]=useState<Location|null>(null),[target,setTarget]=useState('field:learner_name');
@@ -26,26 +31,34 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
     try{if(fullscreen){if(document.fullscreenElement===workspace.current)await document.exitFullscreen();setFullscreen(false);}else{setFullscreen(true);try{await workspace.current?.requestFullscreen?.();}catch{/* Keep the expanded in-app view when browser fullscreen is unavailable. */}}}
     catch{setError('Press Esc to exit full screen.');}finally{fullscreenLock.current=false;}
   }
-  const compact=useCompactMapping(),more=useRef<HTMLDetailsElement>(null),allowNavigation=useRef(false),lock=useRef(false);
+  const compact=false,more=useRef<HTMLDetailsElement>(null),allowNavigation=useRef(false),lock=useRef(false);
   const dirty=JSON.stringify(definition)!==baseline,archived=template.status==='archived',mapped=assignments(definition);
   useEffect(()=>{if(!dirty)return;const warn=(event:BeforeUnloadEvent)=>{if(allowNavigation.current)return;event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
-  function edit(next:MappingDefinition){setDefinition(next);setReview(null);setError('');setMessage('');}
+  function edit(next:MappingDefinition){cancelPicking();setDefinition(next);setReview(null);setError('');setMessage('');}
   function openPanel(view:typeof panelView){setPanelView(view);setPanelOpen(true);}
   function closeMore(){more.current?.removeAttribute('open');}
   const identity=()=>({templateId:template.id,expectedId:record?.id??null,revision:record?.revision??0});
-  async function run(work:()=>Promise<void>){if(lock.current)return;lock.current=true;setPending(true);setError('');setMessage('');closeMore();try{await work();}catch{setError('Could not finish. Check your connection and retry.');}finally{lock.current=false;setPending(false);}}
+  async function run(work:()=>Promise<void>){if(lock.current)return;lock.current=true;cancelPicking();setPending(true);setError('');setMessage('');closeMore();try{await work();}catch{setError('Could not finish. Check your connection and retry.');}finally{lock.current=false;setPending(false);}}
   function select(selection:CellSelection){
-    const location={sheet:selection.sheetName,address:selection.mergedRange??selection.address};
-    if(rangeMode&&anchor&&anchor.sheet===location.sheet){const a=parseMerge(anchor.address),b=parseMerge(location.address);setSelected({sheet:location.sheet,address:`${cellAddress(Math.min(a.top,b.top),Math.min(a.left,b.left))}:${cellAddress(Math.max(a.bottom,b.bottom),Math.max(a.right,b.right))}`});setAnchor(null);openPanel('map');}
-    else{setSelected(location);setAnchor(rangeMode?location:null);if(!rangeMode)openPanel('map');}
+    if(pending||archived)return;
+    let location={sheet:selection.sheetName,address:selection.mergedRange??selection.address};
+    if(rangeMode){
+      if(!anchor||anchor.sheet!==location.sheet){setSelected(location);setAnchor(location);return;}
+      const a=parseMerge(anchor.address),b=parseMerge(location.address);
+      location={sheet:location.sheet,address:`${cellAddress(Math.min(a.top,b.top),Math.min(a.left,b.left))}:${cellAddress(Math.max(a.bottom,b.bottom),Math.max(a.right,b.right))}`};
+    }
+    setSelected(location);setAnchor(null);
+    if(picking){if(assign(location,picking.id))setMessage(`${picking.label} mapped to ${location.sheet}!${location.address}. Save mapping to keep it.`);}
+    else openPanel('map');
   }
-  function assign(){
-    if(!selected||!locationSchema.safeParse(selected).success){setError('Select a cell or enter a valid A1 range.');return;}
-    try{parseMerge(selected.address);}catch{setError('Choose a valid cell or rectangular range.');return;}
-    const next=structuredClone(definition),[kind,key,output]=target.split(':');
-    if(kind==='field'&&FIELD_KEYS.includes(key as typeof FIELD_KEYS[number]))next.fields[key as typeof FIELD_KEYS[number]]={...selected};
-    else{const subject=next.subjects.find(s=>s.key===key);if(!subject){setError('Add a subject first.');return;}if(output==='label')subject.labelLocation={...selected};else if(OUTPUT_KEYS.includes(output as typeof OUTPUT_KEYS[number]))subject.outputs[output as typeof OUTPUT_KEYS[number]]={...selected};else return;}
-    edit(next);setPanelOpen(false);
+  function assign(location:Location|null=selected,id=target){
+    if(pending||archived)return false;
+    if(!location||!locationSchema.safeParse(location).success){setError('Select a cell or enter a valid A1 range.');return false;}
+    try{parseMerge(location.address);}catch{setError('Choose a valid cell or rectangular range.');return false;}
+    const next=structuredClone(definition),[kind,key,output]=id.split(':');
+    if(kind==='field'&&FIELD_KEYS.includes(key as typeof FIELD_KEYS[number]))next.fields[key as typeof FIELD_KEYS[number]]={...location};
+    else{const subject=next.subjects.find(s=>s.key===key);if(!subject){setError('Add a subject first.');return false;}if(output==='label')subject.labelLocation={...location};else if(OUTPUT_KEYS.includes(output as typeof OUTPUT_KEYS[number]))subject.outputs[output as typeof OUTPUT_KEYS[number]]={...location};else return false;}
+    edit(next);setPanelOpen(false);return true;
   }
   async function reviewNow(){await run(async()=>{const result=await reviewMapping({...identity(),definition});if(!result.ok){setError(result.error);return;}setDefinition(result.data.definition);setReview(result.data);openPanel('review');});}
   async function save(status:'draft'|'reviewed'){
@@ -64,12 +77,19 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
     setConfirm(null);
   }
   return <div ref={workspace} className="flex min-h-0 flex-1 flex-col gap-3" data-mapping-workspace data-mapping-fullscreen={fullscreen?'true':undefined}>
-    <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[#E3E5E1] bg-white p-3">
-      <Link href={`/report-cards/templates/${template.id}`} className="tc-button tc-quiet px-2" aria-label="Back to workbook"><ArrowLeft size={18}/></Link>
-      <div className="min-w-0 flex-1 basis-[calc(100%-4rem)] sm:basis-0"><h1 className="truncate !text-lg" title={template.name}>{template.name}</h1><p role="status" className="text-xs text-[#606861]">{mapped.length} mapped · {dirty?'Unsaved changes':record?`${record.status==='draft'?'Draft':'Reviewed'} · Revision ${record.revision}`:'Not saved'}</p></div>
-      <Button loading={Boolean(pending)} className="ml-auto" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
-      <button type="button" ref={fullscreenButton} className="tc-button tc-secondary" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} aria-hidden/>:<Maximize size={17} aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
-      <details ref={more} className="relative" onKeyDown={e=>{if(e.key==='Escape')closeMore();}}><summary aria-label="More mapping actions" className="tc-button tc-quiet list-none px-2"><MoreHorizontal size={20}/></summary>
+    <div className="grid min-h-0 flex-1 gap-1 grid-cols-[minmax(0,1fr)_minmax(160px,28%)]">
+      <section aria-label="Workbook" className="flex min-h-0 min-w-0 flex-col rounded-xl border border-[#E3E5E1] bg-white p-1">
+
+        {picking&&<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-[#E8F0E9] p-3 text-sm" role="status"><p><strong>Mapping {picking.label}</strong><br/>{rangeMode?(anchor?'Select the last cell in the range.':'Select the first cell in the range.'):'Select the cell in the row or column where this value belongs. Merged cells are selected together.'}</p><Button variant="secondary" onClick={cancelPicking}>Cancel selection</Button></div>}
+        <TemplateViewer workspace controlsTarget={controlsTarget} id={template.id} metadata={template.workbook_metadata} onSelection={select} markers={[...mapped.map(m=>({...m.location,label:m.label})),...(selected?[{...selected,label:'Selected location'}]:[])]}/>
+
+      </section>
+      <MappingPanel compact={compact} open={panelOpen} onClose={()=>setPanelOpen(false)}>
+    <header className="@container relative z-20 shrink-0 space-y-3 rounded-xl border border-[#E3E5E1] bg-white p-3">
+      <div className="flex min-w-0 items-start gap-2">
+      <Link href={`/report-cards/templates/${template.id}`} className="tc-button tc-quiet shrink-0 !px-1" aria-label="Back to workbook"><ArrowLeft size={18}/></Link>
+      <div className="min-w-0 flex-1"><h1 className="break-words !text-base" title={template.name}>{template.name}</h1><p role="status" className="text-xs text-[#606861]">{mapped.length} mapped · {dirty?'Unsaved changes':record?`${record.status==='draft'?'Draft':'Reviewed'} · Revision ${record.revision}`:'Not saved'}</p></div>
+      <details ref={more} className="relative shrink-0" onKeyDown={e=>{if(e.key==='Escape')closeMore();}}><summary aria-label="More mapping actions" className="tc-button tc-quiet list-none px-2"><MoreHorizontal size={20}/></summary>
         <div className="tc-floating absolute right-0 top-full z-40 mt-2 max-h-[65dvh] w-64 overflow-auto bg-white p-2">
           <Button className="w-full justify-start" variant="ghost" disabled={pending||archived} onClick={()=>void reviewNow()}>Review</Button>
           <Button className="w-full justify-start" variant="ghost" disabled={pending||archived} onClick={()=>void save('draft')}>Save draft</Button>
@@ -78,22 +98,23 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
           {compatibility&&<details className="px-2"><summary className="flex cursor-pointer items-center text-sm">Template details</summary>{compatibility}</details>}
         </div>
       </details>
+      </div>
+      <div className="grid grid-cols-1 items-stretch gap-2 @min-[220px]:grid-cols-2">
+      <Button loading={Boolean(pending)} className="w-full min-w-0 !px-2 !text-sm" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
+      <button type="button" ref={fullscreenButton} className="tc-button tc-secondary w-full min-w-0 !gap-1 !px-2 !text-sm" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} className="hidden shrink-0 @min-[320px]:block" aria-hidden/>:<Maximize size={17} className="hidden shrink-0 @min-[320px]:block" aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
+      </div>
     </header>
     {archived&&<p className="shrink-0 text-sm">Archived template · Read-only</p>}
     {error&&!(compact&&panelOpen)&&<p role="alert" className="max-h-24 shrink-0 overflow-auto rounded-lg bg-white p-3 text-sm text-red-800">{error}</p>}
-    {message&&<p role="status" className="shrink-0 text-sm text-[#1A4D2E]">{message}</p>}
-    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]">
-      <section aria-label="Workbook" className="flex min-h-0 min-w-0 flex-col gap-2 rounded-xl border border-[#E3E5E1] bg-white p-3">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs"><span>{anchor?'Select range end':selected?`${selected.sheet}!${selected.address}`:'Select a cell'}</span><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={rangeMode} onChange={e=>{setRangeMode(e.target.checked);setAnchor(null);}}/>Select range with two clicks</label></div>
-        <TemplateViewer workspace id={template.id} metadata={template.workbook_metadata} onSelection={select} markers={[...mapped.map(m=>({...m.location,label:m.label})),...(selected?[{...selected,label:'Selected location'}]:[])]}/>
-        <div className="flex shrink-0 gap-2 lg:hidden"><Button variant="secondary" className="flex-1" onClick={()=>openPanel('map')}>Map</Button><Button variant="ghost" className="flex-1" onClick={()=>openPanel('mapped')}>View mappings</Button></div>
-      </section>
-      <MappingPanel compact={compact} open={panelOpen} onClose={()=>setPanelOpen(false)}>
+    {message&&<div className="min-w-0 shrink-0 px-3 pt-2"><p role="status" className="rounded-lg bg-[#F4F7F4] px-3 py-2 text-xs leading-relaxed text-[#1A4D2E] [overflow-wrap:anywhere]">{message}</p></div>}
+
+        <div className="shrink-0 space-y-2 p-3">        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs"><span>{anchor?'Select range end':selected?`${selected.sheet}!${selected.address}`:'Select a cell'}</span><label className="flex min-h-11 items-center gap-2"><input type="checkbox" checked={rangeMode} onChange={e=>{setRangeMode(e.target.checked);setAnchor(null);}}/>Select range with two clicks</label></div><div ref={setControlsTarget}/></div>
         {compact&&error&&<p role="alert" className="max-h-24 shrink-0 overflow-auto p-3 text-sm text-red-800">{error}</p>}
-        {(!compact||panelView==='map')&&<AssignmentControls template={template} definition={definition} selected={selected} onLocation={location=>{setSelected(location);setAnchor(null);}} target={target} onTarget={setTarget} onAssign={assign} disabled={pending||archived}/>}
-        {compact&&panelView==='map'?<Button variant="ghost" onClick={()=>setPanelView('mapped')}>View mappings</Button>:<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3" tabIndex={0} aria-label="Mapped fields" role="region">
+        <GradeTableControls template={template} definition={definition} disabled={pending||archived} onApply={edit} onReview={async draft=>{const result=await reviewMapping({...identity(),definition:draft});if(!result.ok)throw new Error(result.error);return result.data.definition;}}/>
+        {(!compact||panelView==='map')&&<AssignmentControls template={template} definition={definition} selected={selected} onLocation={location=>{cancelPicking();setSelected(location);}} target={target} onTarget={value=>{cancelPicking();setTarget(value);}} onAssign={()=>assign()} disabled={pending||archived}/>}
+        {compact&&panelView==='map'?<Button variant="ghost" onClick={()=>setPanelView('mapped')}>View mappings</Button>:<div className="shrink-0 p-3" aria-label="Mapped fields" role="region">
           {review&&panelView==='review'&&<section className="mb-4 space-y-2 rounded-lg bg-[#F4F7F4] p-3 text-sm"><h2 className="!text-base">Review</h2><p>{mapped.length} mapped · {definition.periods.length} periods · {definition.subjects.length} subjects</p>{review.warnings.length?<details><summary className="cursor-pointer py-2">{review.warnings.length} optional omissions</summary><ul className="space-y-2">{review.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>:<p>Ready to save</p>}</section>}
-          <MappingFields definition={definition} disabled={pending||archived} onEdit={edit} onPick={(id,location)=>{setTarget(id);if(location)setSelected(location);openPanel('map');}} onRemove={(kind,key)=>setConfirm({kind,key})}/>
+          <MappingFields pickingId={picking?.id} onStartPick={(id,label)=>{setPicking({id,label});setTarget(id);setAnchor(null);setRangeMode(false);setError('');setMessage('');}} definition={definition} disabled={pending||archived} onEdit={edit} onPick={(id,location)=>{cancelPicking();setTarget(id);if(location)setSelected(location);openPanel('map');}} onRemove={(kind,key)=>setConfirm({kind,key})}/>
         </div>}
       </MappingPanel>
     </div>

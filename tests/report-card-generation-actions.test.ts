@@ -7,10 +7,29 @@ const mock=vi.hoisted(()=>({access:vi.fn(),bytes:vi.fn(),rpc:vi.fn()}));
 vi.mock('server-only',()=>({}));
 vi.mock('@/features/report-card-templates/data',()=>({templateAccess:mock.access,originalBytes:mock.bytes,sourcePath:(owner:string,id:string)=>`${owner}/${id}/source.xlsx`,TemplateError:class extends Error{constructor(message:string,public status=400){super(message);}}}));
 import {generateDownload,digest} from '@/features/report-card-generation/data';
-import {reviewReadiness,saveCompatibility,loadCompatibility} from '@/features/report-card-generation/actions';
+import {previewReportCard,reviewReadiness,saveCompatibility,loadCompatibility} from '@/features/report-card-generation/actions';
 import {verifyProfile,valuesForLearner,safeFilename,type GenerationSnapshot} from '@/features/report-card-generation/model';
 import {mappingWorkbook,mappingDefinition} from './helpers/mapping-fixture';
+import {suggestPeriodBindings} from '@/features/assisted-workflows/bindings';
 let s:GenerationSnapshot,bytes:Buffer;
+it('connects generic periods and previews each bound subject name with its own term grades',async()=>{
+  const def=s.mapping.mapping_definition;
+  def.periods.forEach((p,i)=>{p.label=`Period ${i+1}`;});
+  const otherId=randomUUID(),otherKey=randomUUID();
+  s.subjects[0].name='Calculus';s.subjects.push({id:otherId,name:'Language',code:null,category:null,position:2,status:'active'});
+  def.subjects.push({key:otherKey,label:'Language row',labelLocation:{sheet:'Front page',address:'B16'},outputs:{period_1:{sheet:'Front page',address:'D16'},period_2:{sheet:'Front page',address:'E16'},period_3:{sheet:'Front page',address:'F16'}}});
+  s.profile!.bindings.subjectBindings[otherKey]=otherId;
+  const r=await saveCompatibility({sectionId:s.section.id,templateId:s.template.id,mappingId:s.mapping.id,mappingRevision:1,sha:s.template.file_sha256,expectedId:s.profile!.id,revision:1,confirmed:true,bindings:{periodBindings:{},subjectBindings:s.profile!.bindings.subjectBindings}});
+  expect(r.ok).toBe(true);
+  const saved=mock.rpc.mock.calls.find(([name])=>name==='save_generation_profile')![1].p_bindings;
+  expect(saved.periodBindings).toEqual(suggestPeriodBindings(def,s.periods));s.profile!.bindings=saved;
+  for(const [i,p] of s.periods.entries())s.entries.push({...s.entries[0],section_subject_id:otherId,period_id:p.id,grade:[81,92,0][i]});
+  const result=await previewReportCard({sectionId:s.section.id,templateId:s.template.id,learnerId:s.learners[0].id,digest:digest(s)});
+  expect(result.ok).toBe(true);if(!result.ok)throw new Error(result.error);
+  const cell=(address:string)=>result.data.preview.cells.find(c=>c.address===address)?.displayValue;
+  expect(cell('B15')).toBe('Calculus');expect(cell('D15')).toBe('0');expect(cell('E15')??'').toBe('');
+  expect(cell('B16')).toBe('Language');expect(['D16','E16','F16'].map(cell)).toEqual(['81','92','0']);
+});
 beforeEach(async()=>{vi.resetAllMocks();bytes=await mappingWorkbook();const hash=createHash('sha256').update(bytes).digest('hex'),def=mappingDefinition(hash),teacher=randomUUID(),section=randomUUID(),template=randomUUID(),mapping=randomUUID(),subject=randomUUID(),learner=randomUUID(),periods=def.periods.map((p,i)=>({id:randomUUID(),key:p.key,label:p.label,position:i+1,status:'active'}));
   s={section:{id:section,teacher_id:teacher,name:'Grade 8 Rizal',grade_level:'Grade 8',school_year:'2026-2027',school_name:null,school_id:null,is_adviser:false,status:'active'},template:{id:template,teacher_id:teacher,file_sha256:hash,file_size_bytes:bytes.length,status:'active',storage_path:`${teacher}/${template}/source.xlsx`},mapping:{id:mapping,teacher_id:teacher,template_id:template,mapping_definition:def,revision:1,status:'reviewed'},profile:{id:randomUUID(),teacher_id:teacher,section_id:section,template_id:template,mapping_id:mapping,mapping_revision:1,template_sha256:hash,revision:1,bindings:{periodBindings:Object.fromEntries(periods.map(p=>[p.key,p.id])),subjectBindings:{[def.subjects[0].key]:subject}}},periods,subjects:[{id:subject,name:'Mathematics',position:1,status:'active'}],learners:[{id:learner,display_name:'José <李>'},{id:randomUUID(),display_name:'Ana Santos'}],entries:[{learner_id:learner,section_subject_id:subject,period_id:periods[0].id,grade:0}],adviserName:null} as GenerationSnapshot;
   mock.access.mockResolvedValue({user:{id:teacher},supabase:{rpc:mock.rpc}});mock.bytes.mockResolvedValue(bytes);mock.rpc.mockImplementation(async(name:string)=>({data:name==='report_card_generation_snapshot'?structuredClone(s):s.profile}));
@@ -25,3 +44,13 @@ it('keeps unsupported LRN, averages and remarks blank without calculating; advis
 it('returns saved bindings only, with no automatic same-name selections for a new profile',async()=>{s.profile=null;expect(await loadCompatibility({sectionId:s.section.id,templateId:s.template.id})).toMatchObject({ok:true,data:{profile:null}});});
 it('writes optional LRN only to the selected workbook and never sends it to database RPCs or filenames',async()=>{s.mapping.mapping_definition.fields.lrn={sheet:'Front page',address:'A3'};const marker='001234567890',r=await generateDownload({...request(),lrns:{[s.learners[0].id]:marker}}),w=new ExcelJS.Workbook();await w.xlsx.load(r.bytes as never);expect(w.worksheets[0].getCell('A3').value).toBe(marker);expect(r.filename).not.toContain(marker);expect(JSON.stringify(mock.rpc.mock.calls)).not.toContain(marker);expect(JSON.stringify(s.profile)).not.toContain(marker);await expect(generateDownload({...request(),lrns:{[randomUUID()]:marker}})).rejects.toThrow(/selected active/);});
 it('requires explicit batches and can generate the final learner beyond the first 50',async()=>{s.learners=Array.from({length:51},(_,i)=>({id:randomUUID(),display_name:`Synthetic ${i+1}`}));const r=await generateDownload({...request('all'),batchStart:50}),zip=await JSZip.loadAsync(r.bytes);expect(Object.keys(zip.files)).toEqual(['001-Synthetic-51-Report-Card.xlsx']);expect(r.filename).toContain('51-51');await expect(generateDownload({...request('all'),batchStart:49})).rejects.toThrow(/batches/);});
+
+it('previews filled cells without source writes and rejects stale or foreign learner requests',async()=>{
+ const p={sectionId:s.section.id,templateId:s.template.id,learnerId:s.learners[0].id,digest:digest(s)},before=Buffer.from(bytes);
+ const r=await previewReportCard(p);expect(r.ok).toBe(true);if(!r.ok)throw new Error(r.error);
+ expect(r.data.preview.cells.find(c=>c.address==='C8')?.displayValue).toBe(s.learners[0].display_name);
+ expect(r.data.preview.cells.find(c=>c.address==='D15')?.displayValue).toBe('0');expect(bytes.equals(before)).toBe(true);
+ expect(mock.rpc.mock.calls.every(c=>c[0]==='report_card_generation_snapshot')).toBe(true);
+ expect(await previewReportCard({...p,digest:'f'.repeat(64)})).toMatchObject({ok:false});
+ expect(await previewReportCard({...p,learnerId:randomUUID()})).toMatchObject({ok:false});
+});

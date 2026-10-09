@@ -3,7 +3,7 @@ export const normalizeLabel=(s:string)=>s.normalize('NFKC').toLowerCase().replac
 const numbers:Record<string,number>={one:1,first:1,'1st':1,two:2,second:2,'2nd':2,three:3,third:3,'3rd':3,four:4,fourth:4,'4th':4,five:5,fifth:5,six:6,sixth:6,seven:7,seventh:7,eight:8,eighth:8};
 export function periodCode(value:string):number|null{
   const n=normalizeLabel(value);if(n==='midterm'||n==='mid term')return 31;if(n==='final'||n==='final period')return 32;
-  const tokens=n.replace(/\bq([1-4])\b/g,'quarter $1').replace(/\b([1-8])(st|nd|rd|th)\b/g,'$1').split(' ').map(t=>String(numbers[t]??t));
+  const tokens=n.replace(/\bq([1-4])\b/g,'quarter $1').replace(/\bt([1-8])\b/g,'term $1').replace(/\b([1-8])(st|nd|rd|th)\b/g,'$1').split(' ').map(t=>String(numbers[t]??t));
   const label=tokens.join(' ').replace(/grading period|grading/g,'quarter');
   const m=/^(?:(quarter|term|semester) ([1-8])|([1-8]) (quarter|term|semester))$/.exec(label);if(!m)return null;
   return ({quarter:0,term:10,semester:20}[m[1]??m[4]]??0)+Number(m[2]??m[3]);
