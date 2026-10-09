@@ -1,7 +1,6 @@
 // src/features/settings/data-controls.tsx
 
 "use client";
-import {Spinner} from '@/components/ui/loading-state';
 
 import { useActionState, useState, useTransition } from "react";
 import { Download, FileX2, Trash2 } from "lucide-react";
@@ -101,7 +100,7 @@ function ConfirmPanel({
       ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <DangerButton disabled={!ready || pending} onClick={onConfirm}>
-          {pending && <Spinner/>}{pending ? "Working…" : confirmLabel}
+          {pending ? "Working…" : confirmLabel}
         </DangerButton>
         <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
           Cancel

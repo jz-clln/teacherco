@@ -1,7 +1,6 @@
 // src/features/exams/components/new-assessment-form.tsx
 
 "use client";
-import {Spinner} from '@/components/ui/loading-state';
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -185,7 +184,7 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p role="status" className={`text-base ${complete ? "text-[#1A4D2E]" : muted}`}>{hint}</p>
           <button type="button" onClick={submit} disabled={!complete || pending} className={btnPrimary}>
-            {pending && <Spinner/>}{pending ? "Saving…" : "Save and start checking"}
+            {pending ? "Saving…" : "Save and start checking"}
           </button>
         </div>
       </div>

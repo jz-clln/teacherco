@@ -633,7 +633,7 @@ export function CheckWorkspace({ assessment, items, roster, initialLearnerId }: 
                     </span>
                   </p>
                   <button type="button" onClick={confirm} disabled={undecided.length > 0 || saving} className={btnPrimary}>
-                    {saving&&<Spinner/>}{saving
+                    {saving
                       ? "Saving…"
                       : undecided.length > 0
                         ? `Review ${undecided.length} more`

@@ -2,7 +2,6 @@
 
 "use client";
 
-import { Spinner } from "@/components/ui/loading-state";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -280,7 +279,7 @@ export function AskWorkspace({ classes, loadError }: { classes: AskClassOption[]
             disabled={!question.trim() || pending}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#1A4D2E] px-5 text-sm font-semibold text-white transition hover:bg-[#123820] disabled:cursor-not-allowed disabled:bg-[#C5D0C6]"
           >
-            {pending ? <Spinner/> : <Send size={16} />}
+            <Send size={16} aria-hidden="true" />
             {pending ? "Checking records" : "Ask"}
           </button>
         </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { Spinner } from "@/components/ui/loading-state";
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, Download } from "lucide-react";
@@ -17,10 +16,10 @@ export function InstallTeacherCoButton({ destination }: { destination: string | 
         {open ? "Open TeacherCo" : "Continue in browser"}<ArrowRight size={17} aria-hidden="true" />
       </Link>
     ) : (
-      <button type="button" className="landing-button landing-button-secondary" disabled={busy} onClick={() => {
+      <button type="button" className="landing-button landing-button-secondary disabled:opacity-50" disabled={busy} aria-busy={busy||undefined} onClick={() => {
         if (ios) setInstructions(true); else if (available) void install();
       }}>
-        {busy ? <Spinner/> : <Download size={17} aria-hidden="true" />}
+        <Download size={17} aria-hidden="true" />
         {busy ? "Opening installer…" : "Install TeacherCo"}
       </button>
     )}

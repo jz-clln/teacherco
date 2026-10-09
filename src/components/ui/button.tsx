@@ -1,6 +1,5 @@
 //src\components\ui\button.tsx - Jabez
 
-import {Spinner} from "./loading-state";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +21,6 @@ export function Button({ className, variant = "primary", loading=false, disabled
       {...props}
       disabled={disabled||loading}
       aria-busy={loading||undefined}
-    >{loading&&<Spinner/>}{children}</button>
+    >{children}</button>
   );
 }

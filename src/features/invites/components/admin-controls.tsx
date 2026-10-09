@@ -56,7 +56,7 @@ export function GenerateCodeForm() {
         <Button className="w-full sm:w-auto" disabled={pending}>
           {pending ? (
             <>
-              <Spinner className="mr-2"/>
+              
               Generating…
             </>
           ) : "Generate invite code"}

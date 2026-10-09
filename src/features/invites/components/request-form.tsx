@@ -2,7 +2,6 @@
 
 "use client";
 
-import { Spinner } from "@/components/ui/loading-state";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ArrowLeft, CircleAlert, CircleCheck } from "lucide-react";
@@ -68,7 +67,7 @@ export function RequestAccessForm({ name, email }: { name: string; email: string
       <Button disabled={pending || !!state.success} className="w-full">
         {pending ? (
           <>
-            <Spinner className="mr-2"/>
+            
             Sending…
           </>
         ) : "Request access"}

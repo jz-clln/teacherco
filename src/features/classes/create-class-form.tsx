@@ -1,6 +1,5 @@
 "use client";
 
-import { Spinner } from "@/components/ui/loading-state";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,7 @@ export function CreateClassForm({ children }: { children: ReactNode }) {
         {children}
       </fieldset>
       <Button type="submit" disabled={pending} className="gap-2">
-        {pending ? <Spinner/> : null}
+        
         {pending ? "Creating class…" : "Create class"}
       </Button>
       {pending ? <p role="status" className="text-sm text-[#606861]">Saving your class. Please wait…</p> : null}

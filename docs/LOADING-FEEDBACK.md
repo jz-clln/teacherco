@@ -1,8 +1,8 @@
 ﻿# Loading feedback
 
-Use `LoadingState` for waiting screens and `LoadingState page` for route or workbook loads. Use `Button loading={pending}` for asynchronous actions, `Spinner` beside existing inline status messages, and `PendingSubmit` for server-action forms. Keep completion, empty and error messages free of loading animation.
+Use `LoadingState` for waiting screens and `LoadingState page` for route or workbook loads. Use `Button loading={pending}` for asynchronous actions (lighter disabled styling and busy semantics, without a loading icon), `Spinner` beside existing inline status messages, and `PendingSubmit` for server-action forms. Keep completion, empty and error messages free of loading animation.
 
-The shared `Spinner` displays the TeacherCo logo with a gentle bob and pulse for loading screens and inline actions. Navigation uses the original circular spinner. Progress bar appearance and animation are unchanged.
+The shared `Spinner` displays the TeacherCo logo with a gentle bob and pulse for loading screens and standalone status messages. Buttons use lighter disabled colors and pending text without a loading logo. Navigation uses the original circular spinner. Progress bar appearance and animation are unchanged.
 
 All route loading boundaries use the shared animated state. Main navigation also shows a thin animated bar while the link is pending. Existing animated import, export, score and Ask indicators remain in place. Animation uses CSS transforms without timers or new dependencies; reduced-motion preferences disable movement while retaining visible status text. Progress bars are indeterminate and do not imply a completion percentage.
 
