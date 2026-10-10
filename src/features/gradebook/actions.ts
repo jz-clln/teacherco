@@ -6,7 +6,7 @@ import { sectionAccess, requireSection, SectionError } from '@/features/sections
 import { getClassTermGrades } from '@/features/grading/queries';
 import { readGradebook } from './data';
 import { readSubjectOptions } from '@/features/classes/subject-options';
-import { buildPreview, setupSchema, manualSchema, importSchema, type Result, type ImportSelection, type ImportPreview } from './model';
+import { importSubjectId, buildPreview, setupSchema, manualSchema, importSchema, type Result, type ImportSelection, type ImportPreview } from './model';
 async function action<T>(work: (context: Awaited<ReturnType<typeof sectionAccess>>) => Promise<T>): Promise<Result<T>> {
   try { return { ok: true, data: await work(await sectionAccess()) }; }
   catch (error) { return { ok: false, error: error instanceof SectionError ? error.message : 'Could not save this change. Refresh and try again.' }; }
@@ -54,14 +54,17 @@ async function preview(context: Awaited<ReturnType<typeof sectionAccess>>, p: Im
   const section = await requireSection(supabase,user.id,p.sectionId);
   if (section.status !== 'active') throw new SectionError('Reactivate the Section before importing grades.');
   const source = async () => {
-    const { data, error } = await supabase.from('classes').select('id,sync_revision').eq('id',p.classId).eq('teacher_id',user.id).eq('section_id',p.sectionId).maybeSingle();
+    const { data, error } = await supabase.from('classes').select('id,sync_revision,subject').eq('id',p.classId).eq('teacher_id',user.id).eq('section_id',p.sectionId).maybeSingle();
     if (error || !data) throw new SectionError('Choose a linked class in this Section.');
-    return Number(data.sync_revision);
+    return {revision:Number(data.sync_revision),subject:data.subject};
   };
-  const revision = await source();
+  const sourceBefore = await source(),revision=sourceBefore.revision;
   const [book, classroom] = await Promise.all([readGradebook(supabase,user.id,p.sectionId), getClassTermGrades(supabase,p.classId)]);
-  if (!classroom || await source() !== revision) throw new SectionError('Source class changed. Review a fresh preview.');
+  if (!classroom || (await source()).revision !== revision) throw new SectionError('Source class changed. Review a fresh preview.');
   if (!book.subjects.some(s => s.id === p.subjectId && s.status === 'active') || !book.periods.some(t => t.id === p.periodId && t.status === 'active')) throw new SectionError('Choose an active subject and period.');
+  const matched=importSubjectId(sourceBefore.subject??'',book.subjects);
+  if(matched&&matched!==p.subjectId)throw new SectionError('The selected class belongs to a different subject. Reopen the import and use its matching Section subject.');
+  if(!matched&&!p.destinationConfirmed)throw new SectionError('Confirm the destination subject for this class before reviewing grades.');
   const rows = buildPreview(classroom,new Set(book.learners.filter(l => l.status === 'active').map(l => l.id)),book.entries,p);
   const digest = createHash('sha256').update(JSON.stringify({ p, revision, rows })).digest('hex');
   return { rows, revision, digest };

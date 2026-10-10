@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import {subjectKey,periodCode} from '@/features/assisted-workflows/labels';
+export function importSubjectId(label:string,subjects:Subject[]){const matches=subjects.filter(s=>s.status==='active'&&subjectKey(s.name)===subjectKey(label));return matches.length===1?matches[0].id:'';}
+export function importPeriodId(term:number,periods:Period[]){const matches=periods.filter(p=>p.status==='active'&&(periodCode(p.label)===10+term||new RegExp(`^period ${term}$`,'i').test(p.label.trim())));return matches.length===1?matches[0].id:'';}
 import type { ClassTermGrades } from '@/features/grading/queries';
 export type Period = { id: string; key: string; label: string; position: number; status: 'active' | 'inactive'; updated_at?: string };
 export type Subject = { id: string; name: string; code: string | null; category: string | null; position: number; status: 'active' | 'inactive'; updated_at?: string };
@@ -23,7 +26,7 @@ const label = (max: number) => z.string().trim().min(1).max(max);
 const status = z.enum(['active', 'inactive']);
 export const setupSchema = z.object({ sectionId: z.uuid(), periods: z.array(z.object({ id: z.uuid(), key: z.string().regex(/^period_[a-zA-Z0-9_-]+$/).max(80), label: label(60), position: z.number().int().min(1).max(8), status })).min(1).max(8), subjects: z.array(z.object({ id: z.uuid(), name: label(120), code: z.string().max(40).nullable(), category: z.string().max(80).nullable(), position: z.number().int().positive(), status })).max(100), expected: z.array(z.object({ id: z.uuid(), updated_at: z.string() })).max(108), duplicatesConfirmed: z.boolean() });
 export const manualSchema = z.object({ sectionId: z.uuid(), subjectId: z.uuid(), periodId: z.uuid(), confirmed: z.literal(true), rows: z.array(z.object({ learner_id: z.uuid(), grade: z.number().finite().min(0).max(100).nullable(), expected_updated_at: z.string().nullable() })).min(1).max(500) });
-export const importSchema = z.object({ sectionId: z.uuid(), subjectId: z.uuid(), periodId: z.uuid(), classId: z.uuid(), term: z.number().int().min(1).max(3), calculation: z.enum(['printed', 'calculated']) });
+export const importSchema = z.object({ sectionId: z.uuid(), subjectId: z.uuid(), periodId: z.uuid(), classId: z.uuid(), term: z.number().int().min(1).max(3), calculation: z.enum(['printed', 'calculated']), destinationConfirmed:z.boolean().optional() });
 export type ImportSelection = z.infer<typeof importSchema>;
 export function buildPreview(classroom: ClassTermGrades, activeIds: Set<string>, entries: GradeEntry[], selection: ImportSelection): PreviewRow[] {
   const byId = new Map(entries.filter(e => e.section_subject_id === selection.subjectId && e.period_id === selection.periodId).map(e => [e.learner_id, e]));
