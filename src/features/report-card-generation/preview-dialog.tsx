@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { LoadingState } from '@/components/ui/loading-state';
 import { TemplateViewer } from '@/features/report-card-templates/viewer';
 import { previewReportCard } from './actions';
+import {PreviewDownload} from './preview-download';
 import {ReportPrintSetup} from './print-setup';
 import type {SheetPreview} from '@/features/report-card-templates/model';
 
-export function ReportCardPreview({sectionId,templateId,learnerId,learnerName,digest,lrn,onClose}:{sectionId:string;templateId:string;learnerId:string;learnerName:string;digest:string;lrn?:string;onClose:()=>void}){
+export function ReportCardPreview({sectionId,templateId,learnerId,learnerName,digest,lrn,profileId,profileRevision,formulaTargets,onClose}:{sectionId:string;templateId:string;learnerId:string;learnerName:string;digest:string;lrn?:string;profileId:string;profileRevision:number;formulaTargets:string[];onClose:()=>void}){
   const [controlsTarget,setControlsTarget]=useState<HTMLDivElement|null>(null);
   const [printSheets,setPrintSheets]=useState<SheetPreview[]|null>(null);
   const [printing,setPrinting]=useState(false),[printError,setPrintError]=useState('');
@@ -26,7 +27,7 @@ export function ReportCardPreview({sectionId,templateId,learnerId,learnerName,di
       <aside aria-label="Report card controls" className="min-h-0 min-w-0 space-y-4 overflow-y-auto border-l border-[#E3E5E1] p-3">
         <Button variant="secondary" onClick={onClose}>Close preview</Button>
         <div><h2 id={title}>Report card preview</h2><p className="text-sm break-words">{learnerName}</p></div>
-        <div className="flex flex-wrap gap-2"><Link className="tc-button tc-secondary" href={`/report-cards/templates/${templateId}/mapping`}>Map missing fields</Link><Button disabled={!result?.ok||printing} onClick={async()=>{setPrinting(true);setPrintError('');try{const response=await previewReportCard({sectionId,templateId,learnerId,digest,...(lrn?{lrns:{[learnerId]:lrn}}:{}),print:true});if(!response.ok)throw new Error(response.error);setPrintSheets(response.data.printSheets);}catch(error){setPrintError(error instanceof Error?error.message:'Could not print this report card.');}finally{setPrinting(false);}}}>Print</Button></div>
+        <div className="flex flex-wrap gap-2"><Link className="tc-button tc-secondary" href={`/report-cards/templates/${templateId}/mapping`}>Map missing fields</Link><PreviewDownload disabled={!result?.ok||printing} details={{sectionId,templateId,learnerId,digest,lrn,profileId,profileRevision,formulaTargets}}/><Button disabled={!result?.ok||printing} onClick={async()=>{setPrinting(true);setPrintError('');try{const response=await previewReportCard({sectionId,templateId,learnerId,digest,...(lrn?{lrns:{[learnerId]:lrn}}:{}),print:true});if(!response.ok)throw new Error(response.error);setPrintSheets(response.data.printSheets);}catch(error){setPrintError(error instanceof Error?error.message:'Could not print this report card.');}finally{setPrinting(false);}}}>Print</Button></div>
         {printError&&<p role="alert" className="text-sm text-red-700">{printError}</p>}
         <div ref={setControlsTarget}/>
         <details className="text-xs text-[#606861]"><summary className="cursor-pointer py-2">About this preview</summary><p>Read-only preview of the filled workbook, including supported embedded images. Print uses the template fonts and centers each report area on your selected A4 or short bond paper. Charts and unsupported drawing formats may be omitted; use the Excel download for those. Missing data stays blank. Preview and printing use the imported fonts; fonts unavailable on your device may be substituted. Excel formulas are not recalculated. Formula replacements shown here still require confirmation before download.</p></details>
