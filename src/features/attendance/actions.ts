@@ -21,7 +21,7 @@ export type SaveAttendanceResult =
   | { ok: true; saved: number; absent: number; late: number; updatedAt: string }
   | { ok: false; error: string };
 
-const CHUNK = 500;
+
 
 /**
  * Saves one day of attendance for a class. Every learner gets a row, so "present" and
@@ -72,12 +72,8 @@ export async function saveAttendance(input: z.input<typeof InputSchema>): Promis
     updated_at: updatedAt,
   }));
 
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const { error } = await supabase
-      .from("attendance_entries")
-      .upsert(rows.slice(i, i + CHUNK), { onConflict: "class_id,learner_id,attendance_date" });
-    if (error) return { ok: false, error: "Attendance was not saved. Please try again." };
-  }
+  const {data:result,error}=await supabase.rpc('save_attendance_day',{p_class:classId,p_date:date,p_marks:Object.fromEntries(byLearner),p_baseline:null});
+  if(error||!result?.ok)return {ok:false,error:result?.error??'Attendance was not saved. Please try again.'};
 
   revalidatePath(`/classes/${classId}`);
   revalidatePath(`/classes/${classId}/attendance`);
