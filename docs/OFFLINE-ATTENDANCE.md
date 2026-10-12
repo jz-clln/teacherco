@@ -1,0 +1,13 @@
+# Offline attendance
+
+While online, the app automatically caches all active classes, their rosters and today's marks through the authenticated, paginated `/api/attendance/offline` endpoint. The offline screen also prepares classes when opened online and includes a Refresh classes action. Opening a class's Attendance page additionally caches the selected day's marks. Save attendance writes to IndexedDB first, then uploads through `/api/attendance/sync`. Pending attendance survives reloads and cache clearing. Each account/class/date has one queued record; editing that day replaces its pending marks. Device-storage failures are shown without claiming the attendance was saved.
+
+The public `/offline.html` shell is precached with its two JavaScript modules. When a page cannot load, it offers cached classes, date selection and attendance entry. Other private HTML, API responses and RSC payloads remain network-only. The shell contains no embedded classroom records: it reads account-scoped IndexedDB data. Signing out removes the active-account marker; pending work is retained for the original account. The server verifies that account again before accepting an upload.
+
+Automatic retries run on reconnection, focus and every 30 seconds while TeacherCo is open. Closed-app background sync is not promised. A class must finish preparing while online before it can be used offline. Rosters are snapshots, not live updates while offline.
+
+Migration `0025_offline_attendance.sql` must be applied with the app release. Its authenticated, RLS-protected transaction validates class ownership, enrollment, statuses and dates; serializes attendance saves; and compares the original marks with current database marks. Repeating an acknowledged save does not duplicate rows. A conflicting online edit leaves the device copy pending. “Review device saves” opens a comparison and offers explicit choices to use device marks or keep online marks. A changed roster may require reopening attendance online.
+
+The app never caches authentication tokens in the attendance store. Clear offline cache removes only synchronized records; deleting a class or all account data also removes the corresponding offline attendance. Device data is available to someone with access to that browser profile while the account remains selected, as with other local app data.
+
+Validation: `offline-attendance-database.test.ts`, `offline-attendance-api.test.ts`, attendance date and PWA cache tests; `offline-attendance-browser.mjs` exercises actual IndexedDB and a production service worker with a synthetic roster and mocked sync API. The database tests run migrations in local PGlite; no production records are changed.

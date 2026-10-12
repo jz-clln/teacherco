@@ -1,3 +1,4 @@
+import {activeTeacher,listDays,clearDays} from "../../../public/offline-attendance.js";
 // src/lib/offline/cache.ts
 
 import { offlineDb } from "./db";
@@ -15,11 +16,13 @@ export async function getOfflineSummary(): Promise<OfflineSummary> {
     offlineDb.learners.count(),
     offlineDb.syncQueue.count(),
   ]);
-  return { classes, learners, pendingChanges };
+  const days=await listDays(activeTeacher());
+  return {classes:classes+new Set(days.map(d=>d.classId)).size,learners:learners+new Set(days.flatMap(d=>d.learners.map(l=>l.id))).size,pendingChanges:pendingChanges+days.filter(d=>d.pending).length};
 }
 
 /** Clears cached classroom data. Changes still waiting to sync are kept. */
 export async function clearOfflineCache() {
+  await clearDays(activeTeacher());
   const db = offlineDb;
   if (!db) return;
   await db.transaction("rw", db.classes, db.learners, db.enrollments, async () => {
@@ -29,6 +32,7 @@ export async function clearOfflineCache() {
 
 /** Clears everything, including unsynced changes. Used after the teacher deletes all data. */
 export async function clearAllOfflineData() {
+  await clearDays(activeTeacher(),true);
   const db = offlineDb;
   if (!db) return;
   await db.transaction("rw", db.classes, db.learners, db.enrollments, db.syncQueue, async () => {
@@ -38,6 +42,7 @@ export async function clearAllOfflineData() {
 
 /** Removes one deleted class from the device, plus learners who are no longer in any cached class. */
 export async function clearOfflineClass(classId: string) {
+  await clearDays(activeTeacher(),true,classId);
   const db = offlineDb;
   if (!db) return;
   await db.transaction("rw", db.classes, db.learners, db.enrollments, db.syncQueue, async () => {

@@ -8,7 +8,7 @@ const withSerwist = withSerwistInit({
   reloadOnOnline: false,
   // Install only a tiny, public offline shell and app icons. Chunks and large
   // illustrations are cached on demand, never all downloaded during install.
-  globPublicPatterns: ["offline.html", "icons/*.png"],
+  globPublicPatterns: ["offline.html", "offline-attendance.js", "offline-attendance-ui.js", "icons/*.png", "fonts/poppins-*.woff2"],
   exclude: [/.*/],
 
   // Disable service worker generation during local development.

@@ -1,0 +1,11 @@
+import type {AttendanceStatus} from '../src/features/attendance/types';
+export type CachedDay={key?:string;owner:string;classId:string;className:string;subject:string;date:string;learners:{id:string;name:string}[];marks:Record<string,AttendanceStatus>;baseline:Record<string,AttendanceStatus>;updatedAt:string|null;pending?:boolean;error?:string;revision?:string;savedAt?:string};
+export function activeTeacher():string;
+export function prepareAttendance(owner:string,force?:boolean):Promise<void>;
+export function listDays(owner:string):Promise<CachedDay[]>;
+export function readDay(owner:string,classId:string,date:string):Promise<CachedDay|undefined>;
+export function cacheDay(day:CachedDay):Promise<CachedDay>;
+export function queueDay(day:CachedDay,marks:CachedDay['marks']):Promise<CachedDay>;
+export function clearDays(owner:string,all?:boolean,classId?:string):Promise<void>;
+export function syncAttendance(owner:string):Promise<void>;
+export function resolveDay(day:CachedDay,serverMarks:CachedDay['marks'],useDevice:boolean):Promise<CachedDay|null>;

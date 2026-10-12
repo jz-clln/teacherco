@@ -1,0 +1,13 @@
+'use client';
+import {useEffect} from 'react';
+import {syncAttendance,prepareAttendance} from '../../../public/offline-attendance.js';
+export function AttendanceSync({owner}:{owner:string}){
+  useEffect(()=>{
+    document.cookie=`teacherco_offline_owner=${owner}; Path=/; SameSite=Strict; Max-Age=2592000${location.protocol==='https:'?'; Secure':''}`;
+    const sync=()=>{void syncAttendance(owner).then(()=>prepareAttendance(owner)).catch(()=>{/* Saved device data remains available for retry. */});};
+    sync();window.addEventListener('online',sync);window.addEventListener('focus',sync);
+    const timer=setInterval(sync,30000);
+    return()=>{clearInterval(timer);window.removeEventListener('online',sync);window.removeEventListener('focus',sync);};
+  },[owner]);
+  return null;
+}

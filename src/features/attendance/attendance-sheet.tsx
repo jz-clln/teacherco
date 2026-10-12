@@ -2,13 +2,13 @@
 
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Clock, FileText, X } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
-import { saveAttendance } from "./actions";
+import {cacheDay,readDay,queueDay,syncAttendance,type CachedDay} from "../../../public/offline-attendance.js";
 import { formatLongDate, shiftDate } from "./dates";
 import type { AttendanceStatus } from "./types";
 
@@ -60,6 +60,7 @@ function formatSavedAt(iso: string): string | null {
 }
 
 export function AttendanceSheet({
+  owner, className, subject,
   classId,
   date,
   today,
@@ -68,6 +69,7 @@ export function AttendanceSheet({
   taken: initiallyTaken,
   updatedAt,
 }: {
+  owner:string; className:string; subject:string;
   classId: string;
   date: string;
   today: string;
@@ -79,6 +81,9 @@ export function AttendanceSheet({
   updatedAt: string | null;
 }) {
   const router = useRouter();
+  const [deviceDay,setDeviceDay]=useState<CachedDay|null>(null);
+  const [storageError,setStorageError]=useState('');
+
   const [pending, start] = useTransition();
   const startMarks = useMemo(
     () => Object.fromEntries(learners.map((l) => [l.id, initial[l.id] ?? "present"])) as Record<string, AttendanceStatus>,
@@ -92,6 +97,17 @@ export function AttendanceSheet({
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   // A day the teacher tried to open while there were unsaved changes.
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
+
+  useEffect(()=>{
+    let live=true;
+    cacheDay({owner,classId,className,subject,date,learners,marks:initial,baseline:initial,updatedAt}).then(day=>{
+      if(!live)return;setDeviceDay(day);
+      if(day.pending){const restored=Object.fromEntries(learners.map(l=>[l.id,day.marks[l.id]??'present'])) as Record<string,AttendanceStatus>;setMarks(restored);setBaseline(restored);setTaken(true);}
+    }).catch(()=>{if(live)setStorageError('Device storage is unavailable. Attendance cannot be saved offline on this browser.');});
+    const refresh=()=>{void readDay(owner,classId,date).then(day=>{if(live&&day)setDeviceDay(day);}).catch(()=>{});};
+    window.addEventListener('attendance-cache-change',refresh);
+    return()=>{live=false;window.removeEventListener('attendance-cache-change',refresh);};
+  },[owner,classId,className,subject,date,learners,initial,updatedAt]);
 
   const counts = useMemo(() => {
     const c: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
@@ -111,37 +127,42 @@ export function AttendanceSheet({
     setMarks(Object.fromEntries(learners.map((l) => [l.id, status])) as Record<string, AttendanceStatus>);
   }
 
+  function navigateDay(next:string){
+    // A document navigation reaches the precached static shell without an RSC request.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    if(!navigator.onLine)window.location.href=`/offline.html?classId=${classId}&date=${next}`;
+    else router.push(`/classes/${classId}/attendance?date=${next}`);
+  }
   function goTo(next: string) {
     if (next === date || next > today) return;
     if (dirty) {
       setLeaveTo(next);
       return;
     }
-    router.push(`/classes/${classId}/attendance?date=${next}`);
+    navigateDay(next);
   }
 
   function save() {
     setMessage(null);
     start(async () => {
-      const result = await saveAttendance({
-        classId,
-        date,
-        marks: learners.map((l) => ({ learnerId: l.id, status: marks[l.id] })),
-      });
-      if (!result.ok) {
-        setMessage({ kind: "error", text: result.error });
-        return;
-      }
-      setBaseline(marks);
-      setTaken(true);
-      setSavedAt(new Date().toISOString());
-      setMessage({ kind: "ok", text: "Saved." });
-      router.refresh();
+      try{
+        if(!deviceDay)throw new Error(storageError||'Preparing attendance for this device. Please try again.');
+        const queued=await queueDay(deviceDay,marks);setDeviceDay(queued);
+        setBaseline(marks);setTaken(true);setSavedAt(queued.savedAt??null);
+        setMessage({kind:'ok',text:'Saved on this device. Waiting to sync.'});
+        await syncAttendance(owner);
+        const latest=await readDay(owner,classId,date);
+        if(latest){setDeviceDay(latest);setMessage({kind:latest.error?'error':'ok',text:latest.error||(latest.pending?'Saved on this device. Will sync when connected.':'Saved to your account.')});}
+      }catch(error){setMessage({kind:'error',text:error instanceof Error?error.message:'Could not save attendance on this device. Please try again.'});}
+
     });
   }
 
   return (
     <div className="space-y-4">
+      {storageError&&<p role="alert" className="text-sm text-red-700">{storageError}</p>}
+      {deviceDay?.error&&<p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">{deviceDay.error} <a href="/offline.html" className="underline">Review device saves</a></p>}
+      {deviceDay&&<p className="text-xs text-[#606861]">This class is available offline. <a href="/offline.html" className="underline">Open offline attendance</a></p>}
       {/* date */}
       <div className="flex items-center gap-2">
         <button
@@ -183,7 +204,7 @@ export function AttendanceSheet({
             taken ? "bg-[#EAF0EA] text-[#1A4D2E]" : "bg-amber-100 text-amber-800",
           )}
         >
-          {taken ? "Attendance saved" : "Not taken yet"}
+          {deviceDay?.pending ? "Saved on device - Waiting to sync" : taken ? "Attendance saved" : "Not taken yet"}
         </span>
       </div>
       {lastUpdated ? <p className="-mt-2 text-xs text-[#606861]">Last updated {lastUpdated}</p> : null}
@@ -257,7 +278,7 @@ export function AttendanceSheet({
           <button
             type="button"
             onClick={save}
-            disabled={pending || (taken && !dirty)}
+            disabled={pending || !deviceDay || (taken && !dirty)}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#1A4D2E] px-5 text-sm font-semibold text-white transition hover:bg-[#123820] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A4D2E] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Saving…" : taken ? (dirty ? "Update attendance" : "Saved") : "Save attendance"}
@@ -275,7 +296,7 @@ export function AttendanceSheet({
         onConfirm={() => {
           const next = leaveTo;
           setLeaveTo(null);
-          if (next) router.push(`/classes/${classId}/attendance?date=${next}`);
+          if (next) navigateDay(next);
         }}
         onCancel={() => setLeaveTo(null)}
       />

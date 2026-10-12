@@ -24,16 +24,20 @@ export function OfflineControls() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    getOfflineSummary().then(setSummary);
+    const refresh=()=>{void getOfflineSummary().then(setSummary).catch(()=>setMessage('Could not read device storage.'));};
+    refresh();window.addEventListener('attendance-cache-change',refresh);
+    return()=>window.removeEventListener('attendance-cache-change',refresh);
   }, []);
 
   async function clearCache() {
     setBusy(true);
-    await clearOfflineCache();
-    setSummary(await getOfflineSummary());
-    setConfirming(false);
-    setBusy(false);
-    setMessage("Cached classroom data was cleared from this device. It will download again the next time you are online.");
+    try {
+      await clearOfflineCache();
+      setSummary(await getOfflineSummary());
+      setConfirming(false);
+      setMessage("Synced classroom data was cleared. Attendance waiting to sync is kept on this device.");
+    } catch { setMessage("Could not clear the device cache. Please try again."); }
+    finally { setBusy(false); }
   }
 
   const hasCache = !!summary && (summary.classes > 0 || summary.learners > 0);
@@ -48,12 +52,13 @@ export function OfflineControls() {
           <p className="text-sm font-semibold text-[#313832]">{online ? "You are online" : "You are offline"}</p>
           <p className="mt-0.5 text-xs leading-5 text-[#606861]">
             {online
-              ? "Your classroom records are cached on this device so they stay available without internet."
-              : "Your cached records are still available. AI assistance returns when you reconnect."}
+              ? "Your active classes are prepared automatically for offline attendance. Device saves sync when TeacherCo is open and connected."
+              : "Attendance for cached classes is available on this device. Saves will sync when you reconnect."}
           </p>
         </div>
       </div>
 
+      <a href="/offline.html" className="tc-button tc-secondary justify-self-start">Open offline attendance</a>
       <dl className="tc-group grid divide-y divide-[#E3E5E1] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {[
           { label: "Classes cached", value: summary?.classes },

@@ -29,6 +29,8 @@ export default async function AttendancePage({
   if (date > today) redirect(`/classes/${classId}/attendance`);
 
   const supabase = await createClient();
+  const {data:{user}}=await supabase.auth.getUser();
+  if(!user)redirect("/login");
   const { data: classroom } = await supabase
     .from("classes")
     .select("id,name,subject,grade_level")
@@ -100,6 +102,9 @@ export default async function AttendancePage({
       ) : (
         <AttendanceSheet
           key={date}
+          owner={user.id}
+          className={classroom.name}
+          subject={classroom.subject}
           classId={classId}
           date={date}
           today={today}

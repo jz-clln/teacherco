@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAccessContext } from "@/lib/auth/access-guard";
@@ -32,6 +33,7 @@ export async function signUp(formData: FormData) {
 
 export async function signOut() {
   const supabase = await createClient();
+  (await cookies()).delete("teacherco_offline_owner");
   await supabase.auth.signOut();
   redirect("/login");
 }
