@@ -1,3 +1,5 @@
+import {Suspense} from 'react';
+import {NavigationProgress} from '@/components/layout/navigation-progress';
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
@@ -37,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.className} ${poppins.variable}`} suppressHydrationWarning>
-        <AppProviders><PwaStatus />{children}</AppProviders>
+        <AppProviders><Suspense fallback={null}><NavigationProgress/></Suspense><PwaStatus />{children}</AppProviders>
       </body>
     </html>
   );

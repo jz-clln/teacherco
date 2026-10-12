@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { LoadingState } from '@/components/ui/loading-state';
+import { PageLoading } from '@/components/ui/page-loading';
 export default function SectionAreaTemplate({children}:{children:React.ReactNode}) {
-  return <Suspense fallback={<LoadingState page label="Loading Section page..."/>}>{children}</Suspense>;
+  return <Suspense fallback={<PageLoading label="Loading Section page..."/>}>{children}</Suspense>;
 }

@@ -1,2 +1,2 @@
-import {LoadingState} from "@/components/ui/loading-state";
-export default function Loading(){return <LoadingState page label="Loading invite administration..."/>;}
+import {PageLoading} from "@/components/ui/page-loading";
+export default function Loading(){return <PageLoading label="Loading invite administration..."/>;}

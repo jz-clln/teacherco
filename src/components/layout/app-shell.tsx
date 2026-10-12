@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpenCheck, ClipboardCheck, FileText, Home, LoaderCircle, MessageCircle, Settings, type LucideIcon } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, FileText, Home, MessageCircle, Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
 
@@ -19,7 +19,7 @@ const nav = [
 function NavigationIcon({ icon: Icon, size, label }: { icon: LucideIcon; size: number; label: string }) {
   const { pending } = useLinkStatus();
   return pending
-    ? <span role="status" aria-label={`Opening ${label}`}><LoaderCircle size={size} strokeWidth={1.8} className="animate-spin motion-reduce:animate-none" aria-hidden /><span className="tc-loading-track tc-navigation-loading" aria-hidden="true"><span/></span></span>
+    ? <span role="status" aria-label={`Opening ${label}`}><Icon size={size} strokeWidth={1.8} aria-hidden /><span className="tc-loading-track tc-navigation-loading" aria-hidden="true"><span/></span></span>
     : <Icon size={size} strokeWidth={1.8} aria-hidden />;
 }
 

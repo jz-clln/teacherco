@@ -1,5 +1,5 @@
-import { LoadingState } from "@/components/ui/loading-state";
+import { PageLoading } from "@/components/ui/page-loading";
 
 export default function ClassAreaLoading() {
-  return <LoadingState page label="Loading class area..." />;
+  return <PageLoading label="Loading class area..." />;
 }

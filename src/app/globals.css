@@ -227,3 +227,9 @@ body :is(.font-mono, .font-sans, .font-serif, code, pre, input, textarea, select
   outline-offset: -2px;
   box-shadow: none;
 }
+
+/* Shared action sizing, including links styled as buttons. */
+@layer base { .tc-button { min-height:44px !important; font-size:14px !important; line-height:20px !important; padding-top:10px !important; padding-bottom:10px !important; } }
+.tc-page-loading { position:fixed; inset:0 0 auto; z-index:9999; height:3px; overflow:hidden; background:#E3E5E1; pointer-events:none; }
+.tc-page-loading > span:first-child { display:block; width:45%; height:100%; background:#1A4D2E; animation:tc-loading-travel 1.2s ease-in-out infinite; }
+@media(prefers-reduced-motion:reduce){ .tc-page-loading > span:first-child { animation:none; width:100%; } }
