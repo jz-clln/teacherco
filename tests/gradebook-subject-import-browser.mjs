@@ -77,6 +77,21 @@ try {
   assert.equal(await page.locator(`#learner-grades-${ana}`).evaluate(e=>getComputedStyle(e).borderTopWidth),'2px');
   for(const width of [390,1440]){await page.setViewportSize({width,height:900});await page.screenshot({path:`${output}/search-layout-${width}.png`,fullPage:true});if(!(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)))console.log(await page.evaluate(()=>({viewport:innerWidth,width:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,20).map(e=>({tag:e.tagName,classes:e.className,width:e.getBoundingClientRect().width}))})));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await expect(page.getByRole('columnheader',{name:'Subject',exact:true})).toBeVisible();await page.screenshot({path:`${output}/all-subjects-${width}.png`,fullPage:true});}
   assert.deepEqual(await snapshot(),before);assert.equal(errors.length,0);
+  await checked(admin.from('teacher_term_grades').update({term_grade:94}).eq('class_id',languageClass).eq('term',1),'source update');
+  await page.goto(`${base}/sections/${sid}/inbox`);
+  await page.getByRole('button',{name:'Review updates (2 grades)',exact:true}).click();
+  const review=page.getByRole('dialog',{name:'Review class updates',exact:true});await expect(review).toBeVisible();
+  await expect(review.getByRole('cell',{name:'92',exact:true})).toHaveCount(2);await expect(review.getByRole('cell',{name:'94',exact:true})).toHaveCount(2);
+  const currentLanguage=()=>checked(auth.from('section_grade_entries').select('*').eq('section_subject_id',languageSubject).order('learner_id'),'current Language grades');
+  const beforeReview=await currentLanguage();await review.getByRole('button',{name:'Cancel',exact:true}).first().click();assert.deepEqual(await currentLanguage(),beforeReview);
+  await page.getByRole('button',{name:'Review updates (2 grades)',exact:true}).click();
+  for(const width of [390,1440]){await page.setViewportSize({width,height:900});assert.equal(Math.round((await review.boundingBox()).width),width);await page.screenshot({path:`${output}/sync-review-${width}.png`,animations:'disabled'});}
+  await expect(review.getByRole('button',{name:'Apply 0 grade updates',exact:true})).toBeDisabled();
+  const useButtons=review.getByRole('button',{name:'Use 94',exact:true});await useButtons.nth(0).click();await useButtons.nth(1).click();
+  await expect(review.getByRole('button',{name:'Apply 2 grade updates',exact:true})).toBeDisabled();assert.deepEqual(await currentLanguage(),beforeReview);
+  await review.getByRole('checkbox').check();await review.getByRole('button',{name:'Apply 2 grade updates',exact:true}).click();await expect(review).not.toBeVisible({timeout:30000});
+  assert.ok((await currentLanguage()).every(e=>Number(e.grade)===94));assert.deepEqual(await checked(auth.from('section_grade_entries').select('*').eq('section_subject_id',mathSubject).order('learner_id'),'math after sync'),mathBefore);
+  assert.equal(errors.length,0);
   console.log('PASS: sequential subject imports preserve the first subject exactly; destination matching, confirmation, learner-by-subject display, responsive layout and unchanged class records.');
 } catch (error) {
   console.error('Grade Book smoke failed:', error.message);

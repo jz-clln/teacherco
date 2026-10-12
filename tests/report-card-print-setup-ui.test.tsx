@@ -1,0 +1,20 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {chooseOption} from './helpers/custom-select';
+import type {SheetPreview} from '@/features/report-card-templates/model';
+const mock=vi.hoisted(()=>({print:vi.fn().mockResolvedValue(undefined)}));
+vi.mock('@/features/report-card-generation/print',async original=>({...await original<typeof import('@/features/report-card-generation/print')>(),printReport:mock.print}));
+import {ReportPrintSetup} from '@/features/report-card-generation/print-setup';
+afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();});
+it('opens a fullscreen paper preview and applies settings only when Print report card is clicked',async()=>{
+  HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};
+  vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});
+  const sheet:SheetPreview={rowStart:1,columnStart:1,summary:{name:'Report',index:0,state:'visible',rowExtent:1,columnExtent:1,mergeCount:0,formulaCount:0,hasImages:false,hasExternalReferences:false,hasPrintArea:false,hasFreezePane:false,truncated:false},rows:[{number:1,height:900,hidden:false}],columns:[{number:1,letter:'A',width:600,hidden:false}],cells:[{address:'A1',row:1,column:1,displayValue:'Report',type:'text'}],merges:[],warnings:[]};
+  const close=vi.fn();render(<ReportPrintSetup sheets={[sheet]} name="Ana" onClose={close}/>);
+  expect(screen.getByRole('dialog',{name:'Print settings'}).style.width).toBe('100vw');expect(mock.print).not.toHaveBeenCalled();expect(screen.getByRole('combobox',{name:'Paper size'})).toHaveTextContent('A4');expect(screen.getByRole('combobox',{name:'Scale'})).toHaveTextContent('Fit to width');
+  chooseOption(screen.getByRole('combobox',{name:'Paper size'}),'a4');chooseOption(screen.getByRole('combobox',{name:'Orientation'}),'landscape');fireEvent.change(screen.getByRole('spinbutton',{name:'left margin'}),{target:{value:'0.5'}});
+  expect((screen.getByTitle('Report card print layout') as HTMLIFrameElement).srcdoc).toContain('size:A4 landscape');
+  fireEvent.click(screen.getByRole('button',{name:'Fit to screen'}));expect(mock.print).not.toHaveBeenCalled();fireEvent.click(screen.getByRole('button',{name:'Print report card'}));
+  await waitFor(()=>expect(mock.print).toHaveBeenCalledWith([sheet],'Ana',expect.objectContaining({paperSize:'a4',orientation:'landscape',margins:expect.objectContaining({left:.5})})));
+  fireEvent.click(screen.getByRole('button',{name:'Cancel'}));expect(close).toHaveBeenCalledOnce();
+});

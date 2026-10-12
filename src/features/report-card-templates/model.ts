@@ -12,7 +12,8 @@ export type Template = { id:string; teacher_id:string; name:string; original_fil
 export type CellStyle = { bold?:boolean; italic?:boolean; underline?:boolean; fontSize?:number; fontFamily?:string; color?:string; background?:string; align?:'left'|'center'|'right'; vertical?:'top'|'middle'|'bottom'; wrap?:boolean; borders?:Partial<Record<'top'|'right'|'bottom'|'left',{color:string;style:'solid'|'dashed'|'dotted'|'double';width:number}>> };
 export type CellPreview = { address:string; row:number; column:number; displayValue:string; type:'blank'|'text'|'number'|'date'|'boolean'|'error'|'formula'; formula?:string; cachedValue?:string; mergedRange?:string; borderSegments?:{side: 'top'|'bottom'|'left'|'right';start:number;end:number;color:string;style:'solid'|'dashed'|'dotted'|'double';width:number}[]; style?:CellStyle };
 export type Merge = { address:string; top:number; bottom:number; left:number; right:number; master:string };
-export type SheetPreview = { summary:SheetSummary; rowStart:number; columnStart:number; rows:{number:number;height:number;hidden:boolean}[]; columns:{number:number;letter:string;width:number;hidden:boolean}[]; cells:CellPreview[]; merges:Merge[]; warnings:string[] };
+export type SheetImage = {src:string;name:string;x:number;y:number;width:number;height:number};
+export type SheetPreview = { images?:SheetImage[]; summary:SheetSummary; rowStart:number; columnStart:number; rows:{number:number;height:number;hidden:boolean}[]; columns:{number:number;letter:string;width:number;hidden:boolean}[]; cells:CellPreview[]; merges:Merge[]; warnings:string[] };
 export type CellSelection = { sheetName:string; address:string; mergedRange?:string };
 export type TemplateResult<T=undefined> = { ok:true; data:T } | { ok:false; error:string; existing?:{id:string;name:string} };
 export function columnLetter(column:number):string {

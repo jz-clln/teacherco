@@ -8,13 +8,22 @@ import {prepareWriter} from '@/features/report-card-generation/writer';
 import {assignments} from '@/features/report-card-mappings/model';
 import {mappingWorkbook,mappingDefinition} from './helpers/mapping-fixture';
 const sha=(b:Buffer)=>createHash('sha256').update(b).digest('hex');
+it('centers only grade outputs while retaining fonts, borders, number formats and other cell styles',async()=>{
+  const w=new ExcelJS.Workbook(),s=w.addWorksheet('Front page');s.getCell('I30').value='End';
+  s.getCell('D15').font={name:'Bookman Old Style',size:9,italic:true};s.getCell('D15').alignment={horizontal:'right',vertical:'bottom'};s.getCell('D15').numFmt='0.00';s.getCell('D15').border={bottom:{style:'double'}};
+  s.getCell('B15').style=s.getCell('D15').style;s.getCell('I15').style=s.getCell('D15').style;s.getRow(15).height=18;s.getColumn(4).width=7.5;
+  const bytes=Buffer.from(await w.xlsx.writeBuffer()),hash=sha(bytes),def=mappingDefinition(hash);def.subjects[0].outputs.remarks={sheet:'Front page',address:'I15'};const writer=await prepareWriter(bytes,def,hash);
+  const output=await writer.write(assignments(def).map(a=>({...a,value:a.id.endsWith('period_1')?88:null}))),result=new ExcelJS.Workbook();await result.xlsx.load(output as never);
+  expect(sha(bytes)).toBe(hash);
+  const originalWorkbook=new ExcelJS.Workbook();await originalWorkbook.xlsx.load(bytes as never);expect(result.worksheets[0].getCell('D15').style).toEqual({...originalWorkbook.worksheets[0].getCell('D15').style,alignment:{horizontal:'center',vertical:'middle'}});for(const address of ['B15','I15'])expect(result.worksheets[0].getCell(address).style).toEqual(originalWorkbook.worksheets[0].getCell(address).style);expect(result.worksheets[0].getRow(15).height).toBe(18);expect(result.worksheets[0].getColumn(4).width).toBe(7.5);
+});
 it('writes merged Unicode/XML strings and numeric zero; preserves original, protection, hidden sheets and unrelated ZIP parts',async()=>{
   const original=await mappingWorkbook(),hash=sha(original),def=mappingDefinition(hash),writer=await prepareWriter(original,def,hash);
   const values=assignments(writer.definition).map(a=>({...a,value:a.id==='field:learner_name'?'=José <Ana> & "李"':a.id.endsWith('period_1')?0:a.id.endsWith('period_2')?89:null}));
   const output=await writer.write(values);expect(sha(original)).toBe(hash);
   const before=await JSZip.loadAsync(original),after=await JSZip.loadAsync(output);
   expect(Object.keys(after.files).sort()).toEqual(Object.keys(before.files).sort());
-  for(const path of Object.keys(before.files).filter(p=>p!=='xl/worksheets/sheet1.xml'))expect(await after.file(path)?.async('nodebuffer')).toEqual(await before.file(path)?.async('nodebuffer'));
+  for(const path of Object.keys(before.files).filter(p=>!['xl/worksheets/sheet1.xml','xl/styles.xml'].includes(p)))expect(await after.file(path)?.async('nodebuffer')).toEqual(await before.file(path)?.async('nodebuffer'));
   const xml=await after.file('xl/worksheets/sheet1.xml')!.async('string');expect(xml.match(/<sheetProtection[^>]*\/>/)?.[0]).toBe((await before.file('xl/worksheets/sheet1.xml')!.async('string')).match(/<sheetProtection[^>]*\/>/)?.[0]);
   const w=new ExcelJS.Workbook();await w.xlsx.load(output as never);expect(w.worksheets[0].getCell('C8').value).toBe('=José <Ana> & "李"');expect(w.worksheets[0].getCell('D15').value).toBe(0);expect(w.worksheets[0].getCell('E15').value).toBe(89);expect(w.worksheets[0].getCell('F15').value).toBeNull();expect(w.worksheets[0].getCell('F8').value).toBe('=José <Ana> & "李"');expect(w.worksheets[1].state).toBe('veryHidden');
 });

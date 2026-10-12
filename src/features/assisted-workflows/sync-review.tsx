@@ -1,0 +1,25 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import {Button} from '@/components/ui/button';
+import {gradeText} from '@/features/gradebook/model';
+import type {discoverClassSync} from './sync-actions';
+type Sync=Extract<Awaited<ReturnType<typeof discoverClassSync>>,{ok:true}>['data'];
+export function syncDecisionKey(proposal:Sync['proposals'][number],learnerId:string){return `${proposal.selection.classId}:${proposal.selection.subjectId}:${proposal.selection.periodId}:${learnerId}`;}
+export function ClassSyncReview({sync,decisions,onDecision,onClose,onApply,pending}:{sync:Sync;decisions:Record<string,boolean>;onDecision:(key:string,value:boolean)=>void;onClose:()=>void;onApply:()=>void;pending:boolean}){
+  const dialog=useRef<HTMLDialogElement>(null),[reviewed,setReviewed]=useState(false);
+  useEffect(()=>{const node=dialog.current;node?.showModal();const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{node?.close();document.body.style.overflow=previous;};},[]);
+  const conflicts=sync.proposals.flatMap(p=>p.preview.rows.filter(r=>r.status==='change').map(r=>syncDecisionKey(p,r.learnerId)));
+  const added=sync.proposals.reduce((n,p)=>n+p.preview.rows.filter(r=>r.status==='add').length,0),replaced=conflicts.filter(k=>decisions[k]===true).length,unresolved=conflicts.filter(k=>!(k in decisions)).length;
+  return <dialog ref={dialog} aria-labelledby="class-sync-review-title" onCancel={e=>{e.preventDefault();if(!pending)onClose();}} className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-[#F5EFE6] p-0 text-[#1E2420]" style={{width:'100vw',height:'100dvh',maxWidth:'none',maxHeight:'none',margin:0,borderRadius:0}}>
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#E3E5E1] bg-white p-4"><div><h2 id="class-sync-review-title">Review class updates</h2><p className="text-sm text-[#606861]">Nothing is saved until you confirm below.</p></div><Button variant="secondary" disabled={pending} onClick={onClose}>Cancel</Button></header>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+        <p>{added} new grades · {conflicts.length} existing grades need a decision · {sync.proposals.length} subject/term updates</p>
+        {sync.proposals.map(p=><section key={`${p.selection.subjectId}:${p.selection.periodId}:${p.selection.classId}`} className="rounded-xl border border-[#B8CDBA] bg-white p-4 space-y-3"><h3 className="font-semibold">{p.name}</h3><p className="text-sm text-[#606861]">Source: class Term {p.selection.term} · {p.selection.calculation==='printed'?'Printed / imported grades':'TeacherCo calculated grades'}</p>
+          <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-left text-sm"><thead><tr className="bg-[#EAF0EA]"><th className="p-2">Learner</th><th className="p-2">Current grade</th><th className="p-2">Class grade</th><th className="p-2">What will happen</th></tr></thead><tbody>{p.preview.rows.map(row=>{const key=syncDecisionKey(p,row.learnerId);return <tr key={row.learnerId} className="border-t border-[#E3E5E1]"><th scope="row" className="p-2 font-medium">{row.name}{row.current?.source_type==='manual'&&<span className="block text-xs text-amber-900">Manually entered grade</span>}</th><td className="p-2">{gradeText(row.current?.grade)}</td><td className="p-2">{gradeText(row.incoming)}</td><td className="p-2">{row.status==='change'?<div className="flex flex-wrap gap-2"><Button variant="secondary" className="!text-xs" disabled={pending} aria-pressed={decisions[key]===true} onClick={()=>{onDecision(key,true);setReviewed(false);}}>Use {row.incoming}</Button><Button variant="secondary" className="!text-xs" disabled={pending} aria-pressed={decisions[key]===false} onClick={()=>{onDecision(key,false);setReviewed(false);}}>Keep {row.current?.grade}</Button><span className="w-full text-xs">{decisions[key]===true?'Replace current grade':decisions[key]===false?'Keep current grade':'Choose which grade to keep'}</span></div>:row.status==='add'?'Add new grade':row.status==='missing'?'No class grade — keep current':row.status==='outside'?'Skip — not in active Section roster':'No change'}</td></tr>;})}</tbody></table></div>
+        </section>)}
+      </div>
+      <footer className="shrink-0 space-y-2 border-t border-[#E3E5E1] bg-white p-4"><p className="text-sm">Will add {added} and replace {replaced} grades. {unresolved>0?`${unresolved} decisions remaining.`:'All other existing grades stay unchanged.'}</p><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={reviewed} disabled={pending||unresolved>0} onChange={e=>setReviewed(e.target.checked)}/>I reviewed these changes and want to apply them.</label><div className="flex flex-wrap gap-2"><Button disabled={pending||!reviewed||unresolved>0||added+replaced===0} onClick={onApply}>{pending?'Applying updates...':`Apply ${added+replaced} grade updates`}</Button><Button variant="secondary" disabled={pending} onClick={onClose}>Cancel</Button></div></footer>
+    </div>
+  </dialog>;
+}

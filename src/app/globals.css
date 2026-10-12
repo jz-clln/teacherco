@@ -121,6 +121,17 @@
 .tc-app label:has(input.sr-only:focus-visible) { outline: 2px solid var(--brand); outline-offset: 3px; }
 .tc-app label:has(input.sr-only) { min-height: 44px; }
 @layer components {
+/* Match nested panels, dropdowns and the page scrollbar to the app theme. */
+* { scrollbar-width: thin; scrollbar-color: #C4C4C4 #F5F5F5; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: #F5F5F5; border-radius: 999px; }
+*::-webkit-scrollbar-thumb { background: #C4C4C4; border: 2px solid #F5F5F5; border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: #A3A3A3; }
+*::-webkit-scrollbar-corner { background: #F5F5F5; }
+@media (forced-colors: active) {
+  * { scrollbar-color: auto; }
+}
+
 .tc-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-control); padding: 10px 16px; font-size: 1rem; line-height: 1.375; font-weight: 600; transition: background-color var(--motion-hover), transform var(--motion-press); }
 .tc-button:active:not(:disabled) { transform: scale(.98); }
 .tc-button:disabled { cursor: not-allowed; opacity: .5; }

@@ -13,7 +13,7 @@ import { ephemeralLrnSchema, MAX_WORKBOOK_BYTES } from './model';
 import { MAX_ROWS, MAX_COLUMNS } from '@/features/report-card-templates/model';
 
 export async function previewReportCard(input:unknown){try{
-  const p=identity.extend({learnerId:z.uuid(),digest:z.string().regex(/^[a-f0-9]{64}$/),lrns:ephemeralLrnSchema.optional(),sheet:z.number().int().min(0).max(19).default(0),row:z.number().int().min(1).max(MAX_ROWS).default(1),column:z.number().int().min(1).max(MAX_COLUMNS).default(1)}).strict().parse(input);
+  const p=identity.extend({learnerId:z.uuid(),digest:z.string().regex(/^[a-f0-9]{64}$/),lrns:ephemeralLrnSchema.optional(),print:z.boolean().optional(),sheet:z.number().int().min(0).max(19).default(0),row:z.number().int().min(1).max(MAX_ROWS).default(1),column:z.number().int().min(1).max(MAX_COLUMNS).default(1)}).strict().parse(input);
   const {context,s,writer}=await loadGeneration({sectionId:p.sectionId,templateId:p.templateId});
   if(digest(s)!==p.digest)throw new Error('Report card data changed. Preview report cards again.');
   const learner=s.learners.find(l=>l.id===p.learnerId);
@@ -24,11 +24,13 @@ export async function previewReportCard(input:unknown){try{
   if(bytes.length>MAX_WORKBOOK_BYTES)throw new Error('This workbook is too large to preview.');
   const workbook=await parseWorkbook(bytes);
   let preview=workbook.sheet(p.sheet,p.row,p.column,true);
-  for(let rows=30;rows>=1&&Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024;rows=Math.floor(rows/2))preview=workbook.sheet(p.sheet,p.row,1,true,rows);
-  if(Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024)throw new Error('This worksheet is too detailed to preview.');
+  for(let rows=30;rows>=1&&Buffer.byteLength(JSON.stringify(preview),'utf8')>8*1024*1024;rows=Math.floor(rows/2))preview=workbook.sheet(p.sheet,p.row,1,true,rows);
+  if(Buffer.byteLength(JSON.stringify(preview),'utf8')>8*1024*1024)throw new Error('This worksheet is too detailed to preview.');
+  const printSheets=p.print?workbook.printSheets():[];
+  if(Buffer.byteLength(JSON.stringify(printSheets),'utf8')>8*1024*1024)throw new Error('This report is too detailed for browser printing. Download the Excel report card to print it.');
   const fresh=await templateAccess();
   if(fresh.user.id!==context.user.id||digest(await snapshot(fresh,p.sectionId,p.templateId))!==p.digest)throw new Error('Report card data changed. Preview report cards again.');
-  return {ok:true as const,data:{metadata:workbook.metadata,preview}};
+  return {ok:true as const,data:{metadata:workbook.metadata,preview,printSheets}};
 }catch(e){return failure(e);}}
 
 function failure(error:unknown){return {ok:false as const,error:error instanceof Error&&(error instanceof TemplateError||error instanceof WorkbookError||error.constructor===Error)?error.message:'Could not complete this action. Please retry.'};}

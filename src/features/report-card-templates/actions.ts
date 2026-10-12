@@ -87,7 +87,7 @@ export async function loadTemplateSheet(input:unknown){return result(async conte
   const p=parsed.data,template=await ownedTemplate(context,p.id),bytes=await originalBytes(context,template);
   const workbook=await parseWorkbook(bytes);
   let preview=workbook.sheet(p.sheet,p.row,p.column,p.expanded);
-  for(let rows=30;p.expanded&&rows>=1&&Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024;rows=Math.floor(rows/2))preview=workbook.sheet(p.sheet,p.row,1,true,rows);
-  if(Buffer.byteLength(JSON.stringify(preview),'utf8')>2*1024*1024)throw new TemplateError('This sheet contains too much detail for one preview. Download the original workbook to inspect it.');
+  for(let rows=30;p.expanded&&rows>=1&&Buffer.byteLength(JSON.stringify(preview),'utf8')>8*1024*1024;rows=Math.floor(rows/2))preview=workbook.sheet(p.sheet,p.row,1,true,rows);
+  if(Buffer.byteLength(JSON.stringify(preview),'utf8')>8*1024*1024)throw new TemplateError('This sheet contains too much detail for one preview. Download the original workbook to inspect it.');
   return preview;
 });}

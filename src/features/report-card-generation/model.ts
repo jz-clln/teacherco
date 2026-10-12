@@ -37,12 +37,22 @@ export function verifyProfile(snapshot:GenerationSnapshot){
 export function valuesForLearner(snapshot:GenerationSnapshot,definition:MappingDefinition,learner:GenerationLearner,lrns:EphemeralLrn={}):OutputValue[]{
   const profile=verifyProfile(snapshot),section=snapshot.section;
   if(!snapshot.learners.some(l=>l.id===learner.id))throw new Error('This learner is not active in the Section.');
-  const scalars:Record<string,string|null>={learner_name:learner.display_name,grade_level:section.grade_level,section_name:section.name,school_year:section.school_year,school_name:section.school_name,school_id:section.school_id,adviser_name:section.is_adviser?snapshot.adviserName:null,lrn:definition.fields.lrn?lrns[learner.id]??null:null,final_average:null,general_remarks:null};
+  const scalars:Record<string,string|null>={learner_name:learner.display_name,grade_level:section.grade_level?.replace(/^\s*grade\s+(\d{1,2})\s*$/i,'$1')??null,section_name:section.name,school_year:section.school_year,school_name:section.school_name,school_id:section.school_id,adviser_name:section.is_adviser?snapshot.adviserName:null,lrn:definition.fields.lrn?lrns[learner.id]??null:null,final_average:null,general_remarks:null};
   const grades=new Map(snapshot.entries.filter(e=>e.learner_id===learner.id).map(e=>[`${e.section_subject_id}:${e.period_id}`,e.grade]));
+  const finalGrades=new Map<string,number>();
+  for(const subject of definition.subjects){
+    const subjectId=profile.bindings.subjectBindings[subject.key];
+    const periodIds=definition.periods.map(p=>profile.bindings.periodBindings[p.key]);
+    const values=periodIds.map(id=>grades.get(`${subjectId}:${id}`));
+    if(!values.length||new Set(periodIds).size!==periodIds.length||values.some(v=>v==null))continue;
+    const complete=values as number[];
+    if(complete.some(v=>!Number.isFinite(v)||v<0||v>100))throw new Error('A Grade Book value is invalid. Review it before generating.');
+    finalGrades.set(subject.key,Math.round(complete.reduce((sum,v)=>sum+v,0)/complete.length));
+  }
   return assignments(definition).map(a=>{
     const [kind,key,output]=a.id.split(':');let value:string|number|null=null;
     if(kind==='field')value=scalars[key]??null;
-    else{const subjectId=profile.bindings.subjectBindings[key];if(output==='label')value=snapshot.subjects.find(s=>s.id===subjectId)?.name??null;else if(output.startsWith('period_'))value=grades.get(`${subjectId}:${profile.bindings.periodBindings[output]}`)??null;}
+    else{const subjectId=profile.bindings.subjectBindings[key];if(output==='label')value=snapshot.subjects.find(s=>s.id===subjectId)?.name??null;else if(output.startsWith('period_'))value=grades.get(`${subjectId}:${profile.bindings.periodBindings[output]}`)??null;else if(output==='final_grade')value=finalGrades.get(key)??null;else if(output==='remarks'){const final=finalGrades.get(key);value=final==null?null:final>=75?'Passed':'Failed';}}
     if(typeof value==='number'&&(!Number.isFinite(value)||value<0||value>100))throw new Error('A Grade Book value is invalid. Review it before generating.');
     if(typeof value==='string'&&!value.trim())value=null;
     return {...a,value};
@@ -52,7 +62,7 @@ export function safeFilename(value:string){return Array.from(value.normalize('NF
 export function outputStatus(v:OutputValue):'Available'|'Missing'|'Optional'|'Unsupported'{
   if(v.value!==null)return 'Available';
   if(v.id==='field:lrn')return 'Missing';
-  if(/:(final_average|general_remarks|final_grade|remarks)$/.test(v.id))return 'Unsupported';
+  if(/^field:(final_average|general_remarks)$/.test(v.id))return 'Unsupported';
   if(/^field:(school_name|school_id|adviser_name)$/.test(v.id))return 'Optional';
   return 'Missing';
 }

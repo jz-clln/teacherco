@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import {Minus,Plus} from 'lucide-react';
 import {LoadingState} from '@/components/ui/loading-state';
 import { createPortal } from 'react-dom';
@@ -16,6 +17,9 @@ export function WorkbookGrid({preview,onSelect,markers=[],workspace=false,zoom=1
   useEffect(()=>{const el=region.current;if(!el||!onZoom)return;function wheel(e:WheelEvent){if(e.ctrlKey||e.metaKey){e.preventDefault();onZoom?.(Math.max(25,Math.min(200,zoom+(e.deltaY<0?10:-10))));}}el.addEventListener('wheel',wheel,{passive:false});return()=>el.removeEventListener('wheel',wheel);},[zoom,onZoom]);
   const visibleMarkers=markers.filter(m=>m.sheet===preview.summary.name).flatMap(m=>{try{return [{...m,rect:parseMerge(m.address)}];}catch{return [];}});
   const cells=new Map(preview.cells.map(cell=>{const merge=preview.merges.find(m=>m.address===cell.mergedRange);return [`${Math.max(preview.rowStart,merge?.top??cell.row)}:${Math.max(preview.columnStart,merge?.left??cell.column)}`,cell];}));
+  const columnOffsets=new Map<number,number>(),rowOffsets=new Map<number,number>();let sheetWidth=0,sheetHeight=0;
+  for(const c of preview.columns){columnOffsets.set(c.number,sheetWidth);sheetWidth+=c.width*scale;}
+  for(const r of preview.rows){rowOffsets.set(r.number,sheetHeight);sheetHeight+=r.height*scale;}
   function navigate(r:number,c:number){
     if(r<1||c<1||r>preview.summary.rowExtent||c>preview.summary.columnExtent)return;
     const merge=preview.merges.find(m=>r>=m.top&&r<=m.bottom&&c>=m.left&&c<=m.right);
@@ -23,11 +27,12 @@ export function WorkbookGrid({preview,onSelect,markers=[],workspace=false,zoom=1
     if(button){button.focus({preventScroll:true});button.scrollIntoView?.({block:'nearest',inline:'nearest'});button.click();}else onNavigate?.(r,c);
   }
   return <div ref={region} className={`max-w-full overflow-auto rounded-lg border border-[#E3E5E1] bg-white ${workspace?'min-h-0 flex-1':' '}`} style={{maxHeight:workspace?'100%':560,scrollPaddingTop:26,scrollPaddingLeft:46}} role="region" aria-label={`${preview.summary.name} worksheet`} tabIndex={0}>
-    <table className="table-fixed border-collapse text-xs" style={{width:44+preview.columns.reduce((sum,c)=>sum+c.width*scale,0)}}>
+    <div className="relative" style={{width:44+preview.columns.reduce((sum,c)=>sum+c.width*scale,0)}}>
+    <table className="text-xs" style={{display:'block',position:'relative',width:44+sheetWidth,height:24+sheetHeight}}>
       <caption className="sr-only">Read-only workbook preview. Select a cell to inspect it. Use arrow keys to navigate. Hidden rows and columns are shown with labels.</caption>
-      <colgroup><col style={{width:44}}/>{preview.columns.map(c=><col key={c.number} style={{width:c.width*scale}}/>)}</colgroup>
-      <thead className="sticky top-0 z-10 bg-[#EAF0EA]"><tr><th aria-label="Row numbers"/>{preview.columns.map(c=><th key={c.number} scope="col" className="h-6 overflow-hidden border border-[#E3E5E1] font-medium" title={c.hidden?'Hidden column':undefined}>{c.letter}{c.hidden?' ?':''}</th>)}</tr></thead>
-      <tbody>{preview.rows.map(row=><tr key={row.number} style={{height:row.height*scale}}><th scope="row" className="sticky left-0 z-[2] border border-[#E3E5E1] bg-[#EAF0EA] p-0 font-medium" style={{fontSize:Math.min(12,12*scale),lineHeight:1}} title={row.hidden?'Hidden row':undefined}>{row.number}{row.hidden?' ?':''}</th>{preview.columns.map(column=>{
+      
+      <thead className="sticky top-0 z-10 block bg-[#EAF0EA]" style={{height:24}}><tr className="flex" style={{height:24}}><th className="shrink-0" style={{width:44}} aria-label="Row numbers"/>{preview.columns.map(c=><th key={c.number} scope="col" style={{width:c.width*scale,height:24,flexShrink:0,whiteSpace:'nowrap'}} className="overflow-hidden border border-[#E3E5E1] font-medium" title={c.hidden?'Hidden column':undefined}>{c.letter}{c.hidden?' ?':''}</th>)}</tr></thead>
+      <tbody style={{display:'block',position:'relative',height:sheetHeight}}>{preview.rows.map(row=><tr key={row.number} style={{position:'absolute',top:rowOffsets.get(row.number),width:44+sheetWidth,height:row.height*scale}}><th scope="row" className="sticky left-0 z-[2] border border-[#E3E5E1] bg-[#EAF0EA] p-0 font-medium" style={{display:'block',width:44,height:row.height*scale,overflow:'hidden',fontSize:Math.min(12,12*scale),lineHeight:1}} title={row.hidden?'Hidden row':undefined}>{row.number}{row.hidden?' ?':''}</th>{preview.columns.map(column=>{
         const cell=cells.get(`${row.number}:${column.number}`);if(!cell)return null;
         const merge=preview.merges.find(m=>m.address===cell.mergedRange),s=cell.style;
         const rect=merge??{top:cell.row,bottom:cell.row,left:cell.column,right:cell.column};
@@ -41,17 +46,19 @@ export function WorkbookGrid({preview,onSelect,markers=[],workspace=false,zoom=1
             spill+=next.width;
           }
         }
-        const style:CSSProperties={position:'relative',fontWeight:s?.bold?700:400,fontStyle:s?.italic?'italic':undefined,textDecoration:s?.underline?'underline':undefined,fontFamily:'var(--font-brand), Poppins, sans-serif',fontSize:(s?.fontSize??14.667)*scale,color:s?.color,backgroundColor:s?.background,textAlign:align,verticalAlign:s?.vertical??'bottom',whiteSpace:s?.wrap?'pre-wrap':'nowrap'};
-        for(const side of ['top','right','bottom','left'] as const){const border=s?.borders?.[side];if(border&&!cell.borderSegments)Object.assign(style,{[`border${side[0].toUpperCase()+side.slice(1)}`]:`${Math.max(.5,border.width*scale)}px ${border.style} ${border.color}`});}
+        const style:CSSProperties={position:'absolute',top:0,left:44+(columnOffsets.get(column.number)??0),width:preview.columns.filter(c=>c.number>=Math.max(rect.left,preview.columnStart)&&c.number<=rect.right).reduce((n,c)=>n+c.width*scale,0),fontWeight:s?.bold?700:400,fontStyle:s?.italic?'italic':undefined,textDecoration:s?.underline?'underline':undefined,fontFamily:s?.fontFamily?`"${s.fontFamily}", sans-serif`:'Calibri, sans-serif',fontSize:(s?.fontSize??14.667)*scale,color:s?.color,backgroundColor:s?.background,textAlign:align,verticalAlign:s?.vertical??'bottom',whiteSpace:s?.wrap?'pre-wrap':'nowrap'};
         const height=preview.rows.filter(r=>r.number>=Math.max(rect.top,preview.rowStart)&&r.number<=rect.bottom).reduce((sum,r)=>sum+r.height,0)*scale;
-        return <td key={cell.address} style={style} rowSpan={merge?Math.min(merge.bottom,preview.rows.at(-1)!.number)-row.number+1:1} colSpan={merge?Math.min(merge.right,preview.columns.at(-1)!.number)-column.number+1:1} className="border border-[#E3E5E1] p-0">
+        return <td key={cell.address} style={{...style,height}} rowSpan={merge?Math.min(merge.bottom,preview.rows.at(-1)!.number)-row.number+1:1} colSpan={merge?Math.min(merge.right,preview.columns.at(-1)!.number)-column.number+1:1} className="p-0">
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{boxShadow:'inset 0 0 0 .5px #E3E5E1'}}/>
           <button type="button" data-cell={cell.address} aria-label={`${cell.address}${cell.mergedRange?`, merged ${cell.mergedRange}`:''}: ${cell.displayValue||'Blank'}`} aria-pressed={selected===cell.address} title={marked?`Mapped: ${marked}`:undefined} data-mapped={marked?true:undefined} className="tc-workbook-cell absolute inset-0 block w-full p-0 text-inherit focus-visible:outline-2 focus-visible:outline-[#1A4D2E]" style={{height:'100%',minHeight:0,minWidth:0,borderRadius:0,textAlign:'inherit',font:'inherit',lineHeight:1.1,boxShadow:selected===cell.address?'inset 0 0 0 2px #1A4D2E':marked?'inset 0 0 0 1px #4F6F52':undefined}} onClick={()=>{setSelected(cell.address);onSelect({sheetName:preview.summary.name,address:cell.address,mergedRange:cell.mergedRange},cell);}} onKeyDown={e=>{const next=e.key==='ArrowDown'?[rect.bottom+1,rect.left]:e.key==='ArrowUp'?[rect.top-1,rect.left]:e.key==='ArrowRight'?[rect.top,rect.right+1]:e.key==='ArrowLeft'?[rect.top,rect.left-1]:null;if(next){e.preventDefault();navigate(next[0],next[1]);}}}>
             <span className="pointer-events-none absolute left-0 flex overflow-hidden" style={{width:spill>column.width?spill*scale:'100%',height:Math.max(0,height-1),top:0,padding:`0 ${2*scale}px`,zIndex:cell.displayValue?1:undefined,flexDirection:'column',justifyContent:s?.vertical==='top'?'flex-start':s?.vertical==='middle'?'center':'flex-end',textAlign:'inherit',overflowWrap:s?.wrap?'anywhere':undefined}}><span>{cell.displayValue||'\u00a0'}</span></span>
           </button>
-          {cell.borderSegments?.map((edge,index)=>{const horizontal=edge.side==='top'||edge.side==='bottom';return <span key={index} aria-hidden="true" data-workbook-border={edge.side} className="pointer-events-none absolute z-[1]" style={{[edge.side]:0,...(horizontal?{left:`${edge.start*100}%`,width:`${(edge.end-edge.start)*100}%`}:{top:`${edge.start*100}%`,height:`${(edge.end-edge.start)*100}%`}),[`border${edge.side[0].toUpperCase()+edge.side.slice(1)}`]:`${Math.max(.5,edge.width*scale)}px ${edge.style} ${edge.color}`}}/>;})}
+          {(cell.borderSegments??Object.entries(s?.borders??{}).map(([side,border])=>({side:side as 'top'|'bottom'|'left'|'right',start:0,end:1,...border}))).map((edge,index)=>{const horizontal=edge.side==='top'||edge.side==='bottom';return <span key={index} aria-hidden="true" data-workbook-border={edge.side} className="pointer-events-none absolute z-[1]" style={{[edge.side]:0,...(horizontal?{left:`${edge.start*100}%`,width:`${(edge.end-edge.start)*100}%`}:{top:`${edge.start*100}%`,height:`${(edge.end-edge.start)*100}%`}),[`border${edge.side[0].toUpperCase()+edge.side.slice(1)}`]:`${Math.max(.5,edge.width*scale)}px ${edge.style} ${edge.color}`}}/>;})}
         </td>;
       })}</tr>)}</tbody>
     </table>
+    {preview.images?.map((image,index)=><Image unoptimized width={image.width} height={image.height} key={index} src={image.src} alt={image.name} className="pointer-events-none absolute z-[3] max-w-none" style={{left:44+image.x*scale,top:24+image.y*scale,width:image.width*scale,height:image.height*scale}}/>)}
+    </div>
   </div>;
 }
 

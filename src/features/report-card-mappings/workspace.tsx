@@ -13,7 +13,7 @@ import {MappingPanel} from './panel';
 import {GradeTableControls} from './grade-table-controls';
 
 type Confirmation={kind:'reset'|'reload'}|{kind:'subject'|'period';key:string};
-export function MappingWorkspace({template,initial,compatibility,draft}:{template:Template;initial:MappingRecord|null;compatibility?:ReactNode;draft?:MappingDefinition}){
+export function MappingWorkspace({template,initial,compatibility,draft,subjectOptions=[]}:{template:Template;initial:MappingRecord|null;compatibility?:ReactNode;draft?:MappingDefinition;subjectOptions?:string[]}){
   const [picking,setPicking]=useState<{id:string;label:string}|null>(null);
   function cancelPicking(){setPicking(null);setAnchor(null);}
   useEffect(()=>{if(!picking)return;const cancel=(event:KeyboardEvent)=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();setPicking(null);setAnchor(null);}};document.addEventListener('keydown',cancel,true);return()=>document.removeEventListener('keydown',cancel,true);},[picking]);
@@ -77,6 +77,10 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
     setConfirm(null);
   }
   return <div ref={workspace} className="flex min-h-0 flex-1 flex-col gap-3" data-mapping-workspace data-mapping-fullscreen={fullscreen?'true':undefined}>
+      <div role="group" aria-label="Mapping actions" className="flex shrink-0 flex-wrap items-center gap-2">
+      <Button loading={Boolean(pending)} className="min-w-0 !px-2 !text-sm" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
+      <button type="button" ref={fullscreenButton} className="tc-button tc-secondary min-w-0 !gap-1 !px-2 !text-sm" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} className="shrink-0" aria-hidden/>:<Maximize size={17} className="shrink-0" aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
+      </div>
     <div className="grid min-h-0 flex-1 gap-1 grid-cols-[minmax(0,1fr)_minmax(160px,28%)]">
       <section aria-label="Workbook" className="flex min-h-0 min-w-0 flex-col rounded-xl border border-[#E3E5E1] bg-white p-1">
 
@@ -99,10 +103,7 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
         </div>
       </details>
       </div>
-      <div className="grid grid-cols-1 items-stretch gap-2 @min-[220px]:grid-cols-2">
-      <Button loading={Boolean(pending)} className="w-full min-w-0 !px-2 !text-sm" disabled={pending||archived} onClick={()=>void save('reviewed')}>{pending?'Saving…':'Save mapping'}</Button>
-      <button type="button" ref={fullscreenButton} className="tc-button tc-secondary w-full min-w-0 !gap-1 !px-2 !text-sm" aria-pressed={fullscreen} onClick={()=>void toggleFullscreen()}>{fullscreen?<Minimize size={17} className="hidden shrink-0 @min-[320px]:block" aria-hidden/>:<Maximize size={17} className="hidden shrink-0 @min-[320px]:block" aria-hidden/>}{fullscreen?'Exit full screen':'Full screen'}</button>
-      </div>
+
     </header>
     {archived&&<p className="shrink-0 text-sm">Archived template · Read-only</p>}
     {error&&!(compact&&panelOpen)&&<p role="alert" className="max-h-24 shrink-0 overflow-auto rounded-lg bg-white p-3 text-sm text-red-800">{error}</p>}
@@ -114,7 +115,7 @@ export function MappingWorkspace({template,initial,compatibility,draft}:{templat
         {(!compact||panelView==='map')&&<AssignmentControls template={template} definition={definition} selected={selected} onLocation={location=>{cancelPicking();setSelected(location);}} target={target} onTarget={value=>{cancelPicking();setTarget(value);}} onAssign={()=>assign()} disabled={pending||archived}/>}
         {compact&&panelView==='map'?<Button variant="ghost" onClick={()=>setPanelView('mapped')}>View mappings</Button>:<div className="shrink-0 p-3" aria-label="Mapped fields" role="region">
           {review&&panelView==='review'&&<section className="mb-4 space-y-2 rounded-lg bg-[#F4F7F4] p-3 text-sm"><h2 className="!text-base">Review</h2><p>{mapped.length} mapped · {definition.periods.length} periods · {definition.subjects.length} subjects</p>{review.warnings.length?<details><summary className="cursor-pointer py-2">{review.warnings.length} optional omissions</summary><ul className="space-y-2">{review.warnings.map(w=><li key={w}>{w}</li>)}</ul></details>:<p>Ready to save</p>}</section>}
-          <MappingFields pickingId={picking?.id} onStartPick={(id,label)=>{setPicking({id,label});setTarget(id);setAnchor(null);setRangeMode(false);setError('');setMessage('');}} definition={definition} disabled={pending||archived} onEdit={edit} onPick={(id,location)=>{cancelPicking();setTarget(id);if(location)setSelected(location);openPanel('map');}} onRemove={(kind,key)=>setConfirm({kind,key})}/>
+          <MappingFields subjectOptions={subjectOptions} pickingId={picking?.id} onStartPick={(id,label)=>{setPicking({id,label});setTarget(id);setAnchor(null);setRangeMode(false);setError('');setMessage('');}} definition={definition} disabled={pending||archived} onEdit={edit} onPick={(id,location)=>{cancelPicking();setTarget(id);if(location)setSelected(location);openPanel('map');}} onRemove={(kind,key)=>setConfirm({kind,key})}/>
         </div>}
       </MappingPanel>
     </div>
