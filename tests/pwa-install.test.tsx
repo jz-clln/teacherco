@@ -10,7 +10,7 @@ beforeEach(() => {
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("matchMedia", () => ({ matches: standalone, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Chrome desktop");
-  vi.spyOn(navigator, "platform", "get").mockReturnValue("Win32");
+  vi.spyOn(navigator, "platform", "get").mockReturnValue("Linux x86_64");
   Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 0 });
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
@@ -72,4 +72,24 @@ it("shows iOS instructions only on click and closes on Escape", () => {
 it("recognizes iPadOS desktop identification without classifying a Mac as iPad", () => {
   expect(isIOSDevice({ userAgent: "Macintosh", platform: "MacIntel", maxTouchPoints: 5 })).toBe(true);
   expect(isIOSDevice({ userAgent: "Macintosh", platform: "MacIntel", maxTouchPoints: 0 })).toBe(false);
+});
+
+it('offers Windows installation instructions when the native prompt is unavailable',()=>{
+ vi.spyOn(navigator,'userAgent','get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140');
+ render(<InstallTeacherCoButton destination={null}/>);
+ const button=screen.getByRole('button',{name:'Install for Windows'});button.focus();fireEvent.click(button);
+ expect(screen.getByRole('dialog')).toHaveTextContent('Microsoft Edge or Google Chrome');
+ expect(screen.getByRole('dialog')).toHaveTextContent('Install page as app');
+ expect(screen.getByRole('link',{name:'Continue in browser'})).toHaveAttribute('href','/login');
+ fireEvent(screen.getByRole('dialog'),new Event('cancel',{cancelable:true}));expect(screen.queryByRole('dialog')).toBeNull();expect(button).toHaveFocus();
+});
+it('uses the Windows native prompt when available and keeps a fallback after dismissal',async()=>{
+ vi.spyOn(navigator,'userAgent','get').mockReturnValue('Windows NT 10.0');render(<InstallTeacherCoButton destination='/today'/>);
+ const {prompt}=installEvent('dismissed');fireEvent.click(screen.getByRole('button',{name:'Install for Windows'}));
+ await waitFor(()=>expect(prompt).toHaveBeenCalledOnce());await waitFor(()=>expect(screen.getByRole('button',{name:'Install for Windows'})).not.toBeDisabled());
+ expect(screen.queryByRole('dialog')).toBeNull();fireEvent.click(screen.getByRole('button',{name:'Install for Windows'}));expect(screen.getByRole('dialog')).toBeVisible();
+});
+it('does not show Windows installation inside the installed app',()=>{
+ standalone=true;vi.spyOn(navigator,'userAgent','get').mockReturnValue('Windows NT 10.0');render(<InstallTeacherCoButton destination='/today'/>);
+ expect(screen.getByRole('link',{name:'Open TeacherCo'})).toBeVisible();expect(screen.queryByRole('button',{name:'Install for Windows'})).toBeNull();
 });

@@ -1,10 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { isIOSDevice, isStandalone } from "@/lib/pwa/platform";
+import { isIOSDevice, isStandalone, isWindowsDevice } from "@/lib/pwa/platform";
 import type { BeforeInstallPromptEvent, InstallState } from "@/lib/pwa/types";
 
-const serverState: InstallState = { available: false, ios: false, standalone: false, installed: false, busy: false, message: "" };
+const serverState: InstallState = { available: false, ios: false, windows: false, standalone: false, installed: false, busy: false, message: "" };
 let state = serverState;
 let promptEvent: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
@@ -36,7 +36,7 @@ function subscribe(listener: () => void) {
       window.removeEventListener("appinstalled", installed);
       display.removeEventListener("change", refreshDisplay);
     };
-    update({ ios: window.isSecureContext && isIOSDevice(navigator), standalone: isStandalone() });
+    update({ ios: window.isSecureContext && isIOSDevice(navigator), windows: window.isSecureContext && isWindowsDevice(navigator), standalone: isStandalone() });
   }
   return () => {
     listeners.delete(listener);

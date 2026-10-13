@@ -8,3 +8,8 @@ export function isStandalone(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 }
+
+export function isWindowsDevice(device: Pick<Navigator, 'userAgent' | 'platform'>): boolean {
+  return !/Android|iPhone|iPad|iPod|Windows Phone/i.test(device.userAgent) &&
+    (/Windows NT/i.test(device.userAgent) || /^Win/i.test(device.platform));
+}

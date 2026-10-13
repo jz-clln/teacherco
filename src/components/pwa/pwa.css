@@ -14,4 +14,7 @@
 .pwa-dialog .pwa-guidance { color: var(--text-secondary); font-size: .8rem; margin-bottom: 24px; }
 .pwa-dialog button { width: 100%; }
 .pwa-dialog button:focus-visible { outline: 3px solid var(--teacherco-600); outline-offset: 4px; }
+.pwa-dialog.pwa-windows-dialog { width: min(34rem, calc(100% - 2rem)); }
+.pwa-windows-dialog h2, .landing-page .pwa-windows-dialog h2 { font-size: 1.5rem; line-height: 1.3; letter-spacing: -.025em; text-wrap: initial; }
+.pwa-windows-dialog button { width: auto; }
 .pwa-offline-status { position: fixed; z-index: 60; left: 50%; bottom: max(20px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 12px 18px; border: 1px solid var(--sand); border-radius: 14px; background: var(--ivory); color: var(--teacherco-900); font-size: .8rem; box-shadow: 0 8px 30px #12382020; }
