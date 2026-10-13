@@ -59,7 +59,7 @@ export default async function ClassesPage() {
                   {item.subject} · {item.school_year}
                 </p>
               </div>
-              <div className="relative z-10 flex">
+              <div className="relative z-10 flex max-md:-ml-4">
                 <Link
                   href={`/classes/${item.id}/term-grades`}
                   className="tc-button tc-quiet"

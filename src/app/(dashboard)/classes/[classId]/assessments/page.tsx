@@ -10,7 +10,7 @@ export default async function ClassAssessmentsPage({ params }: { params: Promise
   // Reuse the existing teacher-scoped Check read and row destinations.
   const assessments = await getAssessmentsOverview().then(rows => rows.filter(row => row.classId === classId));
   return <div className="space-y-6">
-    <Link href={`/classes/${classId}`} className="tc-button tc-quiet px-0">← Class overview</Link>
+    <Link href={`/classes/${classId}`} className="tc-button tc-quiet max-md:-ml-4 px-0">← Class overview</Link>
     <header className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0"><p className="text-sm text-[#606861] break-words">{classroom.name}</p><h1 className="mt-1">Assessments</h1></div><Link href={`/check/new?classId=${classId}`} className="tc-button tc-primary">New assessment</Link></header>
     <ClassTabs classId={classId} />
     <div className="flex flex-wrap gap-3"><Link className="tc-button tc-secondary" href={`/classes/${classId}/scores`}>Record scores</Link><Link className="tc-button tc-quiet" href={`/classes/${classId}/term-grades`}>Term grades</Link></div>

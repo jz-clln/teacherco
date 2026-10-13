@@ -52,7 +52,7 @@ export function GenerateReportForm({ classes, aiEnabled }: { classes: GenerateCl
         {typeOptions.map(({ value, label, text, icon: Icon }) => (
           <label
             key={value}
-            className="flex min-w-0 cursor-pointer items-start gap-3 p-4 transition hover:bg-[#F4F7F4] has-checked:bg-[#F4F7F4] has-focus-visible:outline-2 has-focus-visible:outline-[#1A4D2E]"
+            className="flex min-w-0 cursor-pointer items-start gap-3 p-4 first:rounded-t-[inherit] last:rounded-b-[inherit] transition hover:bg-[#F4F7F4] has-checked:bg-[#F4F7F4] has-focus-visible:outline-2 has-focus-visible:outline-[#1A4D2E]"
           >
             <input
               type="radio"

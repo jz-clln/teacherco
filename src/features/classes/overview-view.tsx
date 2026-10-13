@@ -15,7 +15,7 @@ import { sectionLabel } from '@/features/sections/model';
 export const overviewLink = "inline-flex min-h-11 items-center text-sm font-semibold text-[#1A4D2E] tc-button tc-quiet focus-visible:outline-2 focus-visible:outline-[#1A4D2E]";
 export function OverviewHeader({ classId, details }: { classId: string; details: ClassDetails }) {
   return <header className="space-y-3">
-    <div className="flex items-center justify-between gap-3"><Link href="/classes" className={overviewLink}><ArrowLeft size={16} className="mr-1" aria-hidden />All classes</Link><ClassMoreMenu classId={classId} /></div>
+    <div className="flex items-center justify-between gap-3"><Link href="/classes" className={`${overviewLink} max-md:-ml-4`}><ArrowLeft size={16} className="mr-1" aria-hidden />All classes</Link><ClassMoreMenu classId={classId} /></div>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0"><h1>{details.name}</h1><p className="mt-2 break-words text-sm text-[#606861]">{details.subject}</p><p className="mt-1 text-xs text-[#606861]">{details.gradeLevel} · SY {details.schoolYear}</p></div>
       <EditClassDetails classId={classId} initial={details} triggerLabel="Edit" triggerClassName="tc-button tc-quiet shrink-0 px-2" />

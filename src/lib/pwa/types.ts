@@ -6,6 +6,7 @@ export interface BeforeInstallPromptEvent extends Event {
 export type InstallState = {
   available: boolean;
   ios: boolean;
+  mobile: boolean;
   windows: boolean;
   standalone: boolean;
   installed: boolean;

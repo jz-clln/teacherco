@@ -37,6 +37,58 @@ function TermGradeCell({ value }: { value: number | null }) {
   );
 }
 
+function MobileTermGrades({ classroom, term }: { classroom: ClassTermGrades; term: number }) {
+  const [search, setSearch] = useState("");
+  const learners = classroom.learners.filter((learner) => learner.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+
+  return <section className="min-w-0 space-y-3 md:hidden" aria-label="Learner grades">
+    <label className="block text-sm font-medium">
+      Find a learner
+      <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name" className="mt-2 min-h-11 w-full rounded-xl border border-[#E3E5E1] bg-white px-3 text-base" />
+    </label>
+    <p role="status" className="text-xs text-[#606861]">{learners.length} of {classroom.learners.length} learners · Tap a learner for the breakdown</p>
+    <div className="space-y-3">
+      {learners.map((learner) => {
+        const grade = learner.terms.find((entry) => entry.term === term)!;
+        const value = grade.result.termGrade;
+        const passed = value != null && value >= PASSING_GRADE;
+        return <details key={`${learner.id}-${term}`} className="group min-w-0 rounded-xl border border-[#E3E5E1] bg-white">
+          <summary className="flex min-h-11 cursor-pointer list-none items-start gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-[#1A4D2E] [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0 flex-1">
+              <span className="block break-words text-sm font-semibold text-[#28332B]">{learner.name}</span>
+              <span className="mt-1 block text-xs text-[#606861]">{grade.result.descriptor ?? "Not yet graded"}</span>
+              <span className="mt-3 block text-xs font-medium text-[#1A4D2E] group-open:hidden">View breakdown +</span>
+              <span className="mt-3 hidden text-xs font-medium text-[#1A4D2E] group-open:block">Hide breakdown −</span>
+            </span>
+            <span className={`shrink-0 rounded-lg px-3 py-2 text-center ${value == null ? "bg-[#F4F7F4] text-[#606861]" : passed ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"}`}>
+              <span className="block text-xs">Term {term}</span>
+              <span className="block text-xl font-bold tabular-nums">{gradeText(value ?? null)}</span>
+              <span className="block text-xs">{value == null ? "Pending" : passed ? "Passed" : "Failed"}</span>
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-[#E3E5E1] p-4 text-sm">
+            {components.map((component) => {
+              const result = grade.result.components.find((item) => item.component === component);
+              return <div key={component}>
+                <p className="font-medium">{COMPONENT_LABEL[component]} <span className="text-xs text-[#606861]">({Math.round(classroom.config.weights[component] * 100)}%)</span></p>
+                <dl className="mt-1 grid grid-cols-2 gap-2 text-xs">
+                  <div><dt className="text-[#606861]">Percentage score</dt><dd className="mt-1 tabular-nums">{result?.ps == null ? "—" : `${result.ps.toFixed(2)}%`}</dd></div>
+                  <div><dt className="text-[#606861]">Weighted score</dt><dd className="mt-1 tabular-nums">{result?.ws?.toFixed(2) ?? "—"}</dd></div>
+                </dl>
+              </div>;
+            })}
+            <dl className="space-y-2 border-t border-[#E3E5E1] pt-3 text-xs">
+              <div className="flex justify-between gap-3"><dt>Initial grade</dt><dd className="font-medium tabular-nums">{gradeText(grade.result.initialGrade)}</dd></div>
+              <div className="flex justify-between gap-3"><dt>Workbook</dt><dd className="text-right">{comparisonText(grade.comparison.status, grade.comparison.termGap)}</dd></div>
+            </dl>
+          </div>
+        </details>;
+      })}
+      {!learners.length && <p className="py-5 text-sm text-[#606861]">No learners match your search.</p>}
+    </div>
+  </section>;
+}
+
 export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
   const [term, setTerm] = useState(1);
   const records = classroom.learners.map((learner) => ({ learner, grade: learner.terms.find((entry) => entry.term === term)! }));
@@ -95,7 +147,9 @@ export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
       {!classroom.learners.length ? (
         <p className="py-8 text-center text-sm text-[#606861]">Import a class roster before calculating term grades.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[#E3E5E1] bg-white">
+        <>
+        <MobileTermGrades classroom={classroom} term={term} />
+        <div className="hidden overflow-x-auto rounded-xl border border-[#E3E5E1] bg-white md:block">
           <table className="w-full min-w-280 border-collapse text-left text-sm">
             <thead className="bg-[#F4F7F4] text-xs font-semibold text-[#4F5D52]">
               <tr>
@@ -139,6 +193,7 @@ export function TermGradesTable({ classroom }: { classroom: ClassTermGrades }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {warnings.length > 0 ? (

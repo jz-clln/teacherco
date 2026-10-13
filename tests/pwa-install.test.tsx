@@ -56,18 +56,12 @@ it.each(["/invite", "/onboarding", "/today", "/suspended"])("standalone uses the
   expect(screen.getByRole("link", { name: "Open TeacherCo" })).toHaveAttribute("href", destination);
   expect(screen.queryByRole("button", { name: "Install TeacherCo" })).toBeNull();
 });
-it("shows iOS instructions only on click and closes on Escape", () => {
-  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("iPhone Safari");
-  render(<InstallTeacherCoButton destination={null} />);
-  expect(screen.queryByRole("dialog")).toBeNull();
-  const button = screen.getByRole("button", { name: "Install TeacherCo" });
-  button.focus();
-  fireEvent.click(button);
-  const dialog = screen.getByRole("dialog");
-  expect(dialog).toHaveTextContent("Add to Home Screen");
-  fireEvent(dialog, new Event("cancel", { cancelable: true }));
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect(button).toHaveFocus();
+it.each(["iPhone Safari", "Mozilla/5.0 (Linux; Android 14) Chrome Mobile"])("hides browser installation on %s even when an install event fires", userAgent => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
+  const {container}=render(<InstallTeacherCoButton destination={null} />);
+  const {prompt}=installEvent("accepted");
+  expect(container).toBeEmptyDOMElement();
+  expect(prompt).not.toHaveBeenCalled();
 });
 it("recognizes iPadOS desktop identification without classifying a Mac as iPad", () => {
   expect(isIOSDevice({ userAgent: "Macintosh", platform: "MacIntel", maxTouchPoints: 5 })).toBe(true);
