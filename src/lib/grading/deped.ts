@@ -235,3 +235,14 @@ export function compareToRecord(result: TermGradeResult, record: RecordedGrade |
     initialGap,
   };
 }
+// Shared activity destinations for online and offline manual score entry.
+export function defaultActivitySlots(): {title:string;term:number;component:Component}[] {
+  return [1, 2, 3].flatMap((term) => [
+    ...[1, 2, 3, 4, 5].map((n) => `Written Work ${n}`),
+    ...[1, 2, 3].map((n) => `Performance Task ${n}`),
+    "Summative Test 1", "Summative Test 2", "Term Exam",
+  ].map((name) => {
+    const title = `Term ${term} · ${name}`;
+    return { title, term, component: inferTermAndComponent(title).component! };
+  }));
+}
