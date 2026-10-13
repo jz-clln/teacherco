@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 
-const links = [["Features", "#features"], ["How it works", "#how-it-works"], ["FAQ", "#faq"]];
+const links = [["Features", "/#features"], ["How it works", "/#how-it-works"], ["Coming Soon", "/coming-soon"], ["FAQ", "/#faq"]];
 
 export function LandingHeader({ destination }: { destination: string | null }) {
   const [open, setOpen] = useState(false);

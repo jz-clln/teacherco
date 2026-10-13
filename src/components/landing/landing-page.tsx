@@ -119,6 +119,6 @@ export function LandingPage({ destination }: { destination: string | null }) {
         <Image src={cta} alt="TeacherCo mascot raising a pen beside classroom records, a laptop, and a calendar." sizes="(max-width: 767px) calc(100vw - 40px), (max-width: 1279px) 50vw, 620px" />
       </div></section>
     </main>
-    <footer className="landing-container landing-footer"><div><Link href="/" className="landing-brand">TeacherCo<span className="brand-dot">.</span></Link><p>Your classroom companion.</p></div><nav aria-label="Footer navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#faq">FAQ</a><Link href="/legal/privacy" prefetch={false}>Privacy Notice</Link></nav><p className="landing-footer-note">An independent workspace for teachers.</p></footer>
+    <footer className="landing-container landing-footer"><div><Link href="/" className="landing-brand">TeacherCo<span className="brand-dot">.</span></Link><p>Your classroom companion.</p></div><nav aria-label="Footer navigation"><a href="#features">Features</a><a href="#how-it-works">How it works</a><a href="#faq">FAQ</a><Link href="/coming-soon">Coming Soon</Link><Link href="/legal/privacy" prefetch={false}>Privacy Notice</Link></nav><p className="landing-footer-note">An independent workspace for teachers.</p></footer>
   </div>;
 }
