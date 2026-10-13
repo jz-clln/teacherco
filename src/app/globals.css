@@ -238,3 +238,7 @@ body :is(.font-mono, .font-sans, .font-serif, code, pre, input, textarea, select
 .tc-page-loading { position:fixed; inset:0 0 auto; z-index:9999; height:3px; overflow:hidden; background:#E3E5E1; pointer-events:none; }
 .tc-page-loading > span:first-child { display:block; width:45%; height:100%; background:#1A4D2E; animation:tc-loading-travel 1.2s ease-in-out infinite; }
 @media(prefers-reduced-motion:reduce){ .tc-page-loading > span:first-child { animation:none; width:100%; } }
+
+/* Keep expandable section labels consistent, including headings inside summaries. */
+.tc-app summary { font-size: 14px; line-height: 20px; }
+.tc-app summary > :is(h2, h3) { font-size: inherit; line-height: inherit; }

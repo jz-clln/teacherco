@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Database, GraduationCap, KeyRound, Languages, ListChecks, ShieldCheck, Sparkles, User, WifiOff } from "lucide-react";
+import { BookOpen, Database, GraduationCap, KeyRound, Languages, ListChecks, ShieldCheck, Sparkles, User, WifiOff } from "lucide-react";
 import { LegalLinks } from "@/features/legal/legal-links";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/features/auth/actions";
@@ -19,6 +19,7 @@ import { createClient, getCurrentUser } from "@/lib/supabase/server";
 export const metadata = { title: "Settings" };
 
 const sections = [
+  { id: "tutorial", label: "App tutorial" },
   { id: "profile", label: "Profile" },
   { id: "language", label: "Language" },
   { id: "attention", label: "Attention rules" },
@@ -85,6 +86,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </nav>
 
         <div className="grid min-w-0 gap-6">
+          <SettingsSection id="tutorial" icon={BookOpen} title="Learn TeacherCo" description="Step-by-step guidance for setting up your classroom and making the most of the app.">
+            <Link href="/settings/tutorial" className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1A4D2E] underline underline-offset-4">Open the app tutorial</Link>
+          </SettingsSection>
           <SettingsSection id="profile" icon={User} title="Profile" description="How TeacherCo addresses you and which levels you teach.">
             <ProfileForm
               values={{
