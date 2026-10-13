@@ -1,4 +1,4 @@
-﻿// @vitest-environment node
+// @vitest-environment node
 import {beforeEach,it,expect,vi} from 'vitest';
 import {randomUUID,createHash} from 'node:crypto';
 import JSZip from 'jszip';
@@ -37,7 +37,7 @@ it('connects generic periods and previews each bound subject name with its own t
 });
 beforeEach(async()=>{vi.resetAllMocks();bytes=await mappingWorkbook();const hash=createHash('sha256').update(bytes).digest('hex'),def=mappingDefinition(hash),teacher=randomUUID(),section=randomUUID(),template=randomUUID(),mapping=randomUUID(),subject=randomUUID(),learner=randomUUID(),periods=def.periods.map((p,i)=>({id:randomUUID(),key:p.key,label:p.label,position:i+1,status:'active'}));
   s={section:{id:section,teacher_id:teacher,name:'Grade 8 Rizal',grade_level:'Grade 8',school_year:'2026-2027',school_name:null,school_id:null,is_adviser:false,status:'active'},template:{id:template,teacher_id:teacher,file_sha256:hash,file_size_bytes:bytes.length,status:'active',storage_path:`${teacher}/${template}/source.xlsx`},mapping:{id:mapping,teacher_id:teacher,template_id:template,mapping_definition:def,revision:1,status:'reviewed'},profile:{id:randomUUID(),teacher_id:teacher,section_id:section,template_id:template,mapping_id:mapping,mapping_revision:1,template_sha256:hash,revision:1,bindings:{periodBindings:Object.fromEntries(periods.map(p=>[p.key,p.id])),subjectBindings:{[def.subjects[0].key]:subject}}},periods,subjects:[{id:subject,name:'Mathematics',position:1,status:'active'}],learners:[{id:learner,display_name:'José <李>'},{id:randomUUID(),display_name:'Ana Santos'}],entries:[{learner_id:learner,section_subject_id:subject,period_id:periods[0].id,grade:0}],adviserName:null} as GenerationSnapshot;
-  mock.access.mockResolvedValue({user:{id:teacher},supabase:{rpc:mock.rpc}});mock.bytes.mockResolvedValue(bytes);mock.rpc.mockImplementation(async(name:string)=>({data:name==='report_card_generation_snapshot'?structuredClone(s):s.profile}));
+  mock.access.mockResolvedValue({user:{id:teacher},profile:{access_status:"active",role:"teacher",onboarding_completed:true},supabase:{rpc:mock.rpc}});mock.bytes.mockResolvedValue(bytes);mock.rpc.mockImplementation(async(name:string)=>({data:name==='report_card_generation_snapshot'?structuredClone(s):s.profile}));
 });
 function request(learnerId=s.learners[0].id){return {sectionId:s.section.id,templateId:s.template.id,profileId:s.profile!.id,profileRevision:1,digest:digest(s),learnerId,confirmed:true,replaceFormulas:false};}
 it.each([['Grade 1','1'],['Grade 12','12'],['7','7'],['Kindergarten','Kindergarten']])('writes grade level %s as %s without changing the Section',async(source,expected)=>{

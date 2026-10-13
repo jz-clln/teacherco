@@ -1,3 +1,4 @@
+import {mockOfflineAccess} from './helpers/offline-access.mjs';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -7,7 +8,8 @@ const baseURL=process.env.OFFLINE_TEST_URL||'http://127.0.0.1:3336';
 const browser=await chromium.launch();
 try{
  const context=await browser.newContext({baseURL,viewport:{width:1440,height:900},acceptDownloads:true});
- await context.addCookies([{name:'teacherco_offline_owner',value:pack.owner,url:baseURL}]);
+ await mockOfflineAccess(context,pack.owner);
+  await context.addCookies([{name:'teacherco_offline_owner',value:pack.owner,url:baseURL}]);
  await context.route('**/api/offline/records?*',r=>r.fulfill({json:{owner:pack.owner,rows:records.rows[new URL(r.request().url()).searchParams.get('table')]??[],nextOffset:null}}));
  await context.route('**/api/attendance/offline?*',r=>r.fulfill({json:{owner:pack.owner,days:[],nextOffset:null}}));
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));

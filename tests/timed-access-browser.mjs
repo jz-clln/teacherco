@@ -1,0 +1,30 @@
+﻿import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const baseURL=process.env.OFFLINE_TEST_URL||'http://127.0.0.1:3336',owner='11111111-1111-4111-8111-111111111111',id='22222222-2222-4222-8222-222222222222';
+const browser=await chromium.launch();
+try{
+ const context=await browser.newContext({baseURL});let expiresAt=new Date(Date.now()+7*86400000).toISOString(),uploads=0;
+ await context.addCookies([{name:'teacherco_offline_owner',value:owner,url:baseURL}]);
+ await context.route('**/api/access',r=>r.fulfill({json:{owner,status:'active',expiresAt,checkedAt:Date.now()}}));
+ await context.route('**/api/offline/records?*',r=>r.fulfill({json:{owner,rows:[],nextOffset:null}}));
+ await context.route('**/api/offline/records',r=>{uploads++;return r.fulfill({json:{row:r.request().postDataJSON().row}});});
+ await context.route('**/api/attendance/offline?*',r=>r.fulfill({json:{owner,days:[],nextOffset:null}}));
+ const page=await context.newPage();await page.goto('/offline-workspace.html');
+ await page.evaluate(async owner=>{await (await import('/offline-access.js')).refreshDeviceAccess(owner);await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;},owner);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+ await context.setOffline(true);
+ await page.evaluate(async({owner,id})=>{await (await import('/offline-records.js')).saveRecords(owner,[{table:'classes',before:null,row:{id,teacher_id:owner,name:'Saved Maya',subject:'Calculus',grade_level:'1',school_year:'2026',status:'active'}}]);},{owner,id});
+ await page.reload();await page.getByRole('button',{name:/Calculus.*Saved Maya/}).waitFor();
+ await page.clock.install();await page.clock.setSystemTime(Date.now()+8*86400000);
+ await page.evaluate(()=>window.dispatchEvent(new Event('teacherco-access')));
+ assert(await page.getByRole('button',{name:'Create class',exact:true}).isDisabled());
+ await page.getByRole('link',{name:'Renew access',exact:true}).waitFor();
+ const result=await page.evaluate(async owner=>{const m=await import('/offline-records.js'),s=await m.readRecords(owner);let blocked=false;try{await m.saveRecords(owner,[{table:'classes',before:s.rows.classes[0],row:{...s.rows.classes[0],name:'Forbidden'}}]);}catch{blocked=true;}await m.syncRecords(owner);return {blocked,name:(await m.readRecords(owner)).rows.classes[0].name,pending:s.queue.length};},owner);
+ assert.deepEqual(result,{blocked:true,name:'Saved Maya',pending:1});assert.equal(uploads,0);
+ await page.getByRole('button',{name:/Calculus.*Saved Maya/}).click();await page.getByRole('heading',{name:/Saved Maya/}).waitFor();
+ expiresAt=new Date(Date.now()+30*86400000).toISOString();await context.setOffline(false);
+ await page.evaluate(async owner=>{await (await import('/offline-access.js')).refreshDeviceAccess(owner);await (await import('/offline-records.js')).syncRecords(owner);},owner);
+ assert(uploads>=1);assert.equal(await page.evaluate(async owner=>(await (await import('/offline-records.js')).readRecords(owner)).queue.length,owner),0);
+ assert(await page.evaluate(async owner=>(await import('/offline-access.js')).deviceCanWrite(owner),owner));
+ await page.screenshot({path:'test-results/timed-access-renewed.png',fullPage:true});
+ console.log('PASS: seven-day offline expiry, read-only records, blocked writes, retained queue, renewal and resumed sync.');
+}finally{await browser.close();}

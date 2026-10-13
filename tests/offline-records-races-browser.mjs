@@ -1,3 +1,4 @@
+import {mockOfflineAccess} from './helpers/offline-access.mjs';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
 const baseURL=process.env.OFFLINE_TEST_URL||'http://127.0.0.1:3336';
@@ -6,6 +7,7 @@ const browser=await chromium.launch();
 try{
   // The attendance shell loads the record module without running automatic record preparation.
   const context=await browser.newContext({baseURL,serviceWorkers:'block'});
+  await mockOfflineAccess(context,owner);
   await context.addCookies([{name:'teacherco_offline_owner',value:owner,url:baseURL}]);
   await context.route('**/api/attendance/offline?*',route=>route.fulfill({json:{owner,days:[],nextOffset:null}}));
   const cloud={classes:[{id,teacher_id:owner,name:'Original',subject:'Math',grade_level:'1',school_year:'2026',status:'active'}]};

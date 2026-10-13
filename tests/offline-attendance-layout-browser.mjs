@@ -1,3 +1,4 @@
+import {mockOfflineAccess} from './helpers/offline-access.mjs';
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -6,6 +7,7 @@ const owner='11111111-1111-4111-8111-111111111111';
 const browser=await chromium.launch();
 try{
   const context=await browser.newContext({baseURL,viewport:{width:1440,height:900}});
+  await mockOfflineAccess(context,owner);
   await context.addCookies([{name:'teacherco_offline_owner',value:owner,url:baseURL}]);
   await context.route('**/api/attendance/offline?*',route=>route.fulfill({json:{owner,nextOffset:null,days:['Calculus','General Mathematics'].map((subject,i)=>({owner,classId:`22222222-2222-4222-8222-22222222222${i}`,className:'Grade 1 Maya',subject,date:'2026-10-12',learners:[{id:'33333333-3333-4333-8333-333333333333',name:'Ana Cruz'}],marks:{},baseline:{},updatedAt:null}))}}));
   const page=await context.newPage();await page.goto('/offline.html');

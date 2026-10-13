@@ -94,3 +94,13 @@ it("generates uppercase 12-character codes without ambiguous characters", () => 
   expect(codes.size).toBe(500);
   for (const code of codes) expect(code).toMatch(/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
 });
+
+it('generates only 7-day or 30-day codes',async()=>{
+ state.profile.role='admin';const insert=vi.fn().mockResolvedValue({error:null});state.admin.mockReturnValue({from:()=>({insert,select:()=>({eq:()=>({limit:async()=>({data:[],error:null})})})})});
+ expect((await generateCode('',7)).success).toBeTruthy();expect(insert).toHaveBeenCalledWith(expect.objectContaining({duration_days:7}));
+ expect((await generateCode('',49)).error).toContain('7 days or 30 days');expect(insert).toHaveBeenCalledTimes(1);
+});
+it('allows an expired teacher to redeem a new code instead of returning already-active success',async()=>{
+ Object.assign(state.profile,{access_expires_at:'2000-01-01T00:00:00Z'});const rpc=vi.fn().mockResolvedValue({data:true,error:null});state.admin.mockReturnValue({rpc});
+ expect((await redeemInvite('A7K2-P9XM-4QTR')).success).toBeTruthy();expect(rpc).toHaveBeenCalledOnce();
+});

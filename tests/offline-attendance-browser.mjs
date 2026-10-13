@@ -1,3 +1,4 @@
+import {mockOfflineAccess} from './helpers/offline-access.mjs';
 // Run against a production server. Uses synthetic local records and a mocked sync API.
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -6,6 +7,7 @@ const owner='11111111-1111-4111-8111-111111111111',classId='22222222-2222-4222-8
 const browser=await chromium.launch();
 try{
   const context=await browser.newContext({baseURL});
+  await mockOfflineAccess(context,owner);
   await context.addCookies([{name:'teacherco_offline_owner',value:owner,url:baseURL}]);
   await context.route('**/api/attendance/offline?*',route=>route.fulfill({json:{owner,days:[],nextOffset:null}}));
   let calls=0,serverMarks={},fail=false;

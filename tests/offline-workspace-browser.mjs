@@ -1,3 +1,4 @@
+import {mockOfflineAccess} from './helpers/offline-access.mjs';
 // Production browser test with synthetic records and mocked cloud APIs only.
 import {chromium} from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -7,6 +8,7 @@ const owner='11111111-1111-4111-8111-111111111111';
 const browser=await chromium.launch();
 try{
   const context=await browser.newContext({baseURL,viewport:{width:1440,height:900},acceptDownloads:true});
+  await mockOfflineAccess(context,owner);
   await context.addCookies([{name:'teacherco_offline_owner',value:owner,url:baseURL}]);
   const cloud={},calls=[],errors=[];let conflict=false;
   await context.route('**/api/offline/records?*',route=>{
