@@ -4,7 +4,7 @@ export function activeTeacher():string;
 export function prepareAttendance(owner:string,force?:boolean):Promise<void>;
 export function listDays(owner:string):Promise<CachedDay[]>;
 export function readDay(owner:string,classId:string,date:string):Promise<CachedDay|undefined>;
-export function cacheDay(day:CachedDay):Promise<CachedDay>;
+export function cacheDay(day:CachedDay,updateRoster?:boolean):Promise<CachedDay>;
 export function queueDay(day:CachedDay,marks:CachedDay['marks']):Promise<CachedDay>;
 export function clearDays(owner:string,all?:boolean,classId?:string):Promise<void>;
 export function syncAttendance(owner:string):Promise<void>;

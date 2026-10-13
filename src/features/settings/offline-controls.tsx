@@ -25,8 +25,8 @@ export function OfflineControls() {
 
   useEffect(() => {
     const refresh=()=>{void getOfflineSummary().then(setSummary).catch(()=>setMessage('Could not read device storage.'));};
-    refresh();window.addEventListener('attendance-cache-change',refresh);
-    return()=>window.removeEventListener('attendance-cache-change',refresh);
+    refresh();window.addEventListener('attendance-cache-change',refresh);window.addEventListener('offline-records-change',refresh);
+    return()=>{window.removeEventListener('attendance-cache-change',refresh);window.removeEventListener('offline-records-change',refresh);};
   }, []);
 
   async function clearCache() {
@@ -35,7 +35,7 @@ export function OfflineControls() {
       await clearOfflineCache();
       setSummary(await getOfflineSummary());
       setConfirming(false);
-      setMessage("Synced classroom data was cleared. Attendance waiting to sync is kept on this device.");
+      setMessage("Synced cache was cleared. Records needed by pending changes are kept on this device.");
     } catch { setMessage("Could not clear the device cache. Please try again."); }
     finally { setBusy(false); }
   }
@@ -52,13 +52,13 @@ export function OfflineControls() {
           <p className="text-sm font-semibold text-[#313832]">{online ? "You are online" : "You are offline"}</p>
           <p className="mt-0.5 text-xs leading-5 text-[#606861]">
             {online
-              ? "Your active classes are prepared automatically for offline attendance. Device saves sync when TeacherCo is open and connected."
-              : "Attendance for cached classes is available on this device. Saves will sync when you reconnect."}
+              ? "Your classes, learners, and grades are prepared automatically. Device saves sync when TeacherCo is open and connected."
+              : "Open the offline workspace to manage classes, learners, attendance, and grades on this device."}
           </p>
         </div>
       </div>
 
-      <a href="/offline.html" className="tc-button tc-secondary justify-self-start">Open offline attendance</a>
+      <a href="/offline-workspace.html" className="tc-button tc-secondary justify-self-start">Open offline workspace</a>
       <dl className="tc-group grid divide-y divide-[#E3E5E1] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {[
           { label: "Classes cached", value: summary?.classes },

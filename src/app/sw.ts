@@ -12,7 +12,12 @@ declare const self: ServiceWorkerGlobalScope;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  precacheOptions: { cacheName: "teacherco-precache-v2" },
+  precacheOptions: {
+    cacheName: "teacherco-precache-v2",
+    // Attendance navigation selects a local class/day; these parameters do not
+    // change the public shell. Private routes still never enter this cache.
+    ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^(?:classId|date)$/],
+  },
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
@@ -32,7 +37,7 @@ const serwist = new Serwist({
     { matcher: () => true, handler: new NetworkOnly() },
   ],
   fallbacks: {
-    entries: [{ url: "/offline.html", matcher: ({ request }) => request.mode === "navigate" }],
+    entries: [{ url: "/offline-workspace.html", matcher: ({ request }) => request.mode === "navigate" }],
   },
 });
 

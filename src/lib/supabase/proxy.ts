@@ -8,7 +8,7 @@ export async function updateSession(request: NextRequest) {
 
   // Public content remains readable without an account or an auth service connection.
   const path = request.nextUrl.pathname;
-  if (["/", "/.well-known/assetlinks.json", "/fonts/poppins-400-latin.woff2", "/fonts/poppins-400-latin-ext.woff2", "/fonts/poppins-600-latin.woff2", "/fonts/poppins-600-latin-ext.woff2", "/fonts/poppins-700-latin.woff2", "/fonts/poppins-700-latin-ext.woff2", "/offline.html", "/offline-attendance.js", "/offline-attendance-ui.js", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
+  if (["/", "/.well-known/assetlinks.json", "/fonts/poppins-400-latin.woff2", "/fonts/poppins-400-latin-ext.woff2", "/fonts/poppins-600-latin.woff2", "/fonts/poppins-600-latin-ext.woff2", "/fonts/poppins-700-latin.woff2", "/fonts/poppins-700-latin-ext.woff2", "/offline-workspace.html", "/offline-workspace-ui.js", "/offline-records.js", "/offline-report-ui.js", "/offline-report-engine.js", "/offline-grading.js", "/offline.html", "/offline-attendance.js", "/offline-attendance-ui.js", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
     return response;
   }
 

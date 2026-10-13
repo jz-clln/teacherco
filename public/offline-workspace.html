@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#1A4D2E">
+  <meta name="robots" content="noindex">
+  <title>Offline workspace · TeacherCo</title>
+  <style>
+@font-face{font-family:Poppins;font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/poppins-400-latin-ext.woff2) format("woff2");unicode-range:u+0100-02ba,u+02bd-02c5,u+02c7-02cc,u+02ce-02d7,u+02dd-02ff,u+0304,u+0308,u+0329,u+1d00-1dbf,u+1e00-1e9f,u+1ef2-1eff,u+2020,u+20a0-20ab,u+20ad-20c4,u+2113,u+2c60-2c7f,u+a720-a7ff}
+@font-face{font-family:Poppins;font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/poppins-400-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
+@font-face{font-family:Poppins;font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/poppins-600-latin-ext.woff2) format("woff2");unicode-range:u+0100-02ba,u+02bd-02c5,u+02c7-02cc,u+02ce-02d7,u+02dd-02ff,u+0304,u+0308,u+0329,u+1d00-1dbf,u+1e00-1e9f,u+1ef2-1eff,u+2020,u+20a0-20ab,u+20ad-20c4,u+2113,u+2c60-2c7f,u+a720-a7ff}
+@font-face{font-family:Poppins;font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/poppins-600-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
+@font-face{font-family:Poppins;font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/poppins-700-latin-ext.woff2) format("woff2");unicode-range:u+0100-02ba,u+02bd-02c5,u+02c7-02cc,u+02ce-02d7,u+02dd-02ff,u+0304,u+0308,u+0329,u+1d00-1dbf,u+1e00-1e9f,u+1ef2-1eff,u+2020,u+20a0-20ab,u+20ad-20c4,u+2113,u+2c60-2c7f,u+a720-a7ff}
+@font-face{font-family:Poppins;font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/poppins-700-latin.woff2) format("woff2");unicode-range:u+00??,u+0131,u+0152-0153,u+02bb-02bc,u+02c6,u+02da,u+02dc,u+0304,u+0308,u+0329,u+2000-206f,u+20ac,u+2122,u+2191,u+2193,u+2212,u+2215,u+feff,u+fffd}
+
+    *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:#C4C4C4 #F5F5F5}
+    body{margin:0;min-height:100vh;padding:48px 24px;background:#F5EFE6;color:#1E2420;font:400 14px/1.6 Poppins,sans-serif}
+    main{width:100%;max-width:760px;margin:0 auto;padding:28px;background:#fff;border:1px solid #E3E5E1;border-radius:20px;box-shadow:0 8px 28px #12382006}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:20px}.brand img{width:36px;height:36px}.brand strong{font-size:13px;color:#1A4D2E}.connection{margin-left:auto;font-size:11px;color:#4F6F52;background:#EEF3EE;padding:4px 9px;border-radius:20px}
+    h1{font-size:22px;line-height:1.3;letter-spacing:-.5px;margin:0 0 8px;font-weight:600}h2{font-size:14px;font-weight:600;margin:20px 0 10px}p{color:#606861;margin:8px 0;font-size:13px;line-height:1.7}
+    button,.footer-link{font:600 12px Poppins,sans-serif;min-height:40px;padding:9px 14px;border:1px solid transparent;border-radius:9px;background:#1A4D2E;color:white;cursor:pointer;transition:background .15s}
+    button:hover{background:#143F26}button:disabled{opacity:.5;cursor:wait}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #4F6F52;outline-offset:3px}
+    .class-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.class-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;padding:14px;background:#FAFBF9;border:1px solid #DFE7DE;color:#1E2420}.class-choice:hover{background:#EEF3EE;border-color:#A5BAA5}.class-name{display:block;font-weight:600;font-size:13px}.class-meta{display:block;font-weight:400;font-size:11px;color:#606861;margin-top:3px}.class-arrow{color:#4F6F52;font-size:18px}
+    .sync-summary{margin-top:18px;padding:11px 13px;background:#F6F8F5;border-radius:9px;font-size:12px;color:#4F6F52}.pending-list{display:grid;gap:8px;margin-top:8px}
+    footer{display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-top:1px solid #E3E5E1;margin-top:24px;padding-top:16px}.secondary,.footer-link{background:white;border:1px solid #DFE7DE;color:#1A4D2E;text-decoration:none}.secondary:hover,.footer-link:hover{background:#F4F7F3}small{display:block;color:#737C73;font-size:11px;margin-top:12px}
+    #status:empty{display:none}#status:not(:empty){border-radius:8px;background:#F4F7F3;padding:10px 12px;margin:12px 0}
+    .learner{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #E3E5E1;padding:10px 0;font-size:13px}select,input{min-height:40px;border:1px solid #DDE3DB;border-radius:8px;padding:8px;font:inherit;max-width:100%}input{display:block;margin:6px 0 14px}.error{color:#9a3412}a{color:#1A4D2E}#attendance>button{margin-top:12px}
+    @media(max-width:520px){body{padding:16px 12px}main{padding:20px;border-radius:16px}.class-grid{grid-template-columns:1fr}h1{font-size:20px}.learner{flex-wrap:wrap}button,.footer-link{min-height:44px}}
+  main{max-width:1040px}button,.footer-link{font-size:14px;min-height:44px}nav{padding-bottom:16px;border-bottom:1px solid #e3e5e1}.toolbar{display:flex;align-items:end;flex-wrap:wrap;gap:8px;margin:12px 0}.toolbar label{flex:1;min-width:180px}form{margin:16px 0}form>label{display:block;max-width:520px}label select{display:block;width:100%;margin:6px 0 14px}.class-grid{margin:16px 0}.class-choice small{margin-top:3px}.table-scroll{overflow:auto;margin:16px 0}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #dfe7de;padding:10px;text-align:center}th:first-child{text-align:left;min-width:160px}td input{min-width:72px;width:100px;text-align:center;margin:0}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}.comparison>div{padding:12px;background:#f5f7f4;border-radius:10px;overflow-wrap:anywhere}dt{font-weight:600}dd{margin:0 0 10px}#workspace>button{margin:4px 8px 4px 0}input[type=file]{width:100%}@media(max-width:520px){.comparison{grid-template-columns:1fr}}
+.offline-report-preview{overflow:auto;max-height:75vh;margin:16px 0;background:#e5e7eb}.offline-report-preview>div{margin:auto}.report-check{display:flex;align-items:center;gap:8px;margin:12px 0}.report-check input{margin:0;min-height:20px;width:18px;height:18px}#workspace section>div>button{margin:4px 8px 4px 0}</style>
+</head>
+<body>
+  <main>
+    <div class="brand"><img src="/icons/icon-192.png" alt="" width="36" height="36"><strong>TeacherCo</strong><span id="connection" class="connection">Offline ready</span></div>
+    <h1>Offline workspace</h1>
+    <p>Classes, learners, attendance, and grades saved on this device.</p><p id="status" role="status"></p><p id="summary" class="sync-summary"></p><section id="workspace"></section>
+    <footer><button id="refresh-records" class="secondary" type="button">Refresh records</button><a class="footer-link" href="/today">Back to TeacherCo</a></footer>
+    <small>Open TeacherCo online first to prepare your records. Keep this app open when reconnecting to sync. AI tools need an internet connection.</small>
+  </main>
+<script type="module" src="/offline-workspace-ui.js"></script>
+</body>
+</html>

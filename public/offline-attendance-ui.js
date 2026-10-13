@@ -1,3 +1,4 @@
+import {syncRecords} from './offline-records.js';
 import {activeTeacher,listDays,readDay,queueDay,syncAttendance,resolveDay,prepareAttendance} from './offline-attendance.js';
 const owner=activeTeacher(),root=document.querySelector('#attendance');
 let current,marks={},dirty=false,busy=false,renderVersion=0;
@@ -50,7 +51,7 @@ function renderDay(){
           const choice=el('button',useDevice?'Use device marks':'Keep online marks',panel);
           choice.onclick=async()=>{
             if(!confirm(useDevice?'Replace the online attendance with these device marks?':'Discard these device marks and keep the online attendance?'))return;
-            try{const resolved=await resolveDay(current,data.marks,useDevice);if(!resolved)throw new Error('Device attendance changed. Open it again to review.');current=resolved;dirty=false;await syncAttendance(owner);await openDay(current,current.date);status('Your choice was saved.');}catch(error){status(error.message);}
+            try{const resolved=await resolveDay(current,data.marks,useDevice);if(!resolved)throw new Error('Device attendance changed. Open it again to review.');current=resolved;dirty=false;await syncRecords(owner);await syncAttendance(owner);await openDay(current,current.date);status('Your choice was saved.');}catch(error){status(error.message);}
           };
         }
       }catch(error){status(error.message);}finally{review.disabled=false;}
@@ -65,13 +66,13 @@ function renderDay(){
   }
   const save=el('button','Save attendance on device');save.onclick=async()=>{
     save.disabled=true;busy=true;
-    try{current=await queueDay(current,marks);dirty=false;status('Saved on this device. Waiting to sync.');await syncAttendance(owner);current=await readDay(owner,current.classId,current.date);status(current.error||(current.pending?'Saved on device. Will sync when connected.':'Attendance synced to your account.'));}
+    try{current=await queueDay(current,marks);dirty=false;status('Saved on this device. Waiting to sync.');await syncRecords(owner);await syncAttendance(owner);current=await readDay(owner,current.classId,current.date);status(current.error||(current.pending?'Saved on device. Will sync when connected.':'Attendance synced to your account.'));}
     catch{status('Could not save. Keep this page open and try again.');}finally{busy=false;save.disabled=false;}
   };
 }
 async function sync(){
   if(!owner||activeTeacher()!==owner){root.replaceChildren();current=null;dirty=false;status('Sign in online to access attendance for your account.');return;}
-  try{await syncAttendance(owner);await prepareAttendance(owner);if(!current&&!dirty)await showClasses();}catch(error){status(error.message||'Could not refresh classes. Your device saves are kept.');}
+  try{await syncRecords(owner);await syncAttendance(owner);await prepareAttendance(owner);if(!current&&!dirty)await showClasses();}catch(error){status(error.message||'Could not refresh classes. Your device saves are kept.');}
 }
 function connection(){document.querySelector('#connection').textContent=navigator.onLine?'Online':'Offline';document.querySelector('#refresh-classes').disabled=!navigator.onLine;}
 connection();window.addEventListener('online',connection);window.addEventListener('offline',connection);

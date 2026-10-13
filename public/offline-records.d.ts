@@ -1,0 +1,16 @@
+export type OfflineRow = Record<string, unknown> & {id:string};
+export type OfflineOperation = {id:string;table:string;row:OfflineRow;before:OfflineRow|null;savedAt:string;error?:string;conflict?:OfflineRow|null};
+export type OfflineRecords = {version:1;owner:string;rows:Record<string,OfflineRow[]>;queue:OfflineOperation[];preparedAt:string|null;reportCards?:Record<string,import('../src/features/report-card-generation/offline-report').OfflineReportPackage>};
+export function saveReportPackage(owner:string,pack:import('../src/features/report-card-generation/offline-report').OfflineReportPackage):Promise<void>;
+export function removeReportPackage(owner:string,key:string):Promise<void>;
+export const fields: Record<string,string[]>;
+export const tables: string[];
+export function project(table:string,row:OfflineRow|null):OfflineRow|null;
+export function readRecords(owner:string):Promise<OfflineRecords>;
+export function saveRecords(owner:string,edits:{table:string;row:OfflineRow;before:OfflineRow|null}[]):Promise<void>;
+export function syncRecords(owner:string):Promise<void>;
+export function prepareRecords(owner:string,force?:boolean):Promise<void>;
+export function resolveRecord(owner:string,id:string,keepDevice:boolean):Promise<void>;
+export function clearRecords(owner:string,all?:boolean):Promise<void>;
+export function exportRecords(owner:string):Promise<string>;
+export function restoreRecords(owner:string,backup:unknown):Promise<void>;

@@ -1,4 +1,5 @@
 import {activeTeacher,listDays,clearDays} from "../../../public/offline-attendance.js";
+import {readRecords,clearRecords} from "../../../public/offline-records.js";
 // src/lib/offline/cache.ts
 
 import { offlineDb } from "./db";
@@ -11,17 +12,15 @@ export type OfflineSummary = {
 
 export async function getOfflineSummary(): Promise<OfflineSummary> {
   if (!offlineDb) return { classes: 0, learners: 0, pendingChanges: 0 };
-  const [classes, learners, pendingChanges] = await Promise.all([
-    offlineDb.classes.count(),
-    offlineDb.learners.count(),
-    offlineDb.syncQueue.count(),
-  ]);
-  const days=await listDays(activeTeacher());
-  return {classes:classes+new Set(days.map(d=>d.classId)).size,learners:learners+new Set(days.flatMap(d=>d.learners.map(l=>l.id))).size,pendingChanges:pendingChanges+days.filter(d=>d.pending).length};
+  const owner=activeTeacher();
+  if(!owner)return {classes:0,learners:0,pendingChanges:0};
+  const [days,records]=await Promise.all([listDays(owner),readRecords(owner)]);
+  return {classes:new Set([...days.map(d=>d.classId),...records.rows.classes.map(c=>c.id)]).size,learners:new Set([...days.flatMap(d=>d.learners.map(l=>l.id)),...records.rows.learners.map(l=>l.id)]).size,pendingChanges:records.queue.length+days.filter(d=>d.pending).length};
 }
 
 /** Clears cached classroom data. Changes still waiting to sync are kept. */
 export async function clearOfflineCache() {
+  await clearRecords(activeTeacher());
   await clearDays(activeTeacher());
   const db = offlineDb;
   if (!db) return;
@@ -32,6 +31,7 @@ export async function clearOfflineCache() {
 
 /** Clears everything, including unsynced changes. Used after the teacher deletes all data. */
 export async function clearAllOfflineData() {
+  await clearRecords(activeTeacher(),true);
   await clearDays(activeTeacher(),true);
   const db = offlineDb;
   if (!db) return;

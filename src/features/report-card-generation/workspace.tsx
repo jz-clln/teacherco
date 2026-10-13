@@ -10,6 +10,7 @@ import {Button} from '@/components/ui/button';
 import {loadCompatibility,saveCompatibility,reviewReadiness} from './actions';
 import {outputStatus,type Bindings} from './model';
 import {receiveDownload} from './download-response';
+import {SaveOfflineReport} from './offline-save';
 import {completeBindings} from '@/features/assisted-workflows/bindings';
 type Config=Extract<Awaited<ReturnType<typeof loadCompatibility>>,{ok:true}>['data'];
 type Review=Extract<Awaited<ReturnType<typeof reviewReadiness>>,{ok:true}>['data'];
@@ -65,7 +66,7 @@ export function GenerationWorkspace({sectionId,templates,initial}:{sectionId:str
       <p className="text-xs text-[#606861]">Grades come from this Section&apos;s saved Grade Book. <Link className="underline" href={`/sections/${sectionId}/grades`}>Check or import grades</Link> if a score is missing.</p>
       <div className="grid gap-4 sm:grid-cols-2">{config.definition.subjects.map(s=><Select name={`Template ${s.label} \u2192 Section subject`} label={`Template ${s.label} \u2192 Section subject`} key={s.key} value={String(bindings.subjectBindings[s.key] ?? '')} disabled={!!busy||!!setup||!config.subjects.length} onChange={value => { setBindings({ ...bindings, subjectBindings: { ...bindings.subjectBindings, [s.key]: value } }); invalidate(); }} emptyLabel={"Choose Section subject"} options={config.subjects.map(q => ({ value: String(q.id), label: `${q.name}${q.code ? ` (${q.code})` : ''} \u00B7 ${q.position}` }))}/>)}</div>
       <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={confirmed} disabled={!!busy} onChange={e=>setConfirmed(e.target.checked)}/>These subjects and terms match my report card.</label>
-      <div className="flex flex-wrap gap-3"><Button variant={review?'secondary':'primary'} disabled={!confirmed||!!busy||!!setup} onClick={save}>Save matches</Button><Button variant="secondary" disabled={!config.profile||dirty||!!busy||!!setup} onClick={()=>readiness()}>Preview report cards</Button></div></div></details>}
+      <div className="flex flex-wrap gap-3"><Button variant={review?'secondary':'primary'} disabled={!confirmed||!!busy||!!setup} onClick={save}>Save matches</Button><Button variant="secondary" disabled={!config.profile||dirty||!!busy||!!setup} onClick={()=>readiness()}>Preview report cards</Button><SaveOfflineReport sectionId={sectionId} templateId={templateId} disabled={!config.profile||dirty||!!busy||!!setup}/></div></div></details>}
     {review&&<section className={panel}><h3 className="font-semibold">3. Preview and download</h3>
       <div className="rounded-xl border border-[#B8CDBA] bg-[#EAF0EA] p-4 space-y-3">
       <Select name={"Preview learner"} label={"Preview learner"} value={String(review.learnerId)} disabled={!!busy || !review.learners.length} onChange={value => readiness(value)} options={review.learners.map(l => ({ value: String(l.id), label: l.display_name }))}/>

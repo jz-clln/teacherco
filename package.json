@@ -16,7 +16,9 @@
     "android:build": "node android-twa/scripts/android.mjs build",
     "android:release": "node android-twa/scripts/android.mjs release",
     "android:bundle": "node android-twa/scripts/android.mjs bundle",
-    "android:bundle:debug": "node android-twa/scripts/android.mjs bundle-debug"
+    "android:bundle:debug": "node android-twa/scripts/android.mjs bundle-debug",
+    "prebuild": "node scripts/build-offline.mjs",
+    "predev": "node scripts/build-offline.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
@@ -57,6 +59,7 @@
     "@types/react-dom": "latest",
     "@types/sax": "^1.2.7",
     "@types/yauzl": "^3.4.0",
+    "esbuild": "^0.28.2",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "jsdom": "latest",

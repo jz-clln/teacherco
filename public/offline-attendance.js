@@ -30,13 +30,18 @@ export async function listDays(owner) {
 export async function readDay(owner, classId, date) {
   return transaction(false, (store, done) => { store.get(key(owner,classId,date)).onsuccess = e => done(e.target.result); });
 }
-export async function cacheDay(day) {
+export async function cacheDay(day, updateRoster=false) {
   return transaction(true, (store, done) => {
     const id = key(day.owner,day.classId,day.date);
     store.get(id).onsuccess = e => {
       const previous = e.target.result;
       // A server refresh must never replace work waiting on this device.
-      if (previous?.pending) { done(previous); return; }
+      if (previous?.pending) {
+        if(updateRoster && JSON.stringify(previous.learners)!==JSON.stringify(day.learners)){
+          const next={...previous,learners:day.learners,revision:crypto.randomUUID()};store.put(next);done(next);
+        }else done(previous);
+        return;
+      }
       // Background roster refreshes must not invalidate an unchanged open form.
       if(previous&&JSON.stringify(previous.marks)===JSON.stringify(day.marks)&&JSON.stringify(previous.learners)===JSON.stringify(day.learners)&&previous.className===day.className&&previous.subject===day.subject){done(previous);return;}
       const next = {...day,key:id,cachedAt:new Date().toISOString(),pending:false,error:'',revision:crypto.randomUUID()};
@@ -99,6 +104,9 @@ export function syncAttendance(owner) {
   if(running)return running;
   const run=async()=>{
     if(!navigator.onLine||!owner||activeTeacher()!==owner)return;
+    // New local classes and learners must reach the server before attendance.
+    const {readRecords}=await import('./offline-records.js');
+    if((await readRecords(owner)).queue.length)return;
     for(const day of await listDays(owner)){
       if(!day.pending||day.error||activeTeacher()!==owner)continue;
       let response,result;
