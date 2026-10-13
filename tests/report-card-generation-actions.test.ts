@@ -1,4 +1,4 @@
-// @vitest-environment node
+﻿// @vitest-environment node
 import {beforeEach,it,expect,vi} from 'vitest';
 import {randomUUID,createHash} from 'node:crypto';
 import JSZip from 'jszip';
@@ -11,6 +11,11 @@ import {previewReportCard,reviewReadiness,saveCompatibility,loadCompatibility} f
 import {verifyProfile,valuesForLearner,safeFilename,type GenerationSnapshot} from '@/features/report-card-generation/model';
 import {mappingWorkbook,mappingDefinition} from './helpers/mapping-fixture';
 import {suggestPeriodBindings} from '@/features/assisted-workflows/bindings';
+import {prepareOfflineReport} from '@/features/report-card-generation/offline-package';
+import {reportValues,filledPrintSheets,generateOfflineWorkbook} from '@/features/report-card-generation/offline-report';
+import type {OfflineRecords} from '../public/offline-records.js';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {POST as prepareOfflineRoute} from '@/app/api/offline/report-cards/route';
 let s:GenerationSnapshot,bytes:Buffer;
 it('connects generic periods and previews each bound subject name with its own term grades',async()=>{
   const def=s.mapping.mapping_definition;
@@ -87,4 +92,46 @@ it('previews filled cells without source writes and rejects stale or foreign lea
  expect(mock.rpc.mock.calls.every(c=>c[0]==='report_card_generation_snapshot')).toBe(true);
  expect(await previewReportCard({...p,digest:'f'.repeat(64)})).toMatchObject({ok:false});
  expect(await previewReportCard({...p,learnerId:randomUUID()})).toMatchObject({ok:false});
+});
+
+it('prepares a private offline template and generates with unsynced grades while retaining source formats and images',async()=>{
+  const w=new ExcelJS.Workbook();await w.xlsx.load(bytes as never);const sheet=w.worksheets[0];
+  sheet.getCell('D15').font={name:'Bookman Old Style',size:11,italic:true};sheet.getCell('D15').numFmt='0.00';
+  sheet.getCell('D15').border={bottom:{style:'double'}};sheet.getCell('D15').value={formula:'1+1',result:2};
+  sheet.getColumn(4).width=17;sheet.getRow(15).height=24;
+  const logo=w.addImage({base64:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZAAAAABJRU5ErkJggg==',extension:'png'});sheet.addImage(logo,'A2:B4');
+  bytes=Buffer.from(await w.xlsx.writeBuffer());const hash=createHash('sha256').update(bytes).digest('hex');
+  s.template.file_sha256=hash;s.template.file_size_bytes=bytes.length;s.template.name='Offline fixture';s.mapping.mapping_definition.templateSha256=hash;s.profile!.template_sha256=hash;
+  const def=s.mapping.mapping_definition;def.fields.grade_level={sheet:'Front page',address:'A5'};def.subjects[0].outputs.final_grade={sheet:'Front page',address:'H15'};def.subjects[0].outputs.remarks={sheet:'Front page',address:'I15'};
+  mock.bytes.mockResolvedValue(bytes);
+  const pack=await prepareOfflineReport(s.section.id,s.template.id);
+  expect(pack.snapshot.learners).toEqual([]);expect(pack.snapshot.entries).toEqual([]);expect(pack.formulaTargets).not.toHaveLength(0);
+  const section_id=s.section.id,teacher_id=s.section.teacher_id;
+  const records={version:1,owner:teacher_id,preparedAt:new Date().toISOString(),queue:[],rows:{sections:[s.section],learners:s.learners,section_enrollments:s.learners.map(l=>({id:randomUUID(),teacher_id,section_id,learner_id:l.id,status:'active'})),section_subjects:s.subjects.map(row=>({...row,section_id,teacher_id})),section_grade_periods:s.periods.map(row=>({...row,section_id,teacher_id})),section_grade_entries:s.periods.map((p,i)=>({id:randomUUID(),teacher_id,section_id,learner_id:s.learners[0].id,section_subject_id:s.subjects[0].id,period_id:p.id,grade:[79,86,98][i],source_type:'manual'}))}} as unknown as OfflineRecords;
+  const values=reportValues(pack,records,s.learners[0].id);
+  expect(values.find(v=>v.id.endsWith(':final_grade'))?.value).toBe(88);expect(values.find(v=>v.id.endsWith(':remarks'))?.value).toBe('Passed');
+  expect(()=>filledPrintSheets(pack,values)).toThrow(/formulas/);
+  const previews=filledPrintSheets(pack,values,true),grade=previews.flatMap(p=>p.cells).find(c=>c.address==='D15');expect(grade?.displayValue).toBe('79.00');
+  await expect(generateOfflineWorkbook(pack,values)).rejects.toThrow(/formulas/);
+  const output=await generateOfflineWorkbook(pack,values,true),result=new ExcelJS.Workbook();await result.xlsx.load(output as never);
+  const cell=result.worksheets[0].getCell('D15');expect(cell.value).toBe(79);expect(cell.font.name).toBe('Bookman Old Style');expect(cell.numFmt).toBe('0.00');expect(cell.alignment.horizontal).toBe('center');expect(cell.border.bottom?.style).toBe('double');expect(result.worksheets[0].getImages()).toHaveLength(1);expect(result.worksheets[0].getCell('A5').value).toBe('8');
+  const originalZip=await JSZip.loadAsync(bytes),outputZip=await JSZip.loadAsync(output);for(const path of Object.keys(originalZip.files).filter(p=>p.startsWith('xl/media/'))){expect(await outputZip.file(path)?.async('base64')).toBe(await originalZip.file(path)?.async('base64'));}
+  expect(()=>reportValues(pack,{...records,owner:randomUUID()},s.learners[0].id)).toThrow(/account/);
+  await expect(generateOfflineWorkbook({...pack,workbookHash:'0'.repeat(64)},values,true)).rejects.toThrow(/damaged/);
+  await mkdir('test-results/offline-report',{recursive:true});await writeFile('test-results/offline-report/fixture.json',JSON.stringify({pack,records}));
+  records.rows.section_grade_entries.pop();expect(reportValues(pack,records,s.learners[0].id).find(v=>v.id.endsWith(':final_grade'))?.value).toBeNull();
+});
+
+
+it('requires owned configuration and a same-origin request for offline preparation, and never caches its response',async()=>{
+ const payload={sectionId:s.section.id,templateId:s.template.id};
+ const request=(origin:string,body:unknown=payload)=>new Request('https://teacher.example/api/offline/report-cards',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ expect((await prepareOfflineRoute(request('https://other.example'))).status).toBe(403);expect(mock.access).not.toHaveBeenCalled();
+ expect((await prepareOfflineRoute(request('https://teacher.example',{...payload,owner:randomUUID()}))).status).toBe(400);
+ const response=await prepareOfflineRoute(request('https://teacher.example'));expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('private, no-store');expect((await response.json()).owner).toBe(s.section.teacher_id);
+ s.template.teacher_id=randomUUID();expect((await prepareOfflineRoute(request('https://teacher.example'))).status).toBe(403);
+});
+it('rejects changes during offline template preparation',async()=>{
+ let calls=0;mock.rpc.mockImplementation(async()=>{if(++calls===2)s.mapping.revision++;return {data:structuredClone(s)};});
+ await expect(prepareOfflineReport(s.section.id,s.template.id)).rejects.toThrow(/changed/);
 });

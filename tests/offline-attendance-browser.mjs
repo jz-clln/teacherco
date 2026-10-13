@@ -23,7 +23,7 @@ try{
     await api.cacheDay({owner,classId,className:'Maya',subject:'Calculus',date:'2026-01-01',learners:[{id:learner,name:'Ana Cruz'}],marks:{},baseline:{},updatedAt:null});
   },{owner,classId,learner});
   await context.setOffline(true);
-  await page.goto('/classes/'+classId+'/attendance');
+  await page.goto('/offline.html');
   const offlineFonts=await page.evaluate(async()=>{
     await document.fonts.ready;
     return {body:getComputedStyle(document.body).fontFamily,button:getComputedStyle(document.querySelector('button')).fontFamily,loaded:await Promise.all([400,600,700].map(async weight=>(await document.fonts.load(`${weight} 16px Poppins`)).length>0))};

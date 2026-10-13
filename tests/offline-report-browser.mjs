@@ -1,0 +1,43 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ExcelJS from 'exceljs';
+const {pack,records}=JSON.parse(await readFile('test-results/offline-report/fixture.json','utf8'));
+const baseURL=process.env.OFFLINE_TEST_URL||'http://127.0.0.1:3336';
+const browser=await chromium.launch();
+try{
+ const context=await browser.newContext({baseURL,viewport:{width:1440,height:900},acceptDownloads:true});
+ await context.addCookies([{name:'teacherco_offline_owner',value:pack.owner,url:baseURL}]);
+ await context.route('**/api/offline/records?*',r=>r.fulfill({json:{owner:pack.owner,rows:records.rows[new URL(r.request().url()).searchParams.get('table')]??[],nextOffset:null}}));
+ await context.route('**/api/attendance/offline?*',r=>r.fulfill({json:{owner:pack.owner,days:[],nextOffset:null}}));
+ const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/offline-workspace.html');
+ await page.waitForFunction(async owner=>(await (await import('/offline-records.js')).readRecords(owner)).preparedAt,pack.owner);
+ await page.evaluate(async ({pack})=>{const m=await import('/offline-records.js');await m.prepareRecords(pack.owner,true);if(!(await m.readRecords(pack.owner)).preparedAt)throw new Error('Records preparation did not finish');await m.saveReportPackage(pack.owner,pack);await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;},{pack,records});
+ await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
+ await context.setOffline(true);await page.reload();
+ await page.getByRole('button',{name:'Report cards',exact:true}).click();
+ await page.getByRole('button',{name:'Review report card',exact:true}).click();
+ await page.getByRole('button',{name:'Download Excel',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Download Excel',exact:true}).click();
+ await page.getByText('Review the report card and confirm the values first.',{exact:true}).waitFor();
+ await page.getByLabel('I reviewed the values below and accept any missing values.').check();
+ await page.getByLabel('I confirm replacing these mapped formulas.').check();
+ const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Download Excel',exact:true}).click();
+ const download=await downloadPromise,w=new ExcelJS.Workbook();await w.xlsx.readFile(await download.path());
+ assert.equal(w.worksheets[0].getCell('D15').value,79);assert.equal(w.worksheets[0].getCell('H15').value,88);assert.equal(w.worksheets[0].getCell('D15').font.name,'Bookman Old Style');assert.equal(w.worksheets[0].getCell('D15').alignment.horizontal,'center');assert.equal(w.worksheets[0].getImages().length,1);
+ const frame=page.frameLocator('iframe[title="Offline report card print layout"]');await frame.locator('[data-cell="D15"]').waitFor();assert.equal(await frame.locator('[data-cell="D15"]').innerText(),'79.00');assert.equal(await page.getByLabel('Paper size').inputValue(),'a4');
+ await page.getByLabel('Paper size').selectOption('letter');await page.getByLabel('Paper size').selectOption('a4');
+ await page.evaluate(()=>{window.__printCalled=false;const append=document.body.appendChild.bind(document.body);document.body.appendChild=function(node){const out=append(node);if(node.tagName==='IFRAME'&&node.title==='Printable report card'){node.addEventListener('load',()=>{node.contentWindow.print=()=>{window.__printCalled=true;};});}return out;};});
+ await page.getByRole('button',{name:'Print report card',exact:true}).click();await page.waitForFunction(()=>window.__printCalled);
+ await page.screenshot({path:'test-results/offline-report/desktop.png',fullPage:true});
+ await page.evaluate(async owner=>{const m=await import('/offline-records.js'),s=await m.readRecords(owner),before=s.rows.section_grade_entries[0];await m.saveRecords(owner,[{table:'section_grade_entries',row:{...before,grade:95},before}]);},pack.owner);
+ await page.getByRole('button',{name:'Download Excel',exact:true}).click();await page.getByText('The saved grades, roster or template changed. Review the report card again.',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Review report card',exact:true}).click();
+ await frame.locator('[data-cell="D15"]').waitFor();assert.equal(await frame.locator('[data-cell="D15"]').innerText(),'95.00');
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:'test-results/offline-report/mobile.png',fullPage:true});
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert.deepEqual(errors,[]);
+ const backup=await page.evaluate(async owner=>JSON.parse(await (await import('/offline-records.js')).exportRecords(owner)),pack.owner);assert.equal(Object.keys(backup.reportCards).length,1);
+ console.log('Offline report browser passed: cached engine, disconnected reload, template fidelity, download, print, local grade changes, stale-review guard, backup and mobile layout.');
+}finally{await browser.close();}
+
