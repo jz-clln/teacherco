@@ -121,6 +121,12 @@
   .landing-workspace-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 767px) {
+  .landing-account-actions.landing-account-actions-with-install { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: start; }
+  .landing-account-actions-with-install > .pwa-install-control { min-width: 0; }
+  .landing-account-actions-with-install > .landing-button,
+  .landing-account-actions-with-install > .pwa-install-control > .landing-button { width: 100%; min-height: 48px; padding: 8px; gap: 6px; font-size: .72rem; line-height: 1.25; }
+  .landing-account-actions-with-install > .landing-button > svg,
+  .landing-account-actions-with-install > .pwa-install-control > .landing-button > svg { width: 14px; height: 14px; flex-shrink: 0; }
   .landing-container { width: calc(100% - 40px); }
   .landing-nav { min-height: 76px; }
   .landing-desktop-links, .landing-desktop-actions { display: none; }

@@ -14,7 +14,7 @@ import { AndroidApkLink } from "@/components/pwa/android-apk-link";
 import "./landing.css";
 
 function AccountActions({ destination, install = false }: { destination: string | null; install?: boolean }) {
-  return <div className="landing-account-actions">
+  return <div className={`landing-account-actions${install ? ' landing-account-actions-with-install' : ''}`}>
     <Link prefetch={false} href={destination ?? "/request-access"} className="landing-button landing-button-primary">{destination ? "Go to TeacherCo" : "Request Early Access"}<ArrowUpRight size={18} aria-hidden="true" /></Link>
     {install && <InstallTeacherCoButton destination={destination} />}
     {!destination && <Link prefetch={false} href="/login" className="landing-button landing-button-secondary">Log in<ArrowRight size={17} aria-hidden="true" /></Link>}

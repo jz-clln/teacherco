@@ -54,9 +54,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className={cn("min-w-0",mappingWorkspace&&"flex h-full min-h-0 flex-col")}>
-        <header className="relative z-20 flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-[#E3E5E1] bg-[#F5EFE6] px-5 md:justify-end md:border-0 md:px-8">
-          <Link href="/today" className="tc-brand flex min-h-11 items-center gap-2 font-bold text-[#1A4D2E] md:hidden"><Image src="/brand/teacherco-mascot.png" alt="" width={36} height={36} />TeacherCo</Link>
-          <a href="/offline-workspace.html" className="text-xs font-medium text-[#1A4D2E] hover:underline">Offline workspace</a>
+        <header className="relative z-20 flex min-h-16 shrink-0 items-center justify-between gap-1.5 border-b border-[#E3E5E1] bg-[#F5EFE6] px-3 sm:px-5 md:justify-end md:gap-2 md:border-0 md:px-8">
+          <Link href="/today" className="tc-brand flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-bold text-[#1A4D2E] sm:gap-2 sm:text-base md:hidden"><Image src="/brand/teacherco-mascot.png" alt="" width={36} height={36} className="size-7 shrink-0 sm:size-9" />TeacherCo</Link>
+          <a href="/offline-workspace.html" className="ml-auto inline-flex min-h-11 shrink-0 items-center whitespace-nowrap px-1 text-xs font-medium text-[#1A4D2E] hover:underline md:ml-0">Offline workspace</a>
           <AccountMenu />
         </header>
         <main className={cn("mx-auto w-full min-w-0 max-w-[1200px] px-5 pt-6 pb-[calc(96px+env(safe-area-inset-bottom))] md:px-8 md:pt-4 md:pb-8", mappingWorkspace && "flex min-h-0 flex-1 flex-col")}>{children}</main>

@@ -135,6 +135,11 @@
 .tc-button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-control); padding: 10px 16px; font-size: 1rem; line-height: 1.375; font-weight: 600; transition: background-color var(--motion-hover), transform var(--motion-press); }
 .tc-button:active:not(:disabled) { transform: scale(.98); }
 .tc-button:disabled { cursor: not-allowed; opacity: .5; }
+@media (max-width: 767px) {
+  .tc-button.tc-disclosure-icon-mobile { width: 44px; padding-inline: 0; gap: 0; }
+  .tc-disclosure-icon-mobile > span { display: none; }
+  .tc-disclosure-icon-mobile > svg { flex-shrink: 0; }
+}
 .tc-primary { min-height: 48px; background: var(--brand); color: white; }
 .tc-primary:hover { background: var(--teacherco-900); }
 .tc-secondary { border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); }
