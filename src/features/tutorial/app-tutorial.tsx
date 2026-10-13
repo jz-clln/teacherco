@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { ArrowLeft, BookOpen, ChevronDown } from 'lucide-react';
 import { Select } from '@/components/ui/select';
+import { TutorialScreenshot } from './tutorial-screenshot';
 import { sectionLabel } from '@/features/sections/model';
 
 type Props = {
@@ -94,7 +95,7 @@ export function AppTutorial({ classes, sections, loadError }: Props) {
     <nav aria-label="Tutorial topics" className="grid gap-2 sm:grid-cols-2">{chapters.map((chapter, index) => <a href={`#${chapter.id}`} onClick={() => { const topic = document.getElementById(chapter.id); if (topic instanceof HTMLDetailsElement) topic.open = true; }} key={chapter.id} className="inline-flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[#1A4D2E] hover:bg-[#EAF0EA] focus-visible:outline-2"><span className="text-xs text-[#606861]">{String(index + 1).padStart(2, '0')}</span>{chapter.title}</a>)}</nav>
     <div className="space-y-3">{chapters.map((chapter, index) => <details key={chapter.id} id={chapter.id} className="tc-group group scroll-mt-6" open={index === 0}>
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3 focus-visible:outline-2 [&::-webkit-details-marker]:hidden"><h2 className="text-base font-semibold">{index + 1}. {chapter.title}</h2><ChevronDown size={18} aria-hidden className="shrink-0 transition group-open:rotate-180" /></summary>
-      <div className="space-y-4 px-4 pb-5 sm:px-5"><p className="text-sm leading-6 text-[#606861]">{chapter.intro}</p><ol className="list-decimal space-y-3 pl-5 text-sm leading-7">{chapter.steps.map((step, stepIndex) => <li key={stepIndex} className="pl-1">{step}</li>)}</ol><p className="rounded-xl bg-[#EAF0EA] p-3 text-sm leading-6 text-[#1A4D2E]"><strong>Make it a habit: </strong>{chapter.tip}</p></div>
+      <div className="space-y-4 px-4 pb-5 sm:px-5"><p className="text-sm leading-6 text-[#606861]">{chapter.intro}</p><TutorialScreenshot topic={chapter.id} title={chapter.title} /><ol className="list-decimal space-y-3 pl-5 text-sm leading-7">{chapter.steps.map((step, stepIndex) => <li key={stepIndex} className="pl-1">{step}</li>)}</ol><p className="rounded-xl bg-[#EAF0EA] p-3 text-sm leading-6 text-[#1A4D2E]"><strong>Make it a habit: </strong>{chapter.tip}</p></div>
     </details>)}</div>
   </div>;
 }
