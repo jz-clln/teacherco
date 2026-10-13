@@ -10,6 +10,24 @@ import {SectionGradebook} from '@/features/gradebook/gradebook';
 import {ClassGradeImport} from '@/features/gradebook/import-panel';
 const book={section:{id:'section',status:'active'},periods:[{id:'t1',label:'Term 1',status:'active'},{id:'t2',label:'Term 2',status:'active'}],subjects:[{id:'calculus',name:'Calculus',status:'active'},{id:'language',name:'Language',status:'active'}],classes:[{id:'c1',subject:'Calculus',name:'Class A'},{id:'c2',subject:'Language',name:'Class B'}],learners:[{id:'learner',display_name:'Ana',status:'active'}],entries:[{learner_id:'learner',section_subject_id:'calculus',period_id:'t1',grade:89,source_type:'manual'},{learner_id:'learner',section_subject_id:'language',period_id:'t1',grade:92,source_type:'manual'}]} as GradebookData;
 afterEach(()=>{cleanup();vi.clearAllMocks();});
+it('shows mobile subject grades, switches periods, and uses the existing learner search',()=>{
+  render(<SectionGradebook book={book}/>);
+  const mobile=screen.getByRole('region',{name:'Mobile learner grades'});
+  const grades=within(mobile.querySelector('article > dl')!);
+  expect(grades.getByText('89')).toBeInTheDocument();
+  expect(grades.getByText('92')).toBeInTheDocument();
+  chooseOption(within(mobile).getByRole('combobox',{name:'Show grades for'}),'t2');
+  expect(grades.queryByText('89')).toBeNull();
+  expect(grades.getAllByText('—')).toHaveLength(2);
+  const details=mobile.querySelector('details')!;
+  details.open=true;
+  expect(within(details).getByText('89')).toBeInTheDocument();
+  expect(within(details).getAllByText('Term 2')).toHaveLength(2);
+  fireEvent.change(screen.getByRole('searchbox',{name:'Search learners'}),{target:{value:'Nobody'}});
+  expect(screen.queryByRole('region',{name:'Mobile learner grades'})).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Clear search'}));
+  expect(within(screen.getByRole('region',{name:'Mobile learner grades'})).getByRole('heading',{name:'Ana'})).toBeInTheDocument();
+});
 it('shows each learner with both subjects and removes the view-level destination selectors',()=>{
   render(<SectionGradebook book={book}/>);
   const table=screen.getByRole('table');expect(within(table).getByRole('cell',{name:'89'})).toBeVisible();expect(within(table).getByRole('cell',{name:'92'})).toBeVisible();
