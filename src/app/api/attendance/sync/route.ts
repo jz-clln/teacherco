@@ -1,3 +1,4 @@
+import {canWrite} from '@/lib/auth/access-policy';
 import {z} from 'zod';
 import {getAccessContext} from '@/lib/auth/access-guard';
 import {isDateKey,todayInManila} from '@/features/attendance/dates';
@@ -20,7 +21,7 @@ export async function POST(request:Request){
   if(request.headers.get('origin')&&request.headers.get('origin')!==new URL(request.url).origin)return Response.json({ok:false,error:'Invalid origin.'},{status:403});
   const context=await getAccessContext();
   if(!context)return Response.json({ok:false,error:'Sign in to sync attendance.'},{status:401});
-  if(!context.user.email_confirmed_at||context.profile.access_status!=='active')return Response.json({ok:false,error:'Account access is required.'},{status:403});
+  if(!context.user.email_confirmed_at||!canWrite(context.profile))return Response.json({ok:false,error:'Account access is required.'},{status:403});
   const parsed=schema.safeParse(await request.json().catch(()=>null));
   if(!parsed.success||parsed.data.date>todayInManila())return Response.json({ok:false,error:'Invalid attendance data.'},{status:400});
   const data=parsed.data;

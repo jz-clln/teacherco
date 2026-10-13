@@ -1,5 +1,6 @@
 "use server";
 
+import {canWrite} from "@/lib/auth/access-policy";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAccessContext } from "@/lib/auth/access-guard";
@@ -15,7 +16,7 @@ const setupError = "Class record sync is not available yet. The database update 
 async function authorized(classId: string) {
   if (!z.uuid().safeParse(classId).success) throw new Error("Class not found.");
   const context = await getAccessContext();
-  if (!context?.user.email_confirmed_at || context.profile.access_status !== "active") throw new Error("Sign in with an active teacher account to sync records.");
+  if (!context?.user.email_confirmed_at || !canWrite(context.profile)) throw new Error("Sign in with an active teacher account to sync records.");
   const db = await createClient();
   const { data, error } = await db.from("classes").select("id").eq("id", classId).eq("teacher_id", context.user.id).maybeSingle();
   if (error || !data) throw new Error("Class not found.");

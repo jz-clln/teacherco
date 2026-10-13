@@ -7,12 +7,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateInviteCode } from "./code-generator";
 import { INVALID_INVITE, inviteCodeSchema, requestAccessSchema } from "./validation";
 import type { InviteState } from "./types";
+import {canWrite,accessExpired} from '@/lib/auth/access-policy';
 
 export async function redeemInvite(raw: string): Promise<InviteState> {
   const context = await getAccessContext();
   if (!context || !context.user.email_confirmed_at) return { error: INVALID_INVITE };
-  if (context.profile.access_status === "active") return { success: "Access activated" };
-  if (context.profile.access_status !== "pending" || !inviteCodeSchema.safeParse(raw).success) return { error: INVALID_INVITE };
+  if (canWrite(context.profile)) return { success: "Access activated" };
+  if ((context.profile.access_status !== "pending" && !accessExpired(context.profile)) || !inviteCodeSchema.safeParse(raw).success) return { error: INVALID_INVITE };
   try {
     const { data, error } = await createAdminClient().rpc("redeem_invite_code", { p_user_id: context.user.id, p_code: raw });
     if (error || data !== true) return { error: INVALID_INVITE };
@@ -25,7 +26,7 @@ export async function redeemInvite(raw: string): Promise<InviteState> {
 
 export async function requestAccess(input: unknown): Promise<InviteState> {
   const context = await getAccessContext();
-  if (!context || !context.user.email_confirmed_at || context.profile.access_status !== "pending") return { error: "Sign in with a pending account to request access." };
+  if (!context || !context.user.email_confirmed_at || (context.profile.access_status !== "pending" && !accessExpired(context.profile))) return { error: "Sign in to an account that needs access to request renewal." };
   const parsed = requestAccessSchema.safeParse(input);
   if (!parsed.success || parsed.data.email !== context.user.email) return { error: "Use your account email and check the request details." };
   try {
@@ -38,8 +39,9 @@ export async function requestAccess(input: unknown): Promise<InviteState> {
   } catch { return { error: "Could not submit your request. Please try again." }; }
 }
 
-export async function generateCode(email: string): Promise<InviteState> {
+export async function generateCode(email: string, durationDays: number = 30): Promise<InviteState> {
   await requireAdmin();
+  if (![7,30].includes(durationDays)) return {error:'Choose 7 days or 30 days.'};
   const restriction = email === "" ? null : z.string().email().max(254).safeParse(email);
   if (restriction && !restriction.success) return { error: "Enter a valid email address or leave it blank." };
   const admin = createAdminClient();
@@ -48,7 +50,7 @@ export async function generateCode(email: string): Promise<InviteState> {
     const history = await admin.from("invite_code_redemptions").select("id").eq("code", code).limit(1);
     if (history.error) return { error: "Could not generate a code. Please try again." };
     if (history.data?.length) continue;
-    const { error } = await admin.from("invite_codes").insert({ code, email_restriction: restriction?.data ?? null });
+    const { error } = await admin.from("invite_codes").insert({ code, email_restriction: restriction?.data ?? null, duration_days: durationDays });
     if (error?.code === "23505") continue;
     if (error) return { error: "Could not generate a code. Please try again." };
     revalidatePath("/admin/invites");

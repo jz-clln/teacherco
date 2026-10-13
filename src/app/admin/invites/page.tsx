@@ -30,8 +30,8 @@ export default async function AdminInvitesPage({ searchParams }: { searchParams:
   const pages = { codes: pageNumber(params.codes), history: pageNumber(params.history), requests: pageNumber(params.requests) };
   const db = createAdminClient();
   const [codes, history, requests] = await Promise.all([
-    db.from("invite_codes").select("id,code,email_restriction,is_active,redeemed_at,invite_code_redemptions(redeemed_email)", { count: "exact" }).order("created_at", { ascending: false }).order("id").range((pages.codes - 1) * PAGE_SIZE, pages.codes * PAGE_SIZE - 1),
-    db.from("invite_code_redemptions").select("id,code,redeemed_email,redeemed_at,invite_code_id", { count: "exact" }).order("redeemed_at", { ascending: false }).order("id").range((pages.history - 1) * PAGE_SIZE, pages.history * PAGE_SIZE - 1),
+    db.from("invite_codes").select("id,code,duration_days,email_restriction,is_active,redeemed_at,invite_code_redemptions(redeemed_email)", { count: "exact" }).order("created_at", { ascending: false }).order("id").range((pages.codes - 1) * PAGE_SIZE, pages.codes * PAGE_SIZE - 1),
+    db.from("invite_code_redemptions").select("id,code,duration_days,access_expires_at,redeemed_email,redeemed_at,invite_code_id", { count: "exact" }).order("redeemed_at", { ascending: false }).order("id").range((pages.history - 1) * PAGE_SIZE, pages.history * PAGE_SIZE - 1),
     db.from("access_requests").select("id,name,email,message,status,created_at", { count: "exact" }).order("created_at", { ascending: false }).order("id").range((pages.requests - 1) * PAGE_SIZE, pages.requests * PAGE_SIZE - 1),
   ]);
   if (codes.error || history.error || requests.error) throw new Error("Could not load invite administration. Please try again.");
@@ -43,12 +43,12 @@ export default async function AdminInvitesPage({ searchParams }: { searchParams:
       <Card><GenerateCodeForm /></Card>
       <Card>
         <h2 id="codes" className="text-xl font-semibold">Codes</h2>
-        <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Code", "Status", "Restricted email", "Redeemed by", "Redeemed at (Manila)", "Actions"].map((h) => <th key={h} className={cell}>{h}</th>)}</tr></thead>
+        <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Code", "Access duration", "Status", "Restricted email", "Redeemed by", "Redeemed at (Manila)", "Actions"].map((h) => <th key={h} className={cell}>{h}</th>)}</tr></thead>
           <tbody>{codes.data?.map((code) => {
             const redemption = Array.isArray(code.invite_code_redemptions) ? code.invite_code_redemptions[0] : code.invite_code_redemptions;
             return <tr key={code.id}>
               <td className={`${cell} whitespace-nowrap font-mono font-semibold`}>{code.code}</td>
-              <td className={cell}>{code.redeemed_at ? `Used${code.is_active ? "" : " · Disabled"}` : code.is_active ? "Unused" : "Disabled"}</td>
+              <td className={cell}>{code.duration_days} days</td><td className={cell}>{code.redeemed_at ? `Used${code.is_active ? "" : " · Disabled"}` : code.is_active ? "Unused" : "Disabled"}</td>
               <td className={cell}>{code.email_restriction ?? "None"}</td><td className={cell}>{redemption?.redeemed_email ?? "—"}</td><td className={cell}>{date(code.redeemed_at)}</td>
               <td className={cell}><CodeControls id={code.id} code={code.code} active={code.is_active} /></td>
             </tr>;
@@ -66,8 +66,8 @@ export default async function AdminInvitesPage({ searchParams }: { searchParams:
       </Card>
       <Card>
         <h2 id="history" className="text-xl font-semibold">Redemption history</h2>
-        <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Code", "Redeemed by", "Redeemed at (Manila)", "Code record"].map((h) => <th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>
-          {history.data?.map((entry) => <tr key={entry.id}><td className={`${cell} whitespace-nowrap font-mono`}>{entry.code}</td><td className={cell}>{entry.redeemed_email}</td><td className={cell}>{date(entry.redeemed_at)}</td><td className={cell}>{entry.invite_code_id ? "Retained" : "Deleted"}</td></tr>)}
+        <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Code", "Redeemed by", "Redeemed at (Manila)", "Access expires (Manila)", "Code record"].map((h) => <th key={h} className={cell}>{h}</th>)}</tr></thead><tbody>
+          {history.data?.map((entry) => <tr key={entry.id}><td className={`${cell} whitespace-nowrap font-mono`}>{entry.code}</td><td className={cell}>{entry.redeemed_email}</td><td className={cell}>{date(entry.redeemed_at)}</td><td className={cell}>{entry.access_expires_at ? date(entry.access_expires_at) : "Existing unlimited access"}</td><td className={cell}>{entry.invite_code_id ? "Retained" : "Deleted"}</td></tr>)}
         </tbody></table></div>
         {!history.data?.length ? <p className="mt-4 text-sm text-[#606861]">No redemptions on this page.</p> : null}
         <Pagination name="history" page={pages.history} total={history.count ?? 0} params={params} />

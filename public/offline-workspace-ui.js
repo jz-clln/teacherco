@@ -1,9 +1,11 @@
+import {watchDeviceAccess,refreshDeviceAccess} from './offline-access.js';
 import {renderReports} from './offline-report-ui.js';
 import {activeTeacher,cacheDay,listDays,queueDay,syncAttendance} from './offline-attendance.js';
 import {readRecords,saveRecords,syncRecords,prepareRecords,resolveRecord,exportRecords,restoreRecords} from './offline-records.js';
 import {computeTermGrade,inferTermAndComponent,defaultGradingConfig,defaultActivitySlots} from './offline-grading.js';
 
 const owner=activeTeacher(),root=document.querySelector('#workspace');
+watchDeviceAccess(root,owner);
 let state,dirty=false,editing=false,busy=false,view={tab:'classes'},generation=0;
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const rows=t=>state.rows[t]??[];
@@ -186,7 +188,7 @@ async function render(){const version=++generation;if(!owner || activeTeacher()!
 }
 let connecting;
 async function sync(force=false){if(connecting)return connecting;if(!owner||activeTeacher()!==owner||!navigator.onLine)return;
-  connecting=(async()=>{await syncRecords(owner);await syncAttendance(owner);await prepareRecords(owner,force);if(!dirty&&!editing&&view.tab!=='reports')await render();})().finally(()=>{connecting=null;});return connecting;
+  connecting=(async()=>{await refreshDeviceAccess(owner);await syncRecords(owner);await syncAttendance(owner);await prepareRecords(owner,force);if(!dirty&&!editing&&view.tab!=='reports')await render();})().finally(()=>{connecting=null;});return connecting;
 }
 function connection(){document.querySelector('#connection').textContent=navigator.onLine?'Online':'Offline';}
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});

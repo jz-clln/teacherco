@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { field } from "@/features/exams/ui";
 import { generateCode, manageCode, reviewRequest } from "../actions";
 import type { InviteState } from "../types";
+import {Select} from '@/components/ui/select';
 
 /** Compact on desktop, 44px touch targets on phones. */
 const control = "min-h-11 gap-1.5 px-3 text-sm sm:min-h-9";
@@ -35,6 +36,7 @@ function Feedback({ state }: { state: InviteState }) {
 
 export function GenerateCodeForm() {
   const [state, setState] = useState<InviteState>({});
+  const [duration,setDuration]=useState('30');
   const [pending, startTransition] = useTransition();
   return (
     <form
@@ -42,7 +44,7 @@ export function GenerateCodeForm() {
         event.preventDefault();
         const email = String(new FormData(event.currentTarget).get("email") ?? "");
         startTransition(async () => {
-          try { setState(await generateCode(email)); } catch { setState({ error: "Could not generate a code. Check your access and connection." }); }
+          try { setState(await generateCode(email,Number(duration))); } catch { setState({ error: "Could not generate a code. Check your access and connection." }); }
         });
       }}
     >
@@ -53,6 +55,7 @@ export function GenerateCodeForm() {
           </span>
           <input name="email" type="email" maxLength={254} placeholder="teacher@example.com" className={field} />
         </label>
+        <Select name="duration" label="Access duration" value={duration} onChange={setDuration} disabled={pending} options={[{value:'7',label:'7 days'},{value:'30',label:'30 days'}]}/>
         <Button className="w-full sm:w-auto" disabled={pending}>
           {pending ? (
             <>
@@ -62,7 +65,7 @@ export function GenerateCodeForm() {
           ) : "Generate invite code"}
         </Button>
       </div>
-      <p className="mt-2 text-xs leading-5 text-[#606861]">Email restrictions match the verified account email exactly, including letter case. Codes are single-use and never expire.</p>
+      <p className="mt-2 text-xs leading-5 text-[#606861]">Access starts when the code is redeemed. After 7 or 30 days, the account is read-only until another code is redeemed. Codes are single-use. Email restrictions match exactly.</p>
       {pending&&<p role="status" className="flex items-center gap-2 text-sm"><Spinner/>Working...</p>}<Feedback state={state} />
     </form>
   );

@@ -1,3 +1,4 @@
+import {assertDeviceWrite,deviceCanWrite} from './offline-access.js';
 // Shared by the online app and the public offline shell. No credentials are stored here.
 const DB = 'teacherco-attendance';
 export function activeTeacher() {
@@ -50,6 +51,7 @@ export async function cacheDay(day, updateRoster=false) {
   });
 }
 export async function queueDay(day, marks) {
+  assertDeviceWrite(day.owner);
   if (!day.owner || activeTeacher() !== day.owner) throw new Error('Sign in again before saving attendance on this device.');
   const result=await transaction(true, (store, done) => {
     const id=key(day.owner,day.classId,day.date);
@@ -91,6 +93,7 @@ export async function clearDays(owner, all=false, classId) {
   };});
 }
 export async function resolveDay(day, serverMarks, useDevice) {
+  assertDeviceWrite(day.owner);
   if(activeTeacher()!==day.owner)throw new Error('Sign in again.');
   return transaction(true,(store,done)=>{store.get(day.key).onsuccess=e=>{
     const current=e.target.result;
@@ -101,6 +104,7 @@ export async function resolveDay(day, serverMarks, useDevice) {
 }
 let running;
 export function syncAttendance(owner) {
+  if(!deviceCanWrite(owner))return Promise.resolve();
   if(running)return running;
   const run=async()=>{
     if(!navigator.onLine||!owner||activeTeacher()!==owner)return;
@@ -108,6 +112,7 @@ export function syncAttendance(owner) {
     const {readRecords}=await import('./offline-records.js');
     if((await readRecords(owner)).queue.length)return;
     for(const day of await listDays(owner)){
+      if(!deviceCanWrite(owner))break;
       if(!day.pending||day.error||activeTeacher()!==owner)continue;
       let response,result;
       try {

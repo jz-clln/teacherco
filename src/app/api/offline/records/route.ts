@@ -1,3 +1,4 @@
+import {canWrite} from '@/lib/auth/access-policy';
 import {getAccessContext} from '@/lib/auth/access-guard';
 import {operationSchema,recordSchemas} from '@/lib/offline/validation';
 import {tables} from '../../../../../public/offline-records.js';
@@ -15,6 +16,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
   if(request.headers.get('origin') && request.headers.get('origin')!==new URL(request.url).origin)return reply({error:'Invalid origin.'},403);
   const context=await access();if(!context)return reply({error:'Sign in again to sync. Device changes are safe.'},401);
+  if(!canWrite(context.profile))return reply({error:'Renew your invite code to sync. Device changes are safe.'},403);
   let body;try {const raw=await request.text();if(raw.length>64000)return reply({error:'Change is too large.'},413);body=operationSchema.safeParse(JSON.parse(raw));}catch{return reply({error:'Invalid change.'},400);}
   if(!body.success)return reply({error:'Invalid change.'},400);
   const op=body.data;

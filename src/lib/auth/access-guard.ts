@@ -11,7 +11,7 @@ export const getAccessContext = cache(async () => {
   const [supabase, user] = await Promise.all([createClient(), getCurrentUser()]);
   if (!user) return null;
   const { data, error: profileError } = await supabase.from("profiles")
-    .select("access_status,role,onboarding_completed").eq("id", user.id).maybeSingle();
+    .select("access_status,role,onboarding_completed,access_expires_at").eq("id", user.id).maybeSingle();
   if (profileError || !data) throw new Error("Could not verify account access. Please try again.");
   return { supabase, user, profile: data as AccessProfile };
 });

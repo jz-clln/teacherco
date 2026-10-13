@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { routeAccessRedirect } from "@/lib/auth/access-policy";
+import { routeAccessRedirect, accessExpired } from "@/lib/auth/access-policy";
 import type { AccessProfile } from "@/features/invites/types";
 
 export async function updateSession(request: NextRequest) {
@@ -8,7 +8,7 @@ export async function updateSession(request: NextRequest) {
 
   // Public content remains readable without an account or an auth service connection.
   const path = request.nextUrl.pathname;
-  if (["/", "/.well-known/assetlinks.json", "/fonts/poppins-400-latin.woff2", "/fonts/poppins-400-latin-ext.woff2", "/fonts/poppins-600-latin.woff2", "/fonts/poppins-600-latin-ext.woff2", "/fonts/poppins-700-latin.woff2", "/fonts/poppins-700-latin-ext.woff2", "/offline-workspace.html", "/offline-workspace-ui.js", "/offline-records.js", "/offline-report-ui.js", "/offline-report-engine.js", "/offline-grading.js", "/offline.html", "/offline-attendance.js", "/offline-attendance-ui.js", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
+  if (["/", "/api/access", "/auth/signout", "/offline-access.js", "/.well-known/assetlinks.json", "/fonts/poppins-400-latin.woff2", "/fonts/poppins-400-latin-ext.woff2", "/fonts/poppins-600-latin.woff2", "/fonts/poppins-600-latin-ext.woff2", "/fonts/poppins-700-latin.woff2", "/fonts/poppins-700-latin-ext.woff2", "/offline-workspace.html", "/offline-workspace-ui.js", "/offline-records.js", "/offline-report-ui.js", "/offline-report-engine.js", "/offline-grading.js", "/offline.html", "/offline-attendance.js", "/offline-attendance-ui.js", "/legal/privacy", "/legal/terms", "/auth/confirm", "/api/health", "/sw.js", "/manifest.webmanifest"].includes(path)) {
     return response;
   }
 
@@ -47,7 +47,7 @@ export async function updateSession(request: NextRequest) {
   } else {
     const accessStart = performance.now();
     const { data: profile, error } = await supabase.from("profiles")
-      .select("access_status,role,onboarding_completed").eq("id", user.id).maybeSingle();
+      .select("access_status,role,onboarding_completed,access_expires_at").eq("id", user.id).maybeSingle();
     accessMs = performance.now() - accessStart;
     // Fail closed instead of looping or treating an unavailable profile as active.
     if (error || !profile) {
@@ -57,6 +57,10 @@ export async function updateSession(request: NextRequest) {
       return withTiming(unavailable);
     }
     destination = routeAccessRedirect(path, !!user.email_confirmed_at, profile as AccessProfile);
+    if(accessExpired(profile as AccessProfile) && !['GET','HEAD','OPTIONS'].includes(request.method) && !['/invite','/request-access','/auth/signout'].includes(path)){
+      const blocked=NextResponse.json({error:'Your access has expired. Renew with a new invite code to make changes.',renew:'/invite'},{status:403,headers:{'Cache-Control':'private, no-store'}});
+      response.cookies.getAll().forEach(cookie=>blocked.cookies.set(cookie));return withTiming(blocked);
+    }
     if (!destination && path.startsWith("/admin") && profile.role !== "admin") {
       return withTiming(new NextResponse("Administrator access required.", { status: 403, headers: { "Cache-Control": "private, no-store" } }));
     }

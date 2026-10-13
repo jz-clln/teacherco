@@ -1,3 +1,4 @@
+import {assertDeviceWrite,deviceCanWrite} from './offline-access.js';
 import { activeTeacher } from './offline-attendance.js';
 
 // Only these fields can be changed by the offline editor. Everything else stays on the server.
@@ -41,6 +42,7 @@ function transaction(owner, write, change) {
 }
 export const readRecords = owner => transaction(owner,false,state=>state);
 export function saveReportPackage(owner,pack){
+  assertDeviceWrite(owner);
   if(pack?.version!==1||pack.owner!==owner||!pack.sectionId||!pack.templateId||typeof pack.workbook!=='string'||pack.workbook.length>17*1024*1024||!Array.isArray(pack.printSheets))throw new Error('Invalid offline report-card package.');
   return transaction(owner,true,state=>{state.reportCards??={};state.reportCards[`${pack.sectionId}:${pack.templateId}`]=pack;});
 }
@@ -48,6 +50,7 @@ export function removeReportPackage(owner,key){return transaction(owner,true,sta
 
 // Multiple related edits are saved together, or none of them are saved.
 export function saveRecords(owner, edits) {
+  assertDeviceWrite(owner);
   return transaction(owner,true,state=>{
     for(const {table,row,before} of edits){
       if(!Object.hasOwn(fields,table) || !row.id)throw new Error('Invalid offline record.');
@@ -62,9 +65,10 @@ export function saveRecords(owner, edits) {
 }
 let syncing;
 export function syncRecords(owner) {
+  if(!deviceCanWrite(owner))return Promise.resolve();
   if(syncing)return syncing;
   const run=async()=>{
-    while(navigator.onLine && activeTeacher()===owner){
+    while(navigator.onLine && activeTeacher()===owner && deviceCanWrite(owner)){
       const state=await readRecords(owner), operation=state.queue[0];
       if(!operation || operation.error)return;
       let response, result;
@@ -128,6 +132,7 @@ export function prepareRecords(owner,force=false) {
   return preparing;
 }
 export function resolveRecord(owner,id,keepDevice) {
+  assertDeviceWrite(owner);
   return transaction(owner,true,state=>{
     const op=state.queue[0];
     if(op?.id!==id || !op.error)throw new Error('This conflict has changed. Refresh the list.');
@@ -147,6 +152,7 @@ export function clearRecords(owner,all=false) {
 }
 export async function exportRecords(owner) {return JSON.stringify({format:'teacherco-offline',...(await readRecords(owner))},null,2);}
 export function restoreRecords(owner,backup) {
+  assertDeviceWrite(owner);
   if(backup?.format!=='teacherco-offline' || backup.version!==1 || backup.owner!==owner || !Array.isArray(backup.queue) || backup.queue.length>100000)throw new Error('Choose a TeacherCo backup from this teacher account.');
   const uuid=value=>typeof value==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   const validRow=(table,row)=>row && typeof row==='object' && !Array.isArray(row) && uuid(row[table==='class_grading_config'?'class_id':'id']) && (!row.teacher_id || row.teacher_id===owner);

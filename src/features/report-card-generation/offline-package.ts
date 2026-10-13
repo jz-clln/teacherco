@@ -1,3 +1,4 @@
+import {canWrite} from '@/lib/auth/access-policy';
 import 'server-only';
 import {assignments} from '@/features/report-card-mappings/model';
 import {parseWorkbook} from '@/features/report-card-templates/workbook';
@@ -11,6 +12,7 @@ import type {OfflineReportPackage} from './offline-report';
 
 export async function prepareOfflineReport(sectionId:string,templateId:string):Promise<OfflineReportPackage>{
   const {context,s,writer}=await loadGeneration({sectionId,templateId});
+  if(!canWrite(context.profile))throw new Error("Renew access to prepare offline report cards.");
   // Keep every mapped cell within the inferred print bounds, including otherwise
   // blank edge cells. No learner names, grades or temporary LRNs are prefilled.
   const bytes=await writer.write(assignments(writer.definition).map(a=>({...a,value:'Offline field'})),true);

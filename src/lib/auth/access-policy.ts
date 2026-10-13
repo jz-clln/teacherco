@@ -1,5 +1,12 @@
 import type { AccessProfile } from "@/features/invites/types";
 
+export function accessExpired(profile: AccessProfile | null, now = Date.now()): boolean {
+  return !!profile && profile.role !== 'admin' && profile.access_status === 'active' && profile.access_expires_at != null && !(Date.parse(profile.access_expires_at) > now);
+}
+export function canWrite(profile: AccessProfile | null): boolean {
+  return profile?.access_status === 'active' && !accessExpired(profile);
+}
+
 export function accessDestination(verified: boolean, profile: AccessProfile | null): string {
   if (!verified) return "/verify-email";
   if (!profile) return "/invite";
@@ -15,6 +22,7 @@ export function routeAccessRedirect(path: string, verified: boolean, profile: Ac
   if (destination === "/verify-email") return path === destination ? null : destination;
   if (destination === "/suspended") return path === destination ? null : destination;
   if (destination === "/invite") return path === "/invite" || path === "/request-access" ? null : destination;
+  if (accessExpired(profile) && ["/invite", "/request-access"].includes(path)) return null;
   if (["/invite", "/request-access", "/suspended", "/verify-email"].includes(path)) return destination;
   if (destination === "/onboarding" && path !== "/onboarding") return destination;
   if (destination === "/today" && path === "/onboarding") return destination;

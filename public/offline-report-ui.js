@@ -1,3 +1,4 @@
+import {assertDeviceWrite} from './offline-access.js';
 import {activeTeacher} from './offline-attendance.js';
 import {readRecords,removeReportPackage} from './offline-records.js';
 import {reportSnapshot,reportValues,filledPrintSheets,generateOfflineWorkbook,reportPrintDocument,printReport,printGeometry,DEFAULT_PRINT_SETTINGS,safeFilename,outputStatus} from './offline-report-engine.js';
@@ -71,6 +72,7 @@ export function renderReports(root,owner,records){
     showPaper();status.textContent='Preview uses your latest saved device grades. Review the values, then confirm above to download or print.';
   }
   async function validateReview(){
+    assertDeviceWrite(owner);
     if(!reviewed||!gradeConsent.checked)throw new Error('Review the report card and confirm the values first.');
     if(formulaConsent&&!formulaConsent.checked)throw new Error('Confirm replacing mapped formulas first.');
     const latest=await readRecords(owner);
