@@ -11,7 +11,7 @@ export default async function ClassLearnersPage({ params, searchParams }: { para
   const { classroom } = await ownedClass(classId);
   const { error, added, removed } = await searchParams;
   const learners = await classRoster(classId).catch(() => null);
-  return <div className="space-y-5"><Link href={`/classes/${classId}`} className={`${overviewLink} max-md:-ml-4`}>← Class overview</Link>
+  return <div className="space-y-5"><Link href={`/classes/${classId}`} className={`${overviewLink} -ml-4`}>← Class overview</Link>
     <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="break-words text-sm text-[#606861]">{classroom.name}</p><h1 className="text-2xl font-bold">Learners</h1></div><AddStudentDialog key={`${added ?? ""}|${error ?? ""}`} classId={classId} error={error} /></div>
     <ClassTabs classId={classId} />
     {(added || removed) && <p role="status" className="rounded-xl bg-[#EAF0EA] p-3 text-sm">{added ? `${added} was added to this class.` : `${removed} was removed.`}</p>}

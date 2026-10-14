@@ -169,7 +169,6 @@ export function NewAssessmentForm({ classes, initialClassId }: { classes: ClassO
         </div>
       </section>
 
-      <p className={`text-sm ${muted}`}>For projects, demonstrations, or oral activities, <Link className="tc-button tc-quiet font-semibold text-[#1A4D2E]" href={`/classes/${classId}/scores`}>enter scores directly</Link>.</p>
 
       <AnswerKeyEditor
         format={format}

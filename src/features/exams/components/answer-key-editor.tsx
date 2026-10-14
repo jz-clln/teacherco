@@ -32,13 +32,22 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
   const [warnings, setWarnings] = useState<string[]>([]);
   const [heard, setHeard] = useState<string | null>(null);
   const [lang, setLang] = useState<DictationLang>("en-PH");
-  const [from, setFrom] = useState("1");
-  const [to, setTo] = useState("");
-  const [rangeName, setRangeName] = useState("");
-  const [pointsFrom, setPointsFrom] = useState("1");
-  const [pointsTo, setPointsTo] = useState("");
-  const [rangePoints, setRangePoints] = useState("1");
-  const [pointsError, setPointsError] = useState<string | null>(null);
+  const [ranges, setRanges] = useState(() => {
+    const rows: { from: string; to: string; name: string }[] = [];
+    for (const item of items) {
+      if (!item.competency) continue;
+      const last = rows.at(-1);
+      if (last && last.name === item.competency && Number(last.to) + 1 === item.itemNumber) last.to = String(item.itemNumber);
+      else rows.push({ from: String(item.itemNumber), to: String(item.itemNumber), name: item.competency });
+    }
+    return rows.length ? rows : [{ from: '1', to: '', name: '' }];
+  });
+  const [rangeError, setRangeError] = useState('');
+  const [rangeNotice, setRangeNotice] = useState('');
+  function updateRange(index: number, key: 'from' | 'to' | 'name', value: string) {
+    setRanges(rows => rows.map((row, i) => i === index ? { ...row, [key]: value } : row));
+    setRangeError(''); setRangeNotice('');
+  }
 
   function apply(source: string) {
     const parsed = parseAnswerKeyText(source, choices, items.length);
@@ -52,27 +61,21 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
     apply(chunk);
   });
 
-  function applyRange() {
-    const a = Math.max(1, parseInt(from, 10) || 1);
-    const b = Math.min(items.length, parseInt(to, 10) || a);
-    const name = rangeName.trim() || null;
-    onChange(items.map((i) => (i.itemNumber >= a && i.itemNumber <= b ? { ...i, competency: name } : i)));
-  }
-
-  function applyPointsRange() {
-    const a = Number.parseInt(pointsFrom, 10);
-    const b = pointsTo.trim() ? Number.parseInt(pointsTo, 10) : a;
-    const points = Number(rangePoints);
-    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 1 || b < a || b > items.length) {
-      setPointsError(`Choose an item range from 1 to ${items.length}.`);
-      return;
+  function applyRanges() {
+    const parsed = ranges.map(row => ({ from: Number(row.from), to: Number(row.to), name: row.name.trim() }));
+    const used = new Set<number>();
+    for (const [index, row] of parsed.entries()) {
+      if (!Number.isInteger(row.from) || !Number.isInteger(row.to) || row.from < 1 || row.to < row.from || row.to > items.length || !row.name) {
+        setRangeError(`Range ${index + 1}: enter a competency and whole item numbers from 1 to ${items.length}.`);
+        setRangeNotice(''); return;
+      }
+      for (let n = row.from; n <= row.to; n++) {
+        if (used.has(n)) { setRangeError(`Item ${n} appears in more than one range. Use non-overlapping ranges.`); setRangeNotice(''); return; }
+        used.add(n);
+      }
     }
-    if (!Number.isFinite(points) || points < 0.25 || points > 100) {
-      setPointsError("Points must be between 0.25 and 100.");
-      return;
-    }
-    setPointsError(null);
-    onChange(items.map((i) => (i.itemNumber >= a && i.itemNumber <= b ? { ...i, points } : i)));
+    onChange(items.map(item => ({ ...item, competency: parsed.find(row => item.itemNumber >= row.from && item.itemNumber <= row.to)?.name ?? null })));
+    setRangeError(''); setRangeNotice('Competency ranges applied. Save the answer key to keep these changes.');
   }
 
   const setCount = items.filter((i) => i.answer !== "").length;
@@ -163,63 +166,23 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
           <ChevronDown className={chevron} aria-hidden />
         </summary>
         <div className="border-t border-[#E8DFCA] p-4">
-          <p className={`text-sm ${muted}`}>Name a competency for a range of items, for example items 1 to 5 → Fractions.</p>
-          {/* Phones: From and To side by side, then Competency and Apply full width. Wider screens: one row. */}
-          <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-3 sm:grid-cols-[5rem_5rem_minmax(0,1fr)_auto] sm:items-end">
-            <div className="min-w-0">
-              <label htmlFor="range-from" className={label}>From</label>
-              <input id="range-from" inputMode="numeric" value={from} onChange={(e) => setFrom(e.target.value)} className={field} />
-            </div>
-            <div className="min-w-0">
-              <label htmlFor="range-to" className={label}>To</label>
-              <input id="range-to" inputMode="numeric" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
-            </div>
-            <div className="col-span-2 min-w-0 sm:col-span-1">
-              <label htmlFor="range-name" className={label}>Competency</label>
-              <input
-                id="range-name"
-                list="competency-options"
-                value={rangeName}
-                onChange={(e) => setRangeName(e.target.value)}
-                placeholder="Fractions"
-                className={field}
-              />
-              <datalist id="competency-options">
-                {competencySuggestions.map((n) => <option key={n} value={n} />)}
-              </datalist>
-            </div>
-            <button type="button" onClick={applyRange} className={`${btnSecondary} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
-              Apply
-            </button>
+          <p className={`text-sm ${muted}`}>Add a competency for each item range, such as 1 to 10 Addition, 11 to 20 Subtraction, 21 to 30 Multiplication, and 31 to 50 Division.</p>
+          <div className="mt-3 space-y-3">
+            {ranges.map((row, index) => <div key={index} className="grid grid-cols-2 items-end gap-2 rounded-xl border border-[#E8DFCA] bg-white p-3 sm:grid-cols-[5rem_5rem_minmax(0,1fr)_auto]">
+              <div><label htmlFor={`range-from-${index}`} className={label}>From</label><input id={`range-from-${index}`} aria-label={`Range ${index + 1} from`} type="number" min="1" max={items.length} step="1" value={row.from} onChange={e => updateRange(index, 'from', e.target.value)} className={field} /></div>
+              <div><label htmlFor={`range-to-${index}`} className={label}>To</label><input id={`range-to-${index}`} aria-label={`Range ${index + 1} to`} type="number" min="1" max={items.length} step="1" value={row.to} onChange={e => updateRange(index, 'to', e.target.value)} className={field} /></div>
+              <div className="col-span-2 min-w-0 sm:col-span-1"><label htmlFor={`range-name-${index}`} className={label}>Competency</label><input id={`range-name-${index}`} aria-label={`Range ${index + 1} competency`} list="competency-options" value={row.name} onChange={e => updateRange(index, 'name', e.target.value)} placeholder="Addition" className={field} /></div>
+              <button type="button" aria-label={`Remove range ${index + 1}`} onClick={() => { setRanges(rows => rows.filter((_, i) => i !== index)); setRangeError(''); setRangeNotice(''); }} className={`${btnQuiet} col-span-2 sm:col-span-1`}>Remove</button>
+            </div>)}
           </div>
-        </div>
-      </details>
-
-      <details className="rounded-2xl border border-[#E8DFCA]">
-        <summary className={summaryClass}>
-          Set points for an item range
-          <ChevronDown className={chevron} aria-hidden />
-        </summary>
-        <div className="border-t border-[#E8DFCA] p-4">
-          <p className={`text-sm ${muted}`}>Apply the same points to every item in the range, such as items 46 to 50.</p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[5rem_5rem_7rem_auto] sm:items-end">
-            <div className="min-w-0">
-              <label htmlFor="points-from" className={label}>From</label>
-              <input id="points-from" type="number" min="1" max={items.length} step="1" value={pointsFrom} onChange={(e) => setPointsFrom(e.target.value)} className={field} />
-            </div>
-            <div className="min-w-0">
-              <label htmlFor="points-to" className={label}>To</label>
-              <input id="points-to" type="number" min="1" max={items.length} step="1" placeholder={pointsFrom} value={pointsTo} onChange={(e) => setPointsTo(e.target.value)} className={field} />
-            </div>
-            <div className="min-w-0">
-              <label htmlFor="range-points" className={label}>Points each</label>
-              <input id="range-points" type="number" min="0.25" max="100" step="0.25" value={rangePoints} onChange={(e) => setRangePoints(e.target.value)} className={field} />
-            </div>
-            <button type="button" onClick={applyPointsRange} className={`${btnSecondary} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
-              Apply points
-            </button>
+          <datalist id="competency-options">{competencySuggestions.map(name => <option key={name} value={name} />)}</datalist>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setRanges(rows => [...rows, { from: String(Number(rows.at(-1)?.to || 0) + 1), to: '', name: '' }]); setRangeNotice(''); }} className={btnSecondary}>Add range</button>
+            <button type="button" onClick={applyRanges} className={btnSecondary}>Apply ranges</button>
           </div>
-          {pointsError ? <p role="alert" className="mt-2 text-sm text-[#9B2C2C]">{pointsError}</p> : null}
+          <p className={`mt-2 text-xs ${muted}`}>Applying replaces the competency ranges for this key. Items outside these ranges will have no competency. Remove all ranges and apply to clear them.</p>
+          {rangeError && <p role="alert" className="mt-2 text-sm text-[#9B2C2C]">{rangeError}</p>}
+          {rangeNotice && <p role="status" className="mt-2 text-sm text-[#1A4D2E]">{rangeNotice}</p>}
         </div>
       </details>
 
@@ -245,7 +208,7 @@ export function AnswerKeyEditor({ format, choices, items, onChange, competencySu
             <li
               key={item.itemNumber}
               className={`mb-2 flex break-inside-avoid flex-nowrap items-center gap-2 rounded-xl border p-2 sm:gap-3 ${
-                item.answer === "" ? "border-[#E0B14C] bg-[#FFF8E6]" : "border-[#E8DFCA] bg-white"
+                item.answer === "" ? "border-[#C83C3C] bg-white" : "border-[#E8DFCA] bg-white"
               }`}
             >
               <span className="w-6 shrink-0 text-center text-base font-semibold text-[#4F6F52] sm:w-8">{item.itemNumber}</span>

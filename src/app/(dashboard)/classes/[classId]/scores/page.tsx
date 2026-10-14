@@ -80,7 +80,7 @@ export default async function RecordScoresPage({
 
   return (
     <div className="min-w-0 w-full space-y-6">
-      <Link href={`/classes/${classId}`} className="tc-button tc-quiet max-md:-ml-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]">
+      <Link href={`/classes/${classId}`} className="tc-button tc-quiet -ml-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#4F6F52]">
         <ArrowLeft size={16} /> Back to class
       </Link>
 
